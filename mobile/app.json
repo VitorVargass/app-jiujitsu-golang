@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Tatame",
+    "slug": "tatame-jiujitsu",
+    "scheme": "tatame",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "android": {
+      "package": "com.tatame.jiujitsu",
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir que o Tatame leia o QR Code do aluno.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "./plugins/withShortAndroidPaths"
+    ],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

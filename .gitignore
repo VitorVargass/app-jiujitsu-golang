@@ -1,0 +1,12 @@
+.tools/
+.env
+backend/.env
+mobile/.env
+node_modules/
+.expo/
+dist/
+android/
+ios/
+*.exe
+*.log
+artifacts/
