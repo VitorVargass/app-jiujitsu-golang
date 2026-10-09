@@ -229,7 +229,7 @@ func TestMVP(t *testing.T) {
 	schedule2 := admin.ok("POST", prefix+"/classes/"+cid+"/schedules", map[string]any{"weekday": int(time.Now().In(loc).Weekday()), "start_time": "20:00", "duration_minutes": 60})
 	cancelled := teacher.ok("POST", prefix+"/classes/"+cid+"/sessions", map[string]string{"schedule_id": schedule2["id"].(string)})
 	teacher.ok("PATCH", prefix+"/sessions/"+cancelled["id"].(string), map[string]string{"status": "cancelled"})
-	if status, _ := teacher.request("POST", prefix+"/sessions/"+cancelled["id"].(string)+"/check-ins", body, core.ID()); status != 409 {
+	if status, _ := teacher.request("POST", prefix+"/sessions/"+cancelled["id"].(string)+"/check-ins", body, core.ID()); status != 403 {
 		t.Fatalf("cancelled session: %d", status)
 	}
 	logoutSession := base.ok("POST", "/v1/auth/login", map[string]string{"email": getEmail(t, db, student.token), "password": "Tatame123!"})

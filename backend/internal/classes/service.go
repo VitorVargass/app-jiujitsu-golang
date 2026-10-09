@@ -31,12 +31,30 @@ func (s Service) Save(ctx context.Context, a, id string, in ClassInput) (Class, 
 		return Class{}, err
 	}
 	in.Name = strings.TrimSpace(in.Name)
+	if in.ModalityID != "" {
+		var ok bool
+		if !core.ValidID(in.ModalityID) {
+			return Class{}, core.E(422, "invalid_modality", "Modalidade inválida.")
+		}
+		if err := s.Repo.DB.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM modalities WHERE academy_id=$1 AND id=$2 AND active)", a, in.ModalityID).Scan(&ok); err != nil {
+			return Class{}, err
+		}
+		if !ok {
+			return Class{}, core.E(422, "invalid_modality", "Selecione uma modalidade ativa desta academia.")
+		}
+	} else if id == "" {
+		if err := s.Repo.DB.QueryRow(ctx, "SELECT id FROM modalities WHERE academy_id=$1 AND active ORDER BY name LIMIT 1", a).Scan(&in.ModalityID); err != nil {
+			return Class{}, core.E(422, "invalid_modality", "Cadastre uma modalidade ativa.")
+		}
+	}
 	if id == "" {
 		if len(in.Name) < 2 || len(in.Name) > 100 {
 			return Class{}, core.E(422, "invalid_name", "Informe o nome da turma.")
 		}
-		if err := s.Teacher(ctx, a, in.TeacherID); err != nil {
-			return Class{}, err
+		if in.TeacherID != "" {
+			if err := s.Teacher(ctx, a, in.TeacherID); err != nil {
+				return Class{}, err
+			}
 		}
 		return s.Repo.CreateClass(ctx, a, in)
 	}
@@ -47,8 +65,10 @@ func (s Service) Save(ctx context.Context, a, id string, in ClassInput) (Class, 
 		return Class{}, core.E(422, "invalid_name", "Nome inválido.")
 	}
 	if in.TeacherID != "" {
-		if err := s.Teacher(ctx, a, in.TeacherID); err != nil {
-			return Class{}, err
+		if in.TeacherID != "" {
+			if err := s.Teacher(ctx, a, in.TeacherID); err != nil {
+				return Class{}, err
+			}
 		}
 	}
 	return s.Repo.UpdateClass(ctx, a, id, in)

@@ -17,6 +17,7 @@ type Result struct {
 }
 type History struct {
 	ID          string    `json:"id"`
+	StudentID   string    `json:"student_id"`
 	SessionID   string    `json:"session_id"`
 	ClassName   string    `json:"class_name"`
 	StudentName string    `json:"student_name"`

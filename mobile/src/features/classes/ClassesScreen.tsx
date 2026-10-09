@@ -3,7 +3,7 @@ import { Redirect, router } from "expo-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, academyPath } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
-import { AcademyShell } from "../shared/AcademyShell";
+import { AcademyShell, RoleGate } from "../shared/AcademyShell";
 import {
   Card,
   Heading,
@@ -17,8 +17,41 @@ import {
   Empty,
 } from "../../components/ui";
 import { Class, Member, Schedule } from "../../types";
+import { Catalog } from "../../types/billing";
 import { weekdays } from "../../theme";
 
+function ModalityPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const { academy } = useSession();
+  const list = useQuery({
+    queryKey: ["modalities", academy!.id],
+    queryFn: () => api<Catalog[]>(academyPath(academy!.id, "/modalities")),
+  });
+  return (
+    <>
+      <Label>Modalidade</Label>
+      <Notice message={list.error?.message} />
+      <Row>
+        {list.data
+          ?.filter((m) => m.active)
+          .map((m) => (
+            <Chip
+              key={m.id}
+              selected={value === m.id}
+              onPress={() => onChange(m.id)}
+            >
+              {m.name}
+            </Chip>
+          ))}
+      </Row>
+    </>
+  );
+}
 function TeacherPicker({
   value,
   onChange,
@@ -37,11 +70,14 @@ function TeacherPicker({
     ) ?? [];
   return (
     <>
-      <Label>Professor responsável</Label>
+      <Label>Professor responsável (opcional)</Label>
       {members.isPending ? (
         <Loading />
       ) : (
         <Row>
+          <Chip selected={!value} onPress={() => onChange("")}>
+            Sem professor
+          </Chip>
           {teachers.map((m) => (
             <Chip
               key={m.id}
@@ -55,7 +91,7 @@ function TeacherPicker({
       )}
       <Notice message={members.error?.message} />
       {members.data && !teachers.length && (
-        <Label muted>Aprove um professor antes de criar a turma.</Label>
+        <Label muted>Você pode criar a turma sem professor vinculado.</Label>
       )}
     </>
   );
@@ -113,6 +149,7 @@ function ClassCard({ item }: { item: Class }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.name);
   const [teacher, setTeacher] = useState(item.teacher_membership_id);
+  const [modality, setModality] = useState(item.modality_id);
   const schedules = useQuery({
     queryKey: ["schedules", a.id, item.id],
     queryFn: () =>
@@ -151,7 +188,10 @@ function ClassCard({ item }: { item: Class }) {
         {item.name}
         {!item.active ? " • Inativa" : ""}
       </Heading>
-      <Label muted>{item.teacher_name}</Label>
+      <Label muted>
+        {item.modality_name}
+        {item.teacher_name ? " • " + item.teacher_name : ""}
+      </Label>
       {schedules.isPending ? (
         <Loading />
       ) : schedules.error ? (
@@ -200,11 +240,17 @@ function ClassCard({ item }: { item: Class }) {
                 autoCapitalize="words"
               />
               <TeacherPicker value={teacher} onChange={setTeacher} />
+              <ModalityPicker value={modality} onChange={setModality} />
               <Button
-                disabled={!name.trim() || !teacher}
+                disabled={!name.trim() || !modality}
                 loading={save.isPending}
                 onPress={() =>
-                  save.mutate({ name, teacher_membership_id: teacher })
+                  save.mutate({
+                    name,
+                    teacher_membership_id: teacher,
+                    modality_id: modality,
+                    clear_teacher: !teacher,
+                  })
                 }
               >
                 Salvar turma
@@ -224,6 +270,7 @@ function Content() {
   const a = academy!;
   const [name, setName] = useState("");
   const [teacher, setTeacher] = useState("");
+  const [modality, setModality] = useState("");
   const list = useQuery({
     queryKey: ["classes", a.id],
     queryFn: () => api<Class[]>(academyPath(a.id, "/classes")),
@@ -232,7 +279,7 @@ function Content() {
     mutationFn: () =>
       api<Class>(academyPath(a.id, "/classes"), {
         method: "POST",
-        body: { name, teacher_membership_id: teacher },
+        body: { name, teacher_membership_id: teacher, modality_id: modality },
       }),
     onSuccess: () => {
       setName("");
@@ -255,6 +302,7 @@ function Content() {
             autoCapitalize="words"
           />
           <TeacherPicker value={teacher} onChange={setTeacher} />
+          <ModalityPicker value={modality} onChange={setModality} />
           <Notice message={create.error?.message} />
           {create.isSuccess && (
             <Notice
@@ -263,7 +311,7 @@ function Content() {
             />
           )}
           <Button
-            disabled={!teacher || !name.trim()}
+            disabled={!modality || !name.trim()}
             loading={create.isPending}
             onPress={() => create.mutate()}
           >
@@ -287,5 +335,9 @@ export default function ClassesScreen() {
   const { academy, session } = useSession();
   if (session?.kind === "device") return <Redirect href="/kiosk" />;
   if (!academy) return <Redirect href="/onboarding" />;
-  return <Content />;
+  return (
+    <RoleGate role="admin">
+      <Content />
+    </RoleGate>
+  );
 }

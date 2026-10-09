@@ -12,6 +12,7 @@ import (
 	"tatame/backend/internal/core"
 	"tatame/backend/internal/database"
 	"tatame/backend/internal/memberships"
+	"tatame/backend/internal/students"
 	"time"
 	_ "time/tzdata"
 )
@@ -55,6 +56,37 @@ func main() {
 				must(ms.Repo.Decide(admin, a.ID, q.ID, "approved"))
 			}
 		}
+		ss := students.Service{Repo: students.Repository{DB: db}, Access: access.Service{DB: db}}
+		mods, err := ss.Repo.Catalog(ctx, a.ID, false)
+		must(err)
+		plans, err := ss.Repo.Catalog(ctx, a.ID, true)
+		must(err)
+		if len(plans) == 0 {
+			modalityIDs := []string{}
+			for _, md := range mods {
+				modalityIDs = append(modalityIDs, md.ID)
+			}
+			_, err = ss.SaveCatalog(admin, a.ID, "", students.Catalog{Name: "Essencial", Active: true, AmountCents: 20000, Modalities: modalityIDs}, true)
+			must(err)
+		}
+		for _, email := range []string{"aluno@tatame.demo", "ana@tatame.demo"} {
+			studentID, err := ss.Repo.OwnID(ctx, a.ID, users[email])
+			must(err)
+			profile, err := ss.Repo.Get(ctx, a.ID, studentID)
+			must(err)
+			// Configure demonstration billing only once; reruns preserve edited profiles/invoices.
+			if profile.Billing == nil {
+				modalityIDs := []string{}
+				for _, md := range mods {
+					modalityIDs = append(modalityIDs, md.ID)
+				}
+				loc, err := time.LoadLocation("America/Sao_Paulo")
+				must(err)
+				_, err = ss.Save(admin, a.ID, studentID, students.Input{Name: profile.Name, Email: profile.Email, Status: profile.Status, Belt: profile.Belt, Modalities: modalityIDs,
+					Billing: &students.Billing{Enabled: true, AmountCents: 20000, DueDay: 10, FirstMonth: time.Now().In(loc).Format("2006-01"), PayerName: profile.Name, PayerDocument: "52998224725"}})
+				must(err)
+			}
+		}
 		teacher, err := cs.Access.Membership(ctx, a.ID, users["professor@tatame.demo"])
 		must(err)
 		var cid string
@@ -80,7 +112,7 @@ func main() {
 		}
 		fmt.Printf("%s | código: %s\n", a.Name, a.Code)
 	}
-	fmt.Println("Contas: gestor@tatame.demo, professor@tatame.demo, aluno@tatame.demo, ana@tatame.demo | senha de demonstração: Tatame123!")
+	fmt.Println("Contas: gestor@tatame.demo, aluno@tatame.demo, ana@tatame.demo | senha de demonstração: Tatame123! | Pix desabilitado sem configuração Asaas.")
 }
 func must(e error) {
 	if e != nil {

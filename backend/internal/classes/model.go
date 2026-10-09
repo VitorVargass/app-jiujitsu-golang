@@ -3,16 +3,20 @@ package classes
 import "time"
 
 type Class struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	TeacherID   string `json:"teacher_membership_id"`
-	TeacherName string `json:"teacher_name"`
-	Active      bool   `json:"active"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	TeacherID    string `json:"teacher_membership_id"`
+	TeacherName  string `json:"teacher_name"`
+	ModalityID   string `json:"modality_id"`
+	ModalityName string `json:"modality_name"`
+	Active       bool   `json:"active"`
 }
 type ClassInput struct {
-	Name      string `json:"name"`
-	TeacherID string `json:"teacher_membership_id"`
-	Active    *bool  `json:"active"`
+	Name         string `json:"name"`
+	TeacherID    string `json:"teacher_membership_id"`
+	Active       *bool  `json:"active"`
+	ModalityID   string `json:"modality_id"`
+	ClearTeacher bool   `json:"clear_teacher"`
 }
 type Schedule struct {
 	ID        string `json:"id"`

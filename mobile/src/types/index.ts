@@ -31,6 +31,8 @@ export type Class = {
   name: string;
   teacher_membership_id: string;
   teacher_name: string;
+  modality_id: string;
+  modality_name: string;
   active: boolean;
 };
 export type Schedule = {
@@ -71,6 +73,8 @@ export type Dashboard = {
   presences_today: number;
   presences_month: number;
   active_students: number;
+  received_month_cents: number;
+  open_cents: number;
   week: { date: string; count: number }[];
 };
 export type Device = { id: string; name: string; active: boolean };

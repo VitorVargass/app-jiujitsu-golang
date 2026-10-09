@@ -44,7 +44,7 @@ try {
  if ($taskResolved.StartsWith($taskDrive+'ttm',[StringComparison]::OrdinalIgnoreCase) -and
      (Split-Path -Parent $taskResolved) -eq $taskDrive -and
      (Get-Content -LiteralPath (Join-Path $taskResolved '.tatame-build-owner') -Raw) -eq $taskRoot) {
-  Remove-Item -LiteralPath $taskResolved -Recurse -Force
+  try { Remove-Item -LiteralPath ('\\?\'+$taskResolved) -Recurse -Force } catch { Write-Warning ('APK gerado. A limpeza da pasta temporária verificada falhou: '+$taskResolved) }
  }
  if ($taskOwnMapping) {subst.exe T: /d}
 }

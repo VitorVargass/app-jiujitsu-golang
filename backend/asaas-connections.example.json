@@ -1,0 +1,10 @@
+[
+  {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "academy_id": "22222222-2222-4222-8222-222222222222",
+    "environment": "sandbox",
+    "base_url": "https://api-sandbox.asaas.com/v3",
+    "api_key": "SUBSTITUA_PELA_CHAVE_DA_CONTA_ASAAS_DA_ACADEMIA",
+    "webhook_token": "SUBSTITUA_POR_SEGREDO_ALEATORIO_COM_32_A_255_CARACTERES"
+  }
+]

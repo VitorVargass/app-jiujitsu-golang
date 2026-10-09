@@ -17,6 +17,8 @@ import (
 	"tatame/backend/internal/core"
 	"tatame/backend/internal/devices"
 	"tatame/backend/internal/memberships"
+	"tatame/backend/internal/payments"
+	"tatame/backend/internal/students"
 	"time"
 )
 
@@ -58,6 +60,9 @@ func (l *limiter) Allow(ip string) bool {
 	return b.Count <= 20
 }
 func New(db *pgxpool.Pool, origins string) http.Handler {
+	return NewWithPayments(db, origins, payments.New(db, nil))
+}
+func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) http.Handler {
 	s := &Server{db: db, access: access.Service{DB: db}, origins: map[string]bool{}, limiter: &limiter{items: map[string]bucket{}}}
 	for _, o := range strings.Split(origins, ",") {
 		s.origins[strings.TrimSpace(o)] = true
@@ -68,6 +73,8 @@ func New(db *pgxpool.Pool, origins string) http.Handler {
 	c := classes.Handler{Service: classes.Service{Repo: classes.Repository{DB: db}, Access: s.access}}
 	p := attendance.Handler{Service: attendance.Service{Repo: attendance.Repository{DB: db}, Access: s.access}}
 	d := devices.Handler{Service: devices.Service{Repo: devices.Repository{DB: db}, Access: s.access}}
+	st := students.Handler{Service: students.Service{Repo: students.Repository{DB: db}, Access: s.access}}
+	bankHandler := payments.Handler{Manager: bank}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -108,6 +115,28 @@ func New(db *pgxpool.Pool, origins string) http.Handler {
 	protected("GET "+base+"/devices", d.List)
 	protected("DELETE "+base+"/devices/{device}", d.Revoke)
 	protected("GET "+base+"/dashboard", s.dashboard)
+	protected("GET "+base+"/students", st.List)
+	protected("POST "+base+"/students", st.Save)
+	protected("GET "+base+"/students/{student}", st.Get)
+	protected("PATCH "+base+"/students/{student}", st.Save)
+	protected("POST "+base+"/students/{student}/invitations", st.Invitation)
+	protected("DELETE "+base+"/students/{student}/invitations", st.Invitation)
+	protected("POST /v1/invitations/{token}/accept", st.Accept)
+	protected("GET "+base+"/me/student", st.Own)
+	for _, catalog := range []string{"modalities", "plans"} {
+		fn := st.Catalog(catalog == "plans")
+		protected("GET "+base+"/"+catalog, fn)
+		protected("POST "+base+"/"+catalog, fn)
+		protected("PATCH "+base+"/"+catalog+"/{item}", fn)
+	}
+	protected("GET "+base+"/invoices", bankHandler.List)
+	protected("GET "+base+"/me/invoices", bankHandler.List)
+	protected("GET "+base+"/invoices/{invoice}", bankHandler.Get)
+	protected("POST "+base+"/invoices/{invoice}/pix", bankHandler.Pix)
+	protected("PATCH "+base+"/invoices/{invoice}/cancel", bankHandler.Cancel)
+	protected("GET "+base+"/payment-integration", bankHandler.Status)
+	protected("GET "+base+"/attendances", p.All)
+	mux.HandleFunc("POST /v1/webhooks/asaas/{connection}/pix", bankHandler.Webhook)
 	mux.HandleFunc("GET /openapi.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(openAPI)
@@ -131,12 +160,16 @@ func (s *Server) rate(h http.HandlerFunc) http.HandlerFunc {
 func (s *Server) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
+		path := r.URL.Path
+		if strings.Contains(path, "/invitations/") {
+			path = "/v1/invitations/[redacted]"
+		}
 		defer func() {
 			if v := recover(); v != nil {
-				slog.Error("request panic", "path", r.URL.Path, "error", v)
+				slog.Error("request panic", "path", path, "error", v)
 				core.Fail(w, core.E(500, "internal_error", "Não foi possível concluir a operação."))
 			}
-			slog.Info("request", "method", r.Method, "path", r.URL.Path, "duration_ms", time.Since(started).Milliseconds())
+			slog.Info("request", "method", r.Method, "path", path, "duration_ms", time.Since(started).Milliseconds())
 		}()
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "no-store")

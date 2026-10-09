@@ -70,7 +70,7 @@ func (s Service) Class(ctx context.Context, a, c string) (Membership, error) {
 		return m, core.E(404, "not_found", "Turma não encontrada.")
 	}
 	var teacher string
-	if e = s.DB.QueryRow(ctx, "SELECT teacher_membership_id FROM classes WHERE academy_id=$1 AND id=$2", a, c).Scan(&teacher); e != nil {
+	if e = s.DB.QueryRow(ctx, "SELECT COALESCE(teacher_membership_id::text,'') FROM classes WHERE academy_id=$1 AND id=$2", a, c).Scan(&teacher); e != nil {
 		return m, core.E(404, "not_found", "Turma não encontrada.")
 	}
 	if !Has(m.Roles, "admin") && teacher != m.ID {

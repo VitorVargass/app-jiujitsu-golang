@@ -1,48 +1,35 @@
-# Arquitetura e roteiro de estudo
+# Arquitetura do Tatame
 
-## Uma conta, vários vínculos
-users é a pessoa. academies é a organização. memberships é o vínculo entre elas, com status e faixa atual. membership_roles concede papéis no vínculo; uma pessoa pode ser aluno numa academia e professor em outra. Criar uma academia concede apenas a gestão da academia criada.
+Uma API Go organizada em funcionalidades e um aplicativo Expo/React Native com versão web. O backend recebe HTTP com net/http, aplica regras e executa SQL parametrizado pelo pgx. PostgreSQL mantém a integridade entre academias. Migrações Goose ficam incorporadas no executável.
 
-Solicitações de aluno e professor entram em membership_requests. Um botão ou rota no frontend nunca concede permissão; a API consulta o vínculo ativo e os papéis.
+## Contas, academias e alunos
 
-## Caminho de um check-in
-1. A tela de tablet em mobile/src/features/kiosk cria um UUID de tentativa.
-2. services/api envia o token do dispositivo, Idempotency-Key e a identificação do aluno.
-3. httpapi registra a rota. auth verifica a credencial e põe um Principal no context.
-4. attendance.Handler decodifica o JSON; attendance.Service valida a entrada e autorização do responsável.
-5. attendance.Repository.Record abre a transação. As verificações de estado que precisam ser atômicas, como aula aberta e vínculo ativo, ocorrem dentro dessa operação.
-6. PostgreSQL protege unicidade e relacionamentos por academia.
-7. O resultado volta em JSON. A tela só apresenta Presença registrada após a resposta.
+users e auth_sessions representam login pessoal. academies e memberships representam academias e papéis de acesso. students representa a pessoa matriculada na academia, podendo existir sem user_id. O aceite de convite associa uma conta e adiciona o papel de aluno sem criar uma segunda pessoa no histórico.
 
-Use esse fluxo para estudar context.Context, structs, métodos, ponteiros, erros, net/http, interfaces do pgx e transações. Comece pelo módulo attendance e pelos seus testes de integração.
+Convites armazenam somente hash do token, validade de sete dias, revogação e aceite único em transação. Os logs de requisição ocultam o token da rota. A tela pública mantém seu destino ao encaminhar para login/cadastro.
 
-## Dois identificadores, dois problemas
-Idempotency-Key identifica uma tentativa. Se a resposta se perder, reenviar a mesma tentativa devolve o resultado gravado.
+Dados pertencem a uma academia. Consultas sempre usam academy_id e relações financeiras, modalidades e presenças usam chaves estrangeiras compostas. Alunos só leem os dados vinculados à própria conta. Cadastros inativos conservam consulta de mensalidades e histórico; somente dispositivos registram presença.
 
-A restrição UNIQUE(academy_id,session_id,membership_id) identifica uma presença. Dois tablets podem gerar tentativas diferentes e ainda assim convergir para a mesma presença.
+## Mensalidades
 
-O bloqueio consultivo do PostgreSQL serializa reenvios do mesmo evento. A presença e o resultado do evento são gravados na mesma transação. A chave não pode ser reaproveitada com outro corpo.
+student_billing configura um único total, dia do vencimento, próximo mês e pagador por aluno. plans sugere valor/modalidades sem obrigar vínculo.
 
-## Turma, horário e aula
-classes guarda modalidade/nome e professor responsável. class_schedules guarda os horários semanais. class_sessions é a ocorrência de um horário em uma data.
+GenerateTx bloqueia configuração e aluno durante a geração. A restrição academia/aluno/competência evita duplicação entre instâncias. Ao editar, a API gera competências já devidas com a configuração anterior e preserva cada invoice emitida. Próximas emissões usam a configuração nova. O worker roda ao iniciar e a cada minuto, recuperando interrupções enquanto a cobrança estiver ativa.
 
-O professor abre a aula do dia, e a API materializa sua ocorrência sem duplicar. A aula encerrada não pode ser reaberta por repetir o pedido. Qualquer aluno ativo da academia pode participar.
+Os valores são inteiros em centavos; conversão para o provedor usa decimal exato. Vencimentos são datas da academia, enquanto aulas e presenças usam timestamptz em UTC e são apresentadas em seu fuso. O fuso inicial é America/Sao_Paulo.
 
-Datas de ocorrência são gravadas em UTC. A semana e as datas dos dashboards respeitam o fuso da academia.
+## Asaas
 
-## Sessões e tablet
-O token opaco contém aleatoriedade, não papéis. Seu hash fica no banco; a credencial pessoal expira em 30 dias e pode ser revogada.
+Configuração privada por academia é carregada de um arquivo JSON no servidor. O cliente HTTP usa access_token e timeout. Nenhuma credencial é entregue ao aplicativo.
 
-O QR identifica o vínculo do aluno. Ele não autoriza uma chamada à API. Quem registra a presença precisa de uma sessão de professor/gestor autorizado ou credencial ativa de tablet daquela academia.
+pix_charges reserva a externalReference antes de criar o Pix. Operações de emissão/cancelamento têm bloqueio temporário por mensalidade no PostgreSQL. A restrição de cobrança atual e o estado creating/uncertain impedem emissões duplicadas em reenvios ou perda de resposta.
 
-Provisionar um tablet revoga a sessão pessoal usada no provisionamento na mesma transação. O token do tablet consulta somente aulas abertas e registra check-in. O gestor pode revogá-lo.
+O webhook verifica asaas-access-token e busca o pagamento na conta da academia. Repository.Apply compara referência, identificador, tipo PIX e valor antes de registrar payment_receipts e dar baixa na mesma transação. Notificações repetidas/outros eventos consultam o estado atual. O worker reconcilia cobranças independentemente do webhook.
 
-## Frontend
-Expo Router organiza as rotas; cada arquivo de rota apresenta uma tela de features. TanStack Query compartilha consultas e invalida resultados após alterações. O cache é limpo ao trocar sessão ou academia.
+## Tablet
 
-SecureStore guarda a credencial no Android. O preview web usa sessionStorage apenas para testes. A seleção de academia é refeita após recarregar o app, permitindo consultar os vínculos atuais.
+Ativar dispositivo revoga a sessão pessoal daquele aparelho. O token do tablet permite consultar aulas abertas e registrar identificação por QR/código na sua academia.
 
-O dashboard aceita role quando o usuário deseja consultar um papel específico; a API verifica se esse papel foi concedido.
+O check-in bloqueia dispositivo, aula e aluno para verificar revogação, encerramento e inativação. Presença e resultado idempotente são gravados juntos. Cada academia/aula/aluno tem uma única presença; duas tentativas concorrentes retornam o registro existente. Reusar a mesma chave com dados diferentes é recusado.
 
-## Extensões futuras
-O estudo offline está em OFFLINE.md e no laboratório tools/offline-lab. Pagamentos, recuperação de conta, graduação e publicação exigem novas regras e integrações; não estão misturados aos fluxos do MVP.
+As APIs legadas de vínculos/papéis permanecem para compatibilidade e registros anteriores. A nova navegação não apresenta solicitações nem uma área de professor. O frontend não decide autorização: o backend verifica acesso em todas as operações.

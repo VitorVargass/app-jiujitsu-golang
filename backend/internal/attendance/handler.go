@@ -3,6 +3,8 @@ package attendance
 import (
 	"net/http"
 	"tatame/backend/internal/core"
+	"tatame/backend/internal/students"
+	"time"
 )
 
 type Handler struct{ Service Service }
@@ -27,47 +29,102 @@ func (h Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var c string
-	err := h.Service.Repo.SessionClass(r.Context(), a, id, &c)
-	if err != nil {
-		core.Fail(w, err)
+	if e := h.Service.Repo.SessionClass(r.Context(), a, id, &c); e != nil {
+		core.Fail(w, e)
 		return
 	}
 	if _, e := h.Service.Access.Class(r.Context(), a, c); e != nil {
 		core.Fail(w, e)
 		return
 	}
-	v, e := h.Service.Repo.History(r.Context(), a, id, "")
-	if e != nil {
+	h.history(w, r, id, "")
+}
+func (h Handler) All(w http.ResponseWriter, r *http.Request) {
+	if _, e := h.Service.Access.Require(r.Context(), r.PathValue("academy"), "admin"); e != nil {
 		core.Fail(w, e)
 		return
 	}
-	core.Write(w, 200, v)
+	sid := r.URL.Query().Get("student_id")
+	if sid != "" && !core.ValidID(sid) {
+		core.Fail(w, core.E(422, "invalid_student", "Aluno inválido."))
+		return
+	}
+	h.history(w, r, "", sid)
 }
 func (h Handler) Own(w http.ResponseWriter, r *http.Request) {
-	a := r.PathValue("academy")
-	m, e := h.Service.Access.Require(r.Context(), a, "student")
+	u := core.P(r.Context()).UserID
+	if u == "" {
+		core.Fail(w, core.E(403, "forbidden", "Conta pessoal necessária."))
+		return
+	}
+	id, e := (students.Repository{DB: h.Service.Repo.DB}).OwnID(r.Context(), r.PathValue("academy"), u)
 	if e != nil {
 		core.Fail(w, e)
 		return
 	}
-	v, e := h.Service.Repo.History(r.Context(), a, "", m.ID)
+	h.history(w, r, "", id)
+}
+func (h Handler) history(w http.ResponseWriter, r *http.Request, session, student string) {
+	a := r.PathValue("academy")
+	month := r.URL.Query().Get("month")
+	cid := r.URL.Query().Get("class_id")
+	if month != "" {
+		if _, e := time.Parse("2006-01", month); e != nil {
+			core.Fail(w, e)
+			return
+		}
+	}
+	if cid != "" && !core.ValidID(cid) {
+		core.Fail(w, core.E(422, "invalid_class", "Turma inválida."))
+		return
+	}
+	page, size, e := core.Pagination(r)
 	if e != nil {
 		core.Fail(w, e)
+		return
+	}
+	v, e := h.Service.Repo.PagedHistory(r.Context(), a, session, student, month, cid, page, size)
+	if e != nil {
+		core.Fail(w, e)
+		return
+	}
+	if r.URL.Query().Get("page") == "" && session != "" {
+		core.Write(w, 200, v.Items)
+		return
+	}
+	if r.URL.Query().Get("page") == "" && month == "" && cid == "" && student != "" {
+		old, e := h.Service.Repo.History(r.Context(), a, session, student)
+		if e != nil {
+			core.Fail(w, e)
+			return
+		}
+		core.Write(w, 200, old)
 		return
 	}
 	core.Write(w, 200, v)
 }
 func (h Handler) Credential(w http.ResponseWriter, r *http.Request) {
 	a := r.PathValue("academy")
-	m, e := h.Service.Access.Require(r.Context(), a, "student")
+	u := core.P(r.Context()).UserID
+	if u == "" {
+		core.Fail(w, core.E(403, "forbidden", "Conta pessoal necessária."))
+		return
+	}
+	repo := students.Repository{DB: h.Service.Repo.DB}
+	id, e := repo.OwnID(r.Context(), a, u)
 	if e != nil {
 		core.Fail(w, e)
 		return
 	}
-	code, qr, e := h.Service.Repo.Credential(r.Context(), a, m.ID)
+	st, e := repo.Get(r.Context(), a, id)
 	if e != nil {
 		core.Fail(w, e)
 		return
 	}
-	core.Write(w, 200, map[string]string{"student_code": code, "qr_token": "tatame:" + qr, "student_name": m.Name, "belt": m.Belt})
+	code, qr, e := h.Service.Repo.Credential(r.Context(), a, id)
+	if e != nil {
+		core.Fail(w, e)
+		return
+	}
+	core.Write(w, 200, map[string]string{"student_code": code, "qr_token": "tatame:" + qr, "student_name": st.Name, "belt": st.Belt, "status": st.Status})
 }

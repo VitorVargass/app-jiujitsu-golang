@@ -24,6 +24,11 @@ func (repo Repository) Create(ctx context.Context, u string, in CreateInput) (Ac
 	if _, e = tx.Exec(ctx, "INSERT INTO membership_roles VALUES($1,'admin')", a.MembershipID); e != nil {
 		return a, e
 	}
+	for _, name := range []string{"Jiu-Jitsu", "No-Gi", "Muay Thai"} {
+		if _, e = tx.Exec(ctx, "INSERT INTO modalities(id,academy_id,name) VALUES($1,$2,$3)", core.ID(), a.ID, name); e != nil {
+			return a, e
+		}
+	}
 	return a, tx.Commit(ctx)
 }
 func stringsCode() string { return core.Token()[:10] }

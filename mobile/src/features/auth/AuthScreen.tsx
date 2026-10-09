@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { router } from "expo-router";
+import { router, useLocalSearchParams, Href } from "expo-router";
+import { safeNext } from "../../services/links";
 import {
   Page,
   Card,
@@ -20,6 +21,8 @@ export default function AuthScreen({
   register?: boolean;
 }) {
   const { login } = useSession();
+  const { next } = useLocalSearchParams<{ next?: string }>();
+  const destination = safeNext(next);
   const [name, setName] = useState(""),
     [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
@@ -38,7 +41,7 @@ export default function AuthScreen({
         },
       );
       await login(data);
-      router.replace("/onboarding");
+      router.replace(destination as Href);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -52,7 +55,7 @@ export default function AuthScreen({
       }
       subtitle={
         register
-          ? "Uma conta para treinar, ensinar e cuidar da sua academia."
+          ? "Crie sua conta para gerenciar a academia ou aceitar seu convite."
           : "Mais presença. Mais evolução. Entre para continuar."
       }
     >
@@ -63,7 +66,7 @@ export default function AuthScreen({
         </Row>
         <Heading>Seu tatame, conectado.</Heading>
         <Label muted>
-          Acompanhe suas aulas e mantenha sua presença em dia.
+          Gestão da academia, mensalidades e presença em um só lugar.
         </Label>
       </Card>
       {register && (
@@ -100,13 +103,18 @@ export default function AuthScreen({
       </Button>
       <Button
         secondary
-        onPress={() => router.replace(register ? "/login" : "/register")}
+        onPress={() =>
+          router.replace({
+            pathname: register ? "/login" : "/register",
+            params: { next: destination },
+          })
+        }
       >
         {register
           ? "Já tenho uma conta"
           : "Ainda não tenho conta • Cadastre-se"}
       </Button>
-      <Label muted>Alunos, professores e gestores podem se cadastrar.</Label>
+      <Label muted>Alunos acessam a academia pelo convite do gestor.</Label>
     </Page>
   );
 }

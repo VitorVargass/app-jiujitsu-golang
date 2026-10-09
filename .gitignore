@@ -10,3 +10,4 @@ ios/
 *.exe
 *.log
 artifacts/
+backend/asaas-connections.json

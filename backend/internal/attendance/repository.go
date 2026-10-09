@@ -13,7 +13,7 @@ import (
 type Repository struct{ DB *pgxpool.Pool }
 
 func (r Repository) History(ctx context.Context, a, session, member string) ([]History, error) {
-	rows, e := r.DB.Query(ctx, `SELECT p.id,p.session_id,c.name,u.name,m.belt,p.checked_in_at FROM attendances p JOIN class_sessions s ON s.id=p.session_id AND s.academy_id=p.academy_id JOIN classes c ON c.id=s.class_id AND c.academy_id=s.academy_id JOIN memberships m ON m.id=p.membership_id AND m.academy_id=p.academy_id JOIN users u ON u.id=m.user_id
+	rows, e := r.DB.Query(ctx, `SELECT p.id,p.session_id,c.name,m.name,m.belt,p.checked_in_at FROM attendances p JOIN class_sessions s ON s.id=p.session_id AND s.academy_id=p.academy_id JOIN classes c ON c.id=s.class_id AND c.academy_id=s.academy_id JOIN students m ON m.id=p.membership_id AND m.academy_id=p.academy_id
  WHERE p.academy_id=$1 AND ($2::text='' OR p.session_id::text=$2) AND ($3::text='' OR p.membership_id::text=$3) ORDER BY p.checked_in_at DESC LIMIT 200`, a, session, member)
 	if e != nil {
 		return nil, e
@@ -86,8 +86,8 @@ func (r Repository) Record(ctx context.Context, a, session, key string, in Input
 	}
 	var mid, name, belt, memberStatus string
 	var student bool
-	e = tx.QueryRow(ctx, `SELECT m.id,u.name,m.belt,m.status,EXISTS(SELECT 1 FROM membership_roles r WHERE r.membership_id=m.id AND r.role='student')
- FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.academy_id=$1 AND
+	e = tx.QueryRow(ctx, `SELECT m.id,m.name,m.belt,m.status,true
+ FROM students m WHERE m.academy_id=$1 AND
  (($2::text<>'' AND m.qr_token=$2) OR ($3::text<>'' AND m.student_code=$3) OR ($4::text<>'' AND m.id::text=$4)) FOR SHARE OF m`, a, strings.TrimPrefix(in.QRToken, "tatame:"), in.StudentCode, in.MembershipID).Scan(&mid, &name, &belt, &memberStatus, &student)
 	if e != nil || !student {
 		return Result{}, core.E(404, "student_not_found", "Aluno não encontrado nesta academia.")
@@ -113,6 +113,6 @@ func (r Repository) Record(ctx context.Context, a, session, key string, in Input
 
 func (r Repository) Credential(ctx context.Context, a, id string) (string, string, error) {
 	var code, qr string
-	err := r.DB.QueryRow(ctx, "SELECT student_code,qr_token FROM memberships WHERE academy_id=$1 AND id=$2", a, id).Scan(&code, &qr)
+	err := r.DB.QueryRow(ctx, "SELECT student_code,qr_token FROM students WHERE academy_id=$1 AND id=$2", a, id).Scan(&code, &qr)
 	return code, qr, err
 }

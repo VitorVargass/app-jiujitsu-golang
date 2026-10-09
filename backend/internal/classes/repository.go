@@ -12,7 +12,7 @@ import (
 type Repository struct{ DB *pgxpool.Pool }
 
 func (r Repository) Classes(ctx context.Context, a string) ([]Class, error) {
-	rows, e := r.DB.Query(ctx, `SELECT c.id,c.name,c.teacher_membership_id,u.name,c.active FROM classes c JOIN memberships m ON m.id=c.teacher_membership_id JOIN users u ON u.id=m.user_id WHERE c.academy_id=$1 ORDER BY c.name`, a)
+	rows, e := r.DB.Query(ctx, `SELECT c.id,c.name,COALESCE(c.teacher_membership_id::text,''),COALESCE(u.name,''),c.active,COALESCE(c.modality_id::text,''),COALESCE(md.name,'') FROM classes c LEFT JOIN memberships m ON m.id=c.teacher_membership_id LEFT JOIN users u ON u.id=m.user_id LEFT JOIN modalities md ON md.id=c.modality_id AND md.academy_id=c.academy_id WHERE c.academy_id=$1 ORDER BY c.name`, a)
 	if e != nil {
 		return nil, e
 	}
@@ -20,7 +20,7 @@ func (r Repository) Classes(ctx context.Context, a string) ([]Class, error) {
 	out := []Class{}
 	for rows.Next() {
 		var v Class
-		if e = rows.Scan(&v.ID, &v.Name, &v.TeacherID, &v.TeacherName, &v.Active); e != nil {
+		if e = rows.Scan(&v.ID, &v.Name, &v.TeacherID, &v.TeacherName, &v.Active, &v.ModalityID, &v.ModalityName); e != nil {
 			return nil, e
 		}
 		out = append(out, v)
@@ -44,10 +44,10 @@ func (r Repository) Schedules(ctx context.Context, a, c string) ([]Schedule, err
 	return out, rows.Err()
 }
 func (r Repository) Sessions(ctx context.Context, a, date string, onlyOpen bool) ([]Session, error) {
-	rows, e := r.DB.Query(ctx, `SELECT s.id,s.class_id,c.name,c.teacher_membership_id,u.name,s.starts_at,s.status,
+	rows, e := r.DB.Query(ctx, `SELECT s.id,s.class_id,c.name,COALESCE(c.teacher_membership_id::text,''),COALESCE(u.name,''),s.starts_at,s.status,
  (SELECT count(*) FROM attendances p WHERE p.academy_id=s.academy_id AND p.session_id=s.id)
  FROM class_sessions s JOIN classes c ON c.academy_id=s.academy_id AND c.id=s.class_id
- JOIN academies a ON a.id=s.academy_id JOIN memberships m ON m.id=c.teacher_membership_id JOIN users u ON u.id=m.user_id
+ JOIN academies a ON a.id=s.academy_id LEFT JOIN memberships m ON m.id=c.teacher_membership_id LEFT JOIN users u ON u.id=m.user_id
  WHERE s.academy_id=$1 AND ($2::text='' OR (s.starts_at AT TIME ZONE a.timezone)::date::text=$2)
  AND (NOT $3::boolean OR s.status='open') ORDER BY s.starts_at DESC LIMIT 100`, a, date, onlyOpen)
 	if e != nil {
@@ -72,13 +72,13 @@ func (r Repository) TeacherActive(ctx context.Context, a, id string) (bool, erro
 	return ok, err
 }
 func (r Repository) CreateClass(ctx context.Context, a string, in ClassInput) (Class, error) {
-	v := Class{ID: core.ID(), Name: in.Name, TeacherID: in.TeacherID, Active: true}
-	_, err := r.DB.Exec(ctx, "INSERT INTO classes(id,academy_id,name,teacher_membership_id) VALUES($1,$2,$3,$4)", v.ID, a, v.Name, v.TeacherID)
+	v := Class{ID: core.ID(), Name: in.Name, TeacherID: in.TeacherID, ModalityID: in.ModalityID, Active: true}
+	_, err := r.DB.Exec(ctx, "INSERT INTO classes(id,academy_id,name,teacher_membership_id,modality_id) VALUES($1,$2,$3,NULLIF($4,'')::uuid,$5)", v.ID, a, v.Name, v.TeacherID, v.ModalityID)
 	return v, err
 }
 func (r Repository) UpdateClass(ctx context.Context, a, id string, in ClassInput) (Class, error) {
 	var v Class
-	err := r.DB.QueryRow(ctx, `UPDATE classes SET name=COALESCE(NULLIF($1,''),name),teacher_membership_id=COALESCE(NULLIF($2,'')::uuid,teacher_membership_id),active=COALESCE($3,active) WHERE academy_id=$4 AND id=$5 RETURNING id,name,teacher_membership_id,active`, in.Name, in.TeacherID, in.Active, a, id).Scan(&v.ID, &v.Name, &v.TeacherID, &v.Active)
+	err := r.DB.QueryRow(ctx, `UPDATE classes SET name=COALESCE(NULLIF($1,''),name),teacher_membership_id=CASE WHEN $7 THEN NULL ELSE COALESCE(NULLIF($2,'')::uuid,teacher_membership_id) END,active=COALESCE($3,active),modality_id=COALESCE(NULLIF($6,'')::uuid,modality_id) WHERE academy_id=$4 AND id=$5 RETURNING id,name,COALESCE(teacher_membership_id::text,''),active,COALESCE(modality_id::text,'')`, in.Name, in.TeacherID, in.Active, a, id, in.ModalityID, in.ClearTeacher).Scan(&v.ID, &v.Name, &v.TeacherID, &v.Active, &v.ModalityID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return v, core.E(404, "not_found", "Turma não encontrada.")
 	}

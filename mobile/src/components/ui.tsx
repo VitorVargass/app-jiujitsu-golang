@@ -11,35 +11,71 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "../theme";
+import { Icon, IconName } from "./Icon";
+import { SwipeNavigator, SwipeDirection, SwipePages } from "./SwipeNavigator";
 export function Page({
   children,
   title,
   subtitle,
   action,
+  header,
+  titleAction,
+  footer,
+  onSwipe,
+  swipePages,
+  contentOnly = false,
 }: {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
   action?: React.ReactNode;
+  header?: React.ReactNode;
+  titleAction?: React.ReactNode;
+  footer?: React.ReactNode;
+  onSwipe?: (direction: SwipeDirection) => void;
+  swipePages?: SwipePages;
+  contentOnly?: boolean;
 }) {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.page}
-        keyboardShouldPersistTaps="handled"
-      >
+  const content = (
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={[
+        styles.page,
+        header || contentOnly ? styles.appPage : null,
+      ]}
+      keyboardShouldPersistTaps="handled"
+    >
+      {!header && !contentOnly ? (
         <View style={styles.brand}>
           <Text style={styles.logo}>◈</Text>
           <Text style={styles.brandText}>Tatame</Text>
-          {action && <View style={{ marginLeft: "auto" }}>{action}</View>}
+          {action ? <View style={{ marginLeft: "auto" }}>{action}</View> : null}
         </View>
-        {title && <Text style={styles.title}>{title}</Text>}
-        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
-        {children}
-      </ScrollView>
+      ) : null}
+      {title ? (
+        <View style={styles.titleRow}>
+          <Text accessibilityRole="header" style={[styles.title, { flex: 1 }]}>
+            {title}
+          </Text>
+          {titleAction}
+        </View>
+      ) : null}
+      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      {children}
+    </ScrollView>
+  );
+  if (contentOnly) return content;
+  return (
+    <SafeAreaView style={styles.safe}>
+      {header ? <View style={styles.appHeader}>{header}</View> : null}
+      <SwipeNavigator onSwipe={onSwipe} pages={swipePages}>
+        {content}
+      </SwipeNavigator>
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </SafeAreaView>
   );
 }
+
 export function Card({
   children,
   style,
@@ -63,7 +99,11 @@ export function Label({
   );
 }
 export function Heading({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.heading}>{children}</Text>;
+  return (
+    <Text accessibilityRole="header" style={styles.heading}>
+      {children}
+    </Text>
+  );
 }
 export function Field({ label, ...props }: TextInputProps & { label: string }) {
   return (
@@ -85,39 +125,137 @@ export function Button({
   loading = false,
   secondary = false,
   disabled = false,
+  compact = false,
+  icon,
 }: {
   children: React.ReactNode;
   onPress: () => void;
   loading?: boolean;
   secondary?: boolean;
   disabled?: boolean;
+  compact?: boolean;
+  icon?: IconName;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
       disabled={disabled || loading}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
         secondary && styles.secondary,
+        compact && styles.compactButton,
         (pressed || disabled || loading) && { opacity: 0.6 },
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={colors.text} />
+        <ActivityIndicator
+          color={secondary ? colors.text : colors.background}
+        />
       ) : (
-        <Text
-          style={[
-            styles.buttonText,
-            secondary && { color: colors.primaryLight },
-          ]}
-        >
-          {children}
-        </Text>
+        <View style={styles.buttonContent}>
+          {icon ? (
+            <Icon
+              name={icon}
+              size={18}
+              color={secondary ? colors.text : colors.background}
+            />
+          ) : null}
+          <Text
+            style={[
+              styles.buttonText,
+              compact && { fontSize: 13 },
+              secondary && { color: colors.primaryLight },
+            ]}
+          >
+            {children}
+          </Text>
+        </View>
       )}
     </Pressable>
   );
 }
+export function IconButton({
+  icon,
+  label,
+  onPress,
+  selected = false,
+  disabled = false,
+  expanded,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  selected?: boolean;
+  disabled?: boolean;
+  expanded?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected, disabled, expanded }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.iconButton,
+        selected && {
+          backgroundColor: colors.primary,
+          borderColor: colors.primary,
+        },
+        (pressed || disabled) && { opacity: 0.5 },
+      ]}
+    >
+      <Icon
+        name={icon}
+        size={20}
+        color={selected ? colors.background : colors.muted}
+      />
+    </Pressable>
+  );
+}
+export function SearchBar({
+  value,
+  onChangeText,
+  placeholder = "Buscar...",
+  label,
+  action,
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  label: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <View style={styles.search}>
+      <Icon name="search" size={20} color={colors.muted} />
+      <TextInput
+        style={styles.searchInput}
+        accessibilityLabel={label}
+        placeholder={placeholder}
+        placeholderTextColor={colors.muted}
+        autoCapitalize="none"
+        value={value}
+        onChangeText={onChangeText}
+        returnKeyType="search"
+      />
+      {value ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Limpar busca"
+          onPress={() => onChangeText("")}
+          style={styles.clearSearch}
+        >
+          <Icon name="close" size={16} color={colors.muted} />
+        </Pressable>
+      ) : null}
+      {action}
+    </View>
+  );
+}
+
 export function Notice({
   message,
   success = false,
@@ -191,7 +329,7 @@ export function Chip({
     >
       <Text
         style={{
-          color: selected ? colors.text : colors.muted,
+          color: selected ? colors.background : colors.muted,
           fontWeight: "600",
         }}
       >
@@ -223,6 +361,67 @@ export const styles = StyleSheet.create({
     gap: 18,
     paddingBottom: 40,
   },
+  appHeader: {
+    width: "100%",
+    maxWidth: 720,
+    alignSelf: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1E1E1E",
+  },
+  appPage: { paddingHorizontal: 20, paddingTop: 24, gap: 20 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  footer: {
+    width: "100%",
+    maxWidth: 720,
+    alignSelf: "center",
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+  },
+  compactButton: { minHeight: 44, paddingVertical: 10, paddingHorizontal: 12 },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  iconButton: {
+    height: 44,
+    width: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+    borderRadius: 11,
+  },
+  search: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 54,
+    paddingLeft: 14,
+    paddingRight: 5,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: "#292929",
+    borderRadius: 14,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    height: 52,
+    color: colors.text,
+    fontSize: 14,
+    fontFamily: "Lato_400Regular",
+  },
+  clearSearch: {
+    width: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   brand: {
     flexDirection: "row",
     alignItems: "center",
@@ -230,10 +429,14 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
   },
   logo: { fontSize: 38, color: colors.primary },
-  brandText: { fontSize: 24, fontWeight: "800", color: colors.text },
+  brandText: {
+    fontSize: 24,
+    fontFamily: "Montserrat_700Bold",
+    color: colors.text,
+  },
   title: {
     fontSize: 30,
-    fontWeight: "800",
+    fontFamily: "Montserrat_700Bold",
     color: colors.text,
     letterSpacing: -0.7,
   },
@@ -241,6 +444,7 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
     color: colors.muted,
+    fontFamily: "Lato_400Regular",
     marginTop: -8,
     marginBottom: 6,
   },
@@ -248,12 +452,21 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 20,
+    borderRadius: 12,
     padding: 20,
     gap: 12,
   },
-  heading: { fontSize: 18, fontWeight: "700", color: colors.text },
-  label: { fontSize: 14, lineHeight: 22, color: colors.text },
+  heading: {
+    fontSize: 18,
+    fontFamily: "Montserrat_600SemiBold",
+    color: colors.text,
+  },
+  label: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.text,
+    fontFamily: "Lato_400Regular",
+  },
   input: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -263,6 +476,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 15,
     fontSize: 16,
+    fontFamily: "Lato_400Regular",
     minHeight: 52,
   },
   button: {
@@ -279,7 +493,11 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  buttonText: { fontSize: 15, fontWeight: "700", color: colors.text },
+  buttonText: {
+    fontSize: 15,
+    fontFamily: "Lato_700Bold",
+    color: colors.background,
+  },
   notice: {
     padding: 14,
     borderRadius: 12,
@@ -288,6 +506,8 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   chip: {
+    minHeight: 44,
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,

@@ -1,1 +1,4 @@
-export { default } from "../../../features/teacher/TeacherScreen";
+import { Redirect } from "expo-router";
+export default function Teacher() {
+  return <Redirect href="/onboarding" />;
+}
