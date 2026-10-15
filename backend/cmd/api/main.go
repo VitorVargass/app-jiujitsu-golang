@@ -17,7 +17,11 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
+	cfg, e := config.Load()
+	if e != nil {
+		slog.Error("configuration failed", "error", e)
+		os.Exit(1)
+	}
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	if e := database.Migrate(cfg.DatabaseURL); e != nil {
 		slog.Error("migration failed", "error", e)

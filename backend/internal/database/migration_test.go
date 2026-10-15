@@ -55,6 +55,26 @@ func TestLegacyMigrationPreservesAttendance(t *testing.T) {
 	if e = tx.Commit(); e != nil {
 		t.Fatal(e)
 	}
+	if e = goose.UpTo(db, "migrations", 2); e != nil {
+		t.Fatal(e)
+	}
+	var modality string
+	if e = db.QueryRow("SELECT id FROM modalities WHERE academy_id=$1 LIMIT 1", a).Scan(&modality); e != nil {
+		t.Fatal(e)
+	}
+	for _, st := range []struct {
+		q    string
+		args []any
+	}{
+		{"UPDATE students SET belt='Faixa Azul' WHERE id=$1", []any{m}},
+		{"INSERT INTO student_modalities(academy_id,student_id,modality_id) VALUES($1,$2,$3)", []any{a, m, modality}},
+		{"INSERT INTO student_billing(academy_id,student_id,enabled,amount_cents,due_day,next_month,payer_name,payer_document) VALUES($1,$2,true,18000,10,'2026-12-01','Pagador legado','52998224725')", []any{a, m}},
+		{"INSERT INTO invoices(id,academy_id,student_id,competence,due_date,amount_cents,payer_name,payer_document,status,paid_at) VALUES($1,$2,$3,'2026-09-01','2026-09-10',15000,'Pagador legado','52998224725','paid',now())", []any{core.ID(), a, m}},
+	} {
+		if _, e = db.Exec(st.q, st.args...); e != nil {
+			t.Fatal(e)
+		}
+	}
 	if e = Migrate(url); e != nil {
 		t.Fatal(e)
 	}
@@ -66,7 +86,17 @@ func TestLegacyMigrationPreservesAttendance(t *testing.T) {
 	if e = db.QueryRow("SELECT count(*) FROM attendances WHERE id=$1 AND membership_id=$2", p, m).Scan(&n); e != nil || n != 1 {
 		t.Fatal("attendance lost", e)
 	}
-	if e = db.QueryRow("SELECT count(*) FROM invoices WHERE academy_id=$1", a).Scan(&n); e != nil || n != 0 {
-		t.Fatal("retroactive invoices", e)
+	if e = db.QueryRow("SELECT count(*) FROM invoices WHERE academy_id=$1", a).Scan(&n); e != nil || n != 1 {
+		t.Fatal("unexpected invoice generation", e)
 	}
+	var mode, rank, invoiceStatus string
+	var amount, invoiceAmount int64
+	var enabled bool
+	if e = db.QueryRow("SELECT s.charge_mode,sm.belt,b.enabled,b.amount_cents FROM students s JOIN student_modalities sm ON sm.academy_id=s.academy_id AND sm.student_id=s.id JOIN student_billing b ON b.academy_id=s.academy_id AND b.student_id=s.id WHERE s.id=$1", m).Scan(&mode, &rank, &enabled, &amount); e != nil || mode != "custom" || rank != "Faixa Azul" || !enabled || amount != 18000 {
+		t.Fatal("legacy agreement changed", e)
+	}
+	if e = db.QueryRow("SELECT status,amount_cents FROM invoices WHERE academy_id=$1", a).Scan(&invoiceStatus, &invoiceAmount); e != nil || invoiceStatus != "paid" || invoiceAmount != 15000 {
+		t.Fatal("paid invoice changed", e)
+	}
+
 }

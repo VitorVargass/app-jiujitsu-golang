@@ -13,8 +13,9 @@ import (
 
 type Repository struct{ DB *pgxpool.Pool }
 
-const studentJSON = `jsonb_build_object('id',s.id,'academy_id',s.academy_id,'user_id',COALESCE(s.user_id::text,''),'name',s.name,'email',s.email,'phone',s.phone,'status',s.status,'belt',s.belt,'plan_id',COALESCE(s.plan_id::text,''),'student_code',s.student_code,
- 'modality_ids',COALESCE((SELECT jsonb_agg(modality_id) FROM student_modalities WHERE academy_id=s.academy_id AND student_id=s.id),'[]'::jsonb),
+const studentJSON = `jsonb_build_object('id',s.id,'academy_id',s.academy_id,'user_id',COALESCE(s.user_id::text,''),'name',s.name,'email',s.email,'phone',s.phone,'alternate_phone',s.alternate_phone,'charge_mode',s.charge_mode,'status',s.status,'belt',s.belt,'plan_id',COALESCE(s.plan_id::text,''),'student_code',s.student_code,
+ 'modality_details',COALESCE((SELECT jsonb_agg(jsonb_build_object('modality_id',sm.modality_id,'belt',sm.belt,'amount_cents',sm.amount_cents) ORDER BY sm.modality_id) FROM student_modalities sm WHERE sm.academy_id=s.academy_id AND sm.student_id=s.id),'[]'::jsonb),
+ 'modality_ids',COALESCE((SELECT jsonb_agg(modality_id ORDER BY modality_id) FROM student_modalities WHERE academy_id=s.academy_id AND student_id=s.id),'[]'::jsonb),
  'billing',(SELECT jsonb_build_object('enabled',b.enabled,'amount_cents',b.amount_cents,'due_day',b.due_day,'first_month',to_char(b.next_month,'YYYY-MM'),'payer_name',b.payer_name,'payer_document',b.payer_document) FROM student_billing b WHERE b.academy_id=s.academy_id AND b.student_id=s.id))`
 
 func (r Repository) Get(ctx context.Context, a, id string) (Student, error) {
@@ -67,14 +68,26 @@ func (r Repository) Save(ctx context.Context, a, id string, in Input) (Student, 
 		return Student{}, e
 	}
 	defer tx.Rollback(ctx)
+	if id != "" {
+		var locked string
+		if err := tx.QueryRow(ctx, "SELECT id FROM students WHERE academy_id=$1 AND id=$2 FOR UPDATE", a, id).Scan(&locked); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return Student{}, core.E(404, "not_found", "Aluno não encontrado.")
+			}
+			return Student{}, err
+		}
+	}
+	if err := resolveEnrollments(ctx, tx, a, id, &in); err != nil {
+		return Student{}, err
+	}
 	if id == "" {
 		id = core.ID()
-		_, e = tx.Exec(ctx, `INSERT INTO students(id,academy_id,name,email,phone,status,belt,student_code,qr_token,plan_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,'')::uuid)`, id, a, in.Name, in.Email, in.Phone, in.Status, in.Belt, core.Digits(), core.Token(), in.PlanID)
+		_, e = tx.Exec(ctx, `INSERT INTO students(id,academy_id,name,email,phone,status,belt,student_code,qr_token,plan_id,alternate_phone,charge_mode) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,'')::uuid,$11,$12)`, id, a, in.Name, in.Email, in.Phone, in.Status, in.Belt, core.Digits(), core.Token(), in.PlanID, in.AlternatePhone, in.ChargeMode)
 	} else {
 		if e = billing.GenerateTx(ctx, tx, a, id, time.Now()); e != nil {
 			return Student{}, e
 		}
-		result, err := tx.Exec(ctx, `UPDATE students SET name=$3,email=$4,phone=$5,status=$6,belt=$7,plan_id=NULLIF($8,'')::uuid WHERE academy_id=$1 AND id=$2`, a, id, in.Name, in.Email, in.Phone, in.Status, in.Belt, in.PlanID)
+		result, err := tx.Exec(ctx, `UPDATE students SET name=$3,email=$4,phone=$5,status=$6,belt=$7,plan_id=NULLIF($8,'')::uuid,alternate_phone=$9,charge_mode=$10 WHERE academy_id=$1 AND id=$2`, a, id, in.Name, in.Email, in.Phone, in.Status, in.Belt, in.PlanID, in.AlternatePhone, in.ChargeMode)
 		e = err
 		if e == nil && result.RowsAffected() == 0 {
 			e = core.E(404, "not_found", "Aluno não encontrado.")
@@ -86,8 +99,8 @@ func (r Repository) Save(ctx context.Context, a, id string, in Input) (Student, 
 	if _, e = tx.Exec(ctx, "DELETE FROM student_modalities WHERE academy_id=$1 AND student_id=$2", a, id); e != nil {
 		return Student{}, e
 	}
-	for _, mid := range in.Modalities {
-		if _, e = tx.Exec(ctx, "INSERT INTO student_modalities VALUES($1,$2,$3) ON CONFLICT DO NOTHING", a, id, mid); e != nil {
+	for _, detail := range in.ModalityDetails {
+		if _, e = tx.Exec(ctx, "INSERT INTO student_modalities(academy_id,student_id,modality_id,belt,amount_cents) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING", a, id, detail.ModalityID, detail.Belt, detail.AmountCents); e != nil {
 			return Student{}, e
 		}
 	}
@@ -116,7 +129,7 @@ func (r Repository) Save(ctx context.Context, a, id string, in Input) (Student, 
 	return r.Get(ctx, a, id)
 }
 func (r Repository) Catalog(ctx context.Context, a string, plans bool) ([]Catalog, error) {
-	query := "SELECT id,name,active FROM modalities WHERE academy_id=$1 ORDER BY name"
+	query := "SELECT id,name,active,amount_cents,belt_options FROM modalities WHERE academy_id=$1 ORDER BY name"
 	if plans {
 		query = `SELECT p.id,p.name,p.active,p.amount_cents,COALESCE((SELECT array_agg(modality_id::text ORDER BY modality_id) FROM plan_modalities WHERE academy_id=p.academy_id AND plan_id=p.id),'{}'::text[]) FROM plans p WHERE academy_id=$1 ORDER BY name`
 	}
@@ -132,7 +145,11 @@ func (r Repository) Catalog(ctx context.Context, a string, plans bool) ([]Catalo
 		if plans {
 			e = rows.Scan(&v.ID, &v.Name, &v.Active, &v.AmountCents, &v.Modalities)
 		} else {
-			e = rows.Scan(&v.ID, &v.Name, &v.Active)
+			var raw []byte
+			e = rows.Scan(&v.ID, &v.Name, &v.Active, &v.AmountCents, &raw)
+			if e == nil {
+				e = json.Unmarshal(raw, &v.BeltOptions)
+			}
 		}
 		if e != nil {
 			return nil, e
@@ -147,30 +164,51 @@ func (r Repository) SaveCatalog(ctx context.Context, a, id string, in Catalog, p
 		return in, e
 	}
 	defer tx.Rollback(ctx)
-	table := "modalities"
 	if plans {
-		table = "plans"
+		for _, mid := range in.Modalities {
+			var active, existing bool
+			err := tx.QueryRow(ctx, `SELECT active,EXISTS(SELECT 1 FROM plan_modalities WHERE academy_id=$1 AND plan_id=NULLIF($3,'')::uuid AND modality_id=$2) FROM modalities WHERE academy_id=$1 AND id=$2`, a, mid, id).Scan(&active, &existing)
+			if errors.Is(err, pgx.ErrNoRows) || err == nil && !active && !existing {
+				return in, core.E(422, "invalid_modality", "Selecione modalidades ativas desta academia.")
+			}
+			if err != nil {
+				return in, err
+			}
+		}
+	}
+	var raw any
+	if in.BeltOptions != nil {
+		v, err := json.Marshal(in.BeltOptions)
+		if err != nil {
+			return in, err
+		}
+		raw = string(v)
 	}
 	if id == "" {
 		id = core.ID()
 		if plans {
 			_, e = tx.Exec(ctx, "INSERT INTO plans(id,academy_id,name,active,amount_cents) VALUES($1,$2,$3,$4,$5)", id, a, in.Name, in.Active, in.AmountCents)
 		} else {
-			_, e = tx.Exec(ctx, "INSERT INTO modalities(id,academy_id,name,active) VALUES($1,$2,$3,$4)", id, a, in.Name, in.Active)
+			var saved []byte
+			e = tx.QueryRow(ctx, "INSERT INTO modalities(id,academy_id,name,active,amount_cents,belt_options) VALUES($1,$2,$3,$4,$5,COALESCE($6::jsonb,default_belt_options($3))) RETURNING belt_options", id, a, in.Name, in.Active, in.AmountCents, raw).Scan(&saved)
+			if e == nil {
+				e = json.Unmarshal(saved, &in.BeltOptions)
+			}
+		}
+	} else if plans {
+		result, err := tx.Exec(ctx, "UPDATE plans SET name=$3,active=$4,amount_cents=$5 WHERE academy_id=$1 AND id=$2", a, id, in.Name, in.Active, in.AmountCents)
+		e = err
+		if e == nil && result.RowsAffected() == 0 {
+			e = core.E(404, "not_found", "Plano não encontrado.")
 		}
 	} else {
-		var n int64
-		if plans {
-			v, err := tx.Exec(ctx, "UPDATE plans SET name=$3,active=$4,amount_cents=$5 WHERE academy_id=$1 AND id=$2", a, id, in.Name, in.Active, in.AmountCents)
-			e = err
-			n = v.RowsAffected()
-		} else {
-			v, err := tx.Exec(ctx, "UPDATE "+table+" SET name=$3,active=$4 WHERE academy_id=$1 AND id=$2", a, id, in.Name, in.Active)
-			e = err
-			n = v.RowsAffected()
+		var saved []byte
+		e = tx.QueryRow(ctx, "UPDATE modalities SET name=$3,active=$4,amount_cents=$5,belt_options=COALESCE($6::jsonb,belt_options) WHERE academy_id=$1 AND id=$2 RETURNING belt_options", a, id, in.Name, in.Active, in.AmountCents, raw).Scan(&saved)
+		if errors.Is(e, pgx.ErrNoRows) {
+			e = core.E(404, "not_found", "Modalidade não encontrada.")
 		}
-		if e == nil && n == 0 {
-			e = core.E(404, "not_found", "Cadastro não encontrado.")
+		if e == nil {
+			e = json.Unmarshal(saved, &in.BeltOptions)
 		}
 	}
 	if e != nil {
@@ -180,8 +218,8 @@ func (r Repository) SaveCatalog(ctx context.Context, a, id string, in Catalog, p
 		if _, e = tx.Exec(ctx, "DELETE FROM plan_modalities WHERE academy_id=$1 AND plan_id=$2", a, id); e != nil {
 			return in, e
 		}
-		for _, m := range in.Modalities {
-			if _, e = tx.Exec(ctx, "INSERT INTO plan_modalities VALUES($1,$2,$3) ON CONFLICT DO NOTHING", a, id, m); e != nil {
+		for _, mid := range in.Modalities {
+			if _, e = tx.Exec(ctx, "INSERT INTO plan_modalities(academy_id,plan_id,modality_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", a, id, mid); e != nil {
 				return in, e
 			}
 		}

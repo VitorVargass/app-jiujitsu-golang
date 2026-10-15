@@ -4,6 +4,13 @@ export type Page<T> = {
   page: number;
   page_size: number;
 };
+export type BeltOption = { label: string; colors: string[] };
+export type ModalityDetail = {
+  modality_id: string;
+  belt: string;
+  amount_cents: number;
+};
+export type ChargeMode = "custom" | "plan" | "modalities";
 export type Billing = {
   enabled: boolean;
   amount_cents: number;
@@ -19,6 +26,9 @@ export type Student = {
   name: string;
   email: string;
   phone: string;
+  alternate_phone: string;
+  charge_mode: ChargeMode;
+  modality_details: ModalityDetail[];
   status: "active" | "inactive";
   belt: string;
   student_code: string;
@@ -32,6 +42,7 @@ export type Catalog = {
   active: boolean;
   amount_cents?: number;
   modality_ids?: string[];
+  belt_options?: BeltOption[];
 };
 export type Invoice = {
   id: string;

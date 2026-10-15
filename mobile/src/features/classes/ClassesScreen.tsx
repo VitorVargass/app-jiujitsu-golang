@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FormWizard } from "../../components/FormWizard";
 import { Redirect, router } from "expo-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, academyPath } from "../../services/api";
@@ -25,7 +26,7 @@ function ModalityPicker({
   onChange,
 }: {
   value: string;
-  onChange: (id: string) => void;
+  onChange: (id: string, name?: string) => void;
 }) {
   const { academy } = useSession();
   const list = useQuery({
@@ -43,7 +44,7 @@ function ModalityPicker({
             <Chip
               key={m.id}
               selected={value === m.id}
-              onPress={() => onChange(m.id)}
+              onPress={() => onChange(m.id, m.name)}
             >
               {m.name}
             </Chip>
@@ -57,7 +58,7 @@ function TeacherPicker({
   onChange,
 }: {
   value: string;
-  onChange: (id: string) => void;
+  onChange: (id: string, name?: string) => void;
 }) {
   const { academy } = useSession();
   const members = useQuery({
@@ -75,14 +76,14 @@ function TeacherPicker({
         <Loading />
       ) : (
         <Row>
-          <Chip selected={!value} onPress={() => onChange("")}>
+          <Chip selected={!value} onPress={() => onChange("", "Sem professor")}>
             Sem professor
           </Chip>
           {teachers.map((m) => (
             <Chip
               key={m.id}
               selected={value === m.id}
-              onPress={() => onChange(m.id)}
+              onPress={() => onChange(m.id, m.name)}
             >
               {m.name}
             </Chip>
@@ -97,11 +98,22 @@ function TeacherPicker({
   );
 }
 
-function AddSchedule({ classId }: { classId: string }) {
+function AddSchedule({
+  classId,
+  onFormChange,
+}: {
+  classId: string;
+  onFormChange: (key: string, open: boolean) => void;
+}) {
   const { academy } = useSession();
-  const [day, setDay] = useState(1);
-  const [start, setStart] = useState("19:00");
-  const [duration, setDuration] = useState("60");
+  const [adding, setAdding] = useState(false);
+  const [day, setDay] = useState(1),
+    [start, setStart] = useState("19:00"),
+    [duration, setDuration] = useState("60");
+  function close() {
+    setAdding(false);
+    onFormChange(classId + "-schedule", false);
+  }
   const save = useMutation({
     mutationFn: () =>
       api(academyPath(academy!.id, "/classes/" + classId + "/schedules"), {
@@ -112,44 +124,100 @@ function AddSchedule({ classId }: { classId: string }) {
           duration_minutes: Number(duration),
         },
       }),
-    onSuccess: () =>
+    onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: ["schedules", academy!.id, classId],
-      }),
+      });
+      close();
+    },
   });
-  return (
-    <>
-      <Heading>Adicionar horário semanal</Heading>
-      <Row>
-        {weekdays.map((d, i) => (
-          <Chip key={d} selected={day === i} onPress={() => setDay(i)}>
-            {d}
-          </Chip>
-        ))}
-      </Row>
-      <Field label="Horário (HH:MM)" value={start} onChangeText={setStart} />
-      <Field
-        label="Duração em minutos"
-        value={duration}
-        onChangeText={setDuration}
-        keyboardType="number-pad"
-      />
-      <Notice message={save.error?.message} />
-      {save.isSuccess && <Notice success message="Horário adicionado." />}
-      <Button loading={save.isPending} onPress={() => save.mutate()}>
-        Adicionar horário
+  if (!adding)
+    return (
+      <Button
+        secondary
+        onPress={() => {
+          save.reset();
+          setAdding(true);
+          onFormChange(classId + "-schedule", true);
+        }}
+      >
+        Adicionar horário semanal
       </Button>
-    </>
+    );
+  return (
+    <FormWizard
+      steps={["Dia e horário", "Revisão do horário"]}
+      submitLabel="Salvar horário"
+      pending={save.isPending}
+      error={save.error?.message}
+      onCancel={close}
+      onSubmit={() => save.mutate()}
+      validate={(step) =>
+        step === 0 &&
+        (!/^([01]\d|2[0-3]):[0-5]\d$/.test(start) ||
+          !/^\d+$/.test(duration) ||
+          Number(duration) < 15 ||
+          Number(duration) > 240)
+          ? "Informe horário HH:MM e duração entre 15 e 240 minutos."
+          : undefined
+      }
+    >
+      {(step) =>
+        step === 0 ? (
+          <>
+            <Row>
+              {weekdays.map((label, index) => (
+                <Chip
+                  key={label}
+                  selected={day === index}
+                  onPress={() => setDay(index)}
+                >
+                  {label}
+                </Chip>
+              ))}
+            </Row>
+            <Field
+              label="Horário (HH:MM)"
+              value={start}
+              onChangeText={setStart}
+            />
+            <Field
+              label="Duração em minutos"
+              value={duration}
+              onChangeText={setDuration}
+              keyboardType="number-pad"
+            />
+          </>
+        ) : (
+          <>
+            <Heading>
+              {weekdays[day]} • {start}
+            </Heading>
+            <Label>{duration} minutos por aula</Label>
+          </>
+        )
+      }
+    </FormWizard>
   );
 }
 
-function ClassCard({ item }: { item: Class }) {
+function ClassCard({
+  item,
+  onFormChange,
+}: {
+  item: Class;
+  onFormChange: (key: string, open: boolean) => void;
+}) {
   const { academy, role } = useSession();
   const a = academy!;
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.name);
   const [teacher, setTeacher] = useState(item.teacher_membership_id);
   const [modality, setModality] = useState(item.modality_id);
+  const [modalityName, setModalityName] = useState(item.modality_name);
+  const [teacherName, setTeacherName] = useState(
+    item.teacher_name || "Sem professor",
+  );
   const schedules = useQuery({
     queryKey: ["schedules", a.id, item.id],
     queryFn: () =>
@@ -169,8 +237,11 @@ function ClassCard({ item }: { item: Class }) {
   const save = useMutation({
     mutationFn: (body: object) =>
       api(academyPath(a.id, "/classes/" + item.id), { method: "PATCH", body }),
-    onSuccess: () =>
-      void queryClient.invalidateQueries({ queryKey: ["classes", a.id] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["classes", a.id] });
+      setEditing(false);
+      onFormChange(item.id, false);
+    },
   });
   const currentDay = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
     new Intl.DateTimeFormat("en-US", {
@@ -220,7 +291,14 @@ function ClassCard({ item }: { item: Class }) {
       {role === "admin" && (
         <>
           <Row>
-            <Button secondary onPress={() => setEditing(!editing)}>
+            <Button
+              secondary
+              onPress={() => {
+                setEditing(!editing);
+                onFormChange(item.id, !editing);
+                save.reset();
+              }}
+            >
               {editing ? "Fechar edição" : "Editar turma e horários"}
             </Button>
             <Button
@@ -231,33 +309,72 @@ function ClassCard({ item }: { item: Class }) {
               {item.active ? "Desativar turma" : "Reativar turma"}
             </Button>
           </Row>
-          {editing && (
-            <>
-              <Field
-                label="Nome da turma"
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-              />
-              <TeacherPicker value={teacher} onChange={setTeacher} />
-              <ModalityPicker value={modality} onChange={setModality} />
-              <Button
-                disabled={!name.trim() || !modality}
-                loading={save.isPending}
-                onPress={() =>
-                  save.mutate({
-                    name,
-                    teacher_membership_id: teacher,
-                    modality_id: modality,
-                    clear_teacher: !teacher,
-                  })
-                }
-              >
-                Salvar turma
-              </Button>
-              {save.isSuccess && <Notice success message="Turma atualizada." />}
-              <AddSchedule classId={item.id} />
-            </>
+          {editing ? (
+            <FormWizard
+              steps={[
+                "Nome da turma",
+                "Modalidade e responsável",
+                "Revisão da turma",
+              ]}
+              validate={(step) =>
+                step === 0 && name.trim().length < 2
+                  ? "Informe o nome da turma."
+                  : step === 1 && !modality
+                    ? "Selecione uma modalidade."
+                    : undefined
+              }
+              onCancel={() => {
+                setEditing(false);
+                onFormChange(item.id, false);
+              }}
+              pending={save.isPending}
+              error={save.error?.message}
+              submitLabel="Salvar turma"
+              onSubmit={() =>
+                save.mutate({
+                  name,
+                  teacher_membership_id: teacher,
+                  modality_id: modality,
+                  clear_teacher: !teacher,
+                })
+              }
+            >
+              {(step) =>
+                step === 0 ? (
+                  <Field
+                    label="Nome da turma"
+                    value={name}
+                    onChangeText={setName}
+                    autoCapitalize="words"
+                  />
+                ) : step === 1 ? (
+                  <>
+                    <ModalityPicker
+                      value={modality}
+                      onChange={(id, label) => {
+                        setModality(id);
+                        setModalityName(label ?? "");
+                      }}
+                    />
+                    <TeacherPicker
+                      value={teacher}
+                      onChange={(id, label) => {
+                        setTeacher(id);
+                        setTeacherName(label ?? "Sem professor");
+                      }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Heading>{name}</Heading>
+                    <Label>{modalityName}</Label>
+                    <Label>{teacherName}</Label>
+                  </>
+                )
+              }
+            </FormWizard>
+          ) : (
+            <AddSchedule classId={item.id} onFormChange={onFormChange} />
           )}
         </>
       )}
@@ -271,6 +388,15 @@ function Content() {
   const [name, setName] = useState("");
   const [teacher, setTeacher] = useState("");
   const [modality, setModality] = useState("");
+  const [modalityName, setModalityName] = useState("");
+  const [teacherName, setTeacherName] = useState("Sem professor");
+  const [creating, setCreating] = useState(false);
+  const [activeForms, setActiveForms] = useState<string[]>([]);
+  function formChange(key: string, open: boolean) {
+    setActiveForms((old) =>
+      open ? [...new Set([...old, key])] : old.filter((k) => k !== key),
+    );
+  }
   const list = useQuery({
     queryKey: ["classes", a.id],
     queryFn: () => api<Class[]>(academyPath(a.id, "/classes")),
@@ -283,6 +409,9 @@ function Content() {
       }),
     onSuccess: () => {
       setName("");
+      setCreating(false);
+      setTeacher("");
+      setModality("");
       void queryClient.invalidateQueries({ queryKey: ["classes", a.id] });
     },
   });
@@ -291,43 +420,97 @@ function Content() {
     <AcademyShell
       title="Turmas e horários"
       subtitle="Encontre seu próximo treino."
+      swipeEnabled={!creating && !activeForms.length}
     >
-      {role === "admin" && (
+      {role === "admin" && !creating ? (
+        <Button
+          icon="plus"
+          onPress={() => {
+            create.reset();
+            setCreating(true);
+          }}
+        >
+          Nova turma
+        </Button>
+      ) : null}
+      {creating ? (
         <Card>
-          <Heading>Nova turma</Heading>
-          <Field
-            label="Nome"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-          />
-          <TeacherPicker value={teacher} onChange={setTeacher} />
-          <ModalityPicker value={modality} onChange={setModality} />
-          <Notice message={create.error?.message} />
-          {create.isSuccess && (
-            <Notice
-              success
-              message="Turma criada. Use Editar turma e horários para configurar os treinos."
-            />
-          )}
-          <Button
-            disabled={!modality || !name.trim()}
-            loading={create.isPending}
-            onPress={() => create.mutate()}
+          <FormWizard
+            steps={[
+              "Identificação da turma",
+              "Modalidade e responsável",
+              "Revisão",
+            ]}
+            validate={(step) =>
+              step === 0 && name.trim().length < 2
+                ? "Informe o nome da turma."
+                : step === 1 && !modality
+                  ? "Selecione uma modalidade."
+                  : undefined
+            }
+            onCancel={() => setCreating(false)}
+            pending={create.isPending}
+            error={create.error?.message}
+            submitLabel="Criar turma"
+            onSubmit={() => create.mutate()}
           >
-            Criar turma
-          </Button>
+            {(step) =>
+              step === 0 ? (
+                <Field
+                  label="Nome da turma"
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                />
+              ) : step === 1 ? (
+                <>
+                  <ModalityPicker
+                    value={modality}
+                    onChange={(id, label) => {
+                      setModality(id);
+                      setModalityName(label ?? "");
+                    }}
+                  />
+                  <TeacherPicker
+                    value={teacher}
+                    onChange={(id, label) => {
+                      setTeacher(id);
+                      setTeacherName(label ?? "Sem professor");
+                    }}
+                  />
+                </>
+              ) : (
+                <>
+                  <Heading>{name}</Heading>
+                  <Label>{modalityName}</Label>
+                  <Label>{teacherName}</Label>
+                  <Label muted>
+                    Depois de criar, adicione os horários semanais à turma.
+                  </Label>
+                </>
+              )
+            }
+          </FormWizard>
         </Card>
-      )}
-      {list.isPending ? (
-        <Loading />
-      ) : list.error ? (
-        <Notice message={list.error.message} />
-      ) : visible.length ? (
-        visible.map((c) => <ClassCard key={c.id} item={c} />)
-      ) : (
-        <Empty>As turmas desta academia aparecerão aqui.</Empty>
-      )}
+      ) : null}
+      {create.isSuccess ? (
+        <Notice
+          success
+          message="Turma criada. Adicione os horários semanais abaixo."
+        />
+      ) : null}
+      {!creating &&
+        (list.isPending ? (
+          <Loading />
+        ) : list.error ? (
+          <Notice message={list.error.message} />
+        ) : visible.length ? (
+          visible.map((c) => (
+            <ClassCard key={c.id} item={c} onFormChange={formChange} />
+          ))
+        ) : (
+          <Empty>As turmas desta academia aparecerão aqui.</Empty>
+        ))}
     </AcademyShell>
   );
 }

@@ -14,6 +14,8 @@ if ($DatabaseUrl) {
  $env:DATABASE_URL=$DatabaseUrl
 } elseif ($env:DATABASE_URL) {
  # Keep an explicitly configured connection.
+} elseif ((Test-Path -LiteralPath (Join-Path $taskRoot 'backend\.env')) -and (Select-String -LiteralPath (Join-Path $taskRoot 'backend\.env') -Pattern '^\s*(export\s+)?DATABASE_URL\s*=' -Quiet)) {
+ # The API loads the private .env itself; do not replace its database connection.
 } elseif (Get-NetTCPConnection -State Listen -LocalPort 5432 -ErrorAction SilentlyContinue) {
  $env:DATABASE_URL='postgres://tatame:tatame_dev@localhost:5432/tatame?sslmode=disable'
 } elseif (Get-Command docker -ErrorAction SilentlyContinue) {
@@ -42,7 +44,8 @@ if ($DatabaseUrl) {
  }
  $env:DATABASE_URL='postgres://tatame:tatame_dev@127.0.0.1:55432/tatame?sslmode=disable'
 } else {throw 'Inicie o PostgreSQL local ou configure -DatabaseUrl. Docker também é suportado.'}
-if (-not $env:ALLOWED_ORIGINS) {
+$taskOriginsInFile=(Test-Path -LiteralPath (Join-Path $taskRoot 'backend\.env')) -and (Select-String -LiteralPath (Join-Path $taskRoot 'backend\.env') -Pattern '^\s*(export\s+)?ALLOWED_ORIGINS\s*=' -Quiet)
+if (-not $env:ALLOWED_ORIGINS -and -not $taskOriginsInFile) {
  $taskOrigins=@('http://localhost:8081','http://127.0.0.1:8081')
  Get-NetIPConfiguration | Where-Object IPv4DefaultGateway | ForEach-Object {
   $_.IPv4Address | ForEach-Object {$taskOrigins+='http://'+$_.IPAddress+':8081'}
@@ -79,8 +82,14 @@ if (-not $taskWebReady) {
  $taskNode=(Get-Command node).Source
  $taskExpo=Join-Path $taskRoot 'mobile\node_modules\expo\bin\cli'
  if (-not (Test-Path -LiteralPath $taskExpo)) {throw 'Execute npm ci dentro de mobile.'}
- $taskMetro=Start-Process -FilePath $taskNode -ArgumentList @(('"'+$taskExpo+'"'),'start','--web','--port','8081') -WorkingDirectory (Join-Path $taskRoot 'mobile') -WindowStyle Hidden -RedirectStandardOutput (Join-Path $taskTools 'mobile-stdout.log') -RedirectStandardError (Join-Path $taskTools 'mobile-stderr.log') -PassThru
+ $taskMetro=Start-Process -FilePath $taskNode -ArgumentList @(('"'+$taskExpo+'"'),'start','--lan','--web','--port','8081') -WorkingDirectory (Join-Path $taskRoot 'mobile') -WindowStyle Hidden -RedirectStandardOutput (Join-Path $taskTools 'mobile-stdout.log') -RedirectStandardError (Join-Path $taskTools 'mobile-stderr.log') -PassThru
  $taskMetro.Id | Set-Content -LiteralPath (Join-Path $taskTools 'metro.pid')
 }
 Write-Output 'API: http://localhost:8080 | Preview: http://localhost:8081'
-Write-Output 'Expo Go: abra o projeto na mesma rede. Logs disponíveis na pasta .tools.'
+$taskLAN=@(Get-NetIPConfiguration | Where-Object IPv4DefaultGateway | ForEach-Object { $_.IPv4Address | ForEach-Object { $_.IPAddress } })
+foreach ($taskIP in $taskLAN) {
+ Write-Output ('Expo Go: exp://'+$taskIP+':8081')
+ Write-Output ('Teste no navegador do celular: http://'+$taskIP+':8080/healthz')
+}
+Write-Output 'No Expo Go, abra o endereço acima ou leia o QR do Expo. Use a mesma rede do computador.'
+Write-Output 'O frontend usa mobile/.env; o Go carrega backend/.env. Logs disponíveis na pasta .tools.'

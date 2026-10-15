@@ -22,6 +22,9 @@ func (s Service) Save(ctx context.Context, a, id string, in Input) (Student, err
 	if id != "" && !core.ValidID(id) {
 		return Student{}, core.E(404, "not_found", "Aluno não encontrado.")
 	}
+	if e := normalizeEnrollments(&in); e != nil {
+		return Student{}, e
+	}
 	in.Name = strings.TrimSpace(in.Name)
 	in.Email = strings.ToLower(strings.TrimSpace(in.Email))
 	in.Phone = strings.TrimSpace(in.Phone)
@@ -58,9 +61,12 @@ func (s Service) Save(ctx context.Context, a, id string, in Input) (Student, err
 	}
 	if b := in.Billing; b != nil {
 		b.PayerName = strings.TrimSpace(b.PayerName)
+		if b.PayerName == "" {
+			b.PayerName = in.Name
+		}
 		b.PayerDocument = strings.TrimSpace(b.PayerDocument)
 		month, e := time.Parse("2006-01", b.FirstMonth)
-		if e != nil || month.Year() < 2020 || month.Year() > 2100 || b.AmountCents < 1 || b.AmountCents > 100000000 || b.DueDay < 1 || b.DueDay > 31 || len(b.PayerName) < 2 || len(b.PayerName) > 100 || !billing.ValidDocument(b.PayerDocument) {
+		if e != nil || month.Year() < 2020 || month.Year() > 2100 || b.AmountCents < 0 || (b.Enabled && b.AmountCents < 1) || b.AmountCents > 100000000 || b.DueDay < 1 || b.DueDay > 31 || len(b.PayerName) < 2 || len(b.PayerName) > 100 || (b.Enabled || b.PayerDocument != "") && !billing.ValidDocument(b.PayerDocument) {
 			return Student{}, core.E(422, "invalid_billing", "Informe valor positivo, vencimento de 1 a 31, competência YYYY-MM e nome/CPF ou CNPJ válido do pagador.")
 		}
 		if b.Enabled && in.Status == "inactive" {
@@ -105,6 +111,17 @@ func (s Service) SaveCatalog(ctx context.Context, a, id string, in Catalog, plan
 		if !core.ValidID(m) {
 			return in, core.E(422, "invalid_modality", "Modalidade inválida.")
 		}
+	}
+	if !plans {
+		if in.AmountCents < 0 || in.AmountCents > 100000000 {
+			return in, core.E(422, "invalid_amount", "Valor mensal inválido.")
+		}
+		if e := validateBeltOptions(in.BeltOptions); e != nil {
+			return in, e
+		}
+	}
+	if len(in.Modalities) > 30 {
+		return in, core.E(422, "invalid_modalities", "Selecione até 30 modalidades.")
 	}
 	return s.Repo.SaveCatalog(ctx, a, id, in, plans)
 }

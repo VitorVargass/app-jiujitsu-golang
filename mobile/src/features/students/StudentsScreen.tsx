@@ -3,8 +3,8 @@ import { View, Pressable, Text, StyleSheet } from "react-native";
 import { colors } from "../../theme";
 import { Icon } from "../../components/Icon";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import * as Clipboard from "expo-clipboard";
+import { useQuery } from "@tanstack/react-query";
+import Form from "./StudentForm";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
 import {
   Button,
@@ -13,7 +13,6 @@ import {
   Avatar,
   IconButton,
   SearchBar,
-  Field,
   Heading,
   Label,
   Loading,
@@ -22,16 +21,8 @@ import {
 } from "../../components/ui";
 import { Pagination } from "../../components/Pagination";
 import { api, academyPath } from "../../services/api";
-import { queryClient, useSession } from "../../services/session";
-import { portalLink } from "../../services/links";
-import {
-  Catalog,
-  Student,
-  Page,
-  parseMoney,
-  monthNow,
-  money,
-} from "../../types/billing";
+import { useSession } from "../../services/session";
+import { Catalog, Student, Page, money } from "../../types/billing";
 function ListContent() {
   const { academy } = useSession();
   const a = academy!;
@@ -212,7 +203,19 @@ function ListContent() {
                   {s.name}
                 </Text>
                 <Text numberOfLines={1} style={listStyles.studentMeta}>
-                  {s.belt}
+                  {s.modality_details?.length
+                    ? s.modality_details
+                        .map((d) => {
+                          const name = modalities.data?.find(
+                            (m) => m.id === d.modality_id,
+                          )?.name;
+                          return (
+                            (name ?? "Modalidade") +
+                            (d.belt ? " • " + d.belt : "")
+                          );
+                        })
+                        .join(" / ")
+                    : s.belt}
                 </Text>
                 <View style={listStyles.situation}>
                   <View
@@ -334,301 +337,6 @@ export default function StudentsScreen() {
     </RoleGate>
   );
 }
-function Form({
-  initial,
-  modalities,
-  plans,
-}: {
-  initial?: Student;
-  modalities: Catalog[];
-  plans: Catalog[];
-}) {
-  const { academy } = useSession();
-  const a = academy!;
-  const [name, setName] = useState(initial?.name ?? "");
-  const [email, setEmail] = useState(initial?.email ?? "");
-  const [phone, setPhone] = useState(initial?.phone ?? "");
-  const [belt, setBelt] = useState(initial?.belt ?? "Faixa Branca");
-  const [status, setStatus] = useState(initial?.status ?? "active");
-  const [plan, setPlan] = useState(initial?.plan_id ?? "");
-  const [mods, setMods] = useState(initial?.modality_ids ?? []);
-  const [enabled, setEnabled] = useState(initial?.billing?.enabled ?? false);
-  const [amount, setAmount] = useState(
-    initial?.billing ? (initial.billing.amount_cents / 100).toFixed(2) : "",
-  );
-  const [day, setDay] = useState(String(initial?.billing?.due_day ?? 10));
-  const [month, setMonth] = useState(
-    initial?.billing?.first_month ?? monthNow(),
-  );
-  const [payer, setPayer] = useState(
-    initial?.billing?.payer_name ?? initial?.name ?? "",
-  );
-  const [document, setDocument] = useState(
-    initial?.billing?.payer_document ?? "",
-  );
-  const [link, setLink] = useState("");
-  const [message, setMessage] = useState("");
-  const save = useMutation({
-    mutationFn: () => {
-      const billing =
-        enabled || initial?.billing
-          ? {
-              enabled,
-              amount_cents: parseMoney(amount),
-              due_day: Number(day),
-              first_month: month,
-              payer_name: payer || name,
-              payer_document: document.replace(/\D/g, ""),
-            }
-          : null;
-      return api<Student>(
-        academyPath(a.id, "/students" + (initial ? "/" + initial.id : "")),
-        {
-          method: initial ? "PATCH" : "POST",
-          body: {
-            name,
-            email,
-            phone,
-            belt,
-            status,
-            plan_id: plan,
-            modality_ids: mods,
-            billing,
-          },
-        },
-      );
-    },
-    onSuccess: (s) => {
-      void queryClient.invalidateQueries();
-      setMessage("Cadastro salvo.");
-      if (!initial)
-        router.replace({ pathname: "/students/[id]", params: { id: s.id } });
-    },
-  });
-  const invite = useMutation({
-    mutationFn: () =>
-      api<{ token: string }>(
-        academyPath(a.id, "/students/" + initial!.id + "/invitations"),
-        { method: "POST" },
-      ),
-    onSuccess: async (result) => {
-      const url = portalLink("/invite/" + result.token);
-      setLink(url);
-      if (!(await Clipboard.setStringAsync(url)))
-        throw new Error(
-          "Não foi possível copiar. Selecione e copie o link abaixo.",
-        );
-      setMessage("Convite copiado. Válido por 7 dias.");
-    },
-  });
-  const revoke = useMutation({
-    mutationFn: () =>
-      api(academyPath(a.id, "/students/" + initial!.id + "/invitations"), {
-        method: "DELETE",
-      }),
-    onSuccess: () => {
-      setLink("");
-      setMessage("Convites pendentes revogados.");
-    },
-  });
-  function choose(p: Catalog) {
-    setPlan(p.id);
-    setMods(p.modality_ids ?? []);
-    setAmount(((p.amount_cents ?? 0) / 100).toFixed(2));
-  }
-  return (
-    <AcademyShell title={initial ? "Cadastro do aluno" : "Novo aluno"}>
-      <Card>
-        <Field
-          label="Nome completo"
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
-        />
-        <Field
-          label="E-mail"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-        />
-        <Field
-          label="Celular"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-        />
-        <Field label="Faixa" value={belt} onChangeText={setBelt} />
-        <Row>
-          <Chip
-            selected={status === "active"}
-            onPress={() => setStatus("active")}
-          >
-            Ativo
-          </Chip>
-          <Chip
-            selected={status === "inactive"}
-            onPress={() => {
-              setStatus("inactive");
-              setEnabled(false);
-            }}
-          >
-            Inativo
-          </Chip>
-        </Row>
-        <Label muted>
-          Inativar interrompe novas mensalidades e presenças. O histórico
-          permanece acessível.
-        </Label>
-      </Card>
-      <Card>
-        <Heading>Plano opcional</Heading>
-        <Row>
-          <Chip selected={!plan} onPress={() => setPlan("")}>
-            Sem plano
-          </Chip>
-          {plans
-            .filter((p) => p.active || p.id === plan)
-            .map((p) => (
-              <Chip
-                key={p.id}
-                selected={plan === p.id}
-                onPress={() => choose(p)}
-              >
-                {p.name} • {money(p.amount_cents ?? 0)}
-              </Chip>
-            ))}
-        </Row>
-        <Heading>Modalidades</Heading>
-        <Row>
-          {modalities
-            .filter((m) => m.active || mods.includes(m.id))
-            .map((m) => (
-              <Chip
-                key={m.id}
-                selected={mods.includes(m.id)}
-                onPress={() =>
-                  setMods(
-                    mods.includes(m.id)
-                      ? mods.filter((id) => id !== m.id)
-                      : [...mods, m.id],
-                  )
-                }
-              >
-                {m.name}
-              </Chip>
-            ))}
-        </Row>
-      </Card>
-      <Card>
-        <Heading>Mensalidade total</Heading>
-        <Row>
-          <Chip
-            selected={enabled}
-            onPress={() => {
-              if (status === "active") {
-                setEnabled(!enabled);
-                if (!enabled && !initial?.billing?.enabled)
-                  setMonth(monthNow());
-              }
-            }}
-          >
-            {enabled ? "✓ Cobrança mensal ativa" : "Ativar cobrança mensal"}
-          </Chip>
-        </Row>
-        <Field
-          label="Valor total (R$)"
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="decimal-pad"
-          placeholder="200,00"
-        />
-        <Field
-          label="Dia do vencimento (1 a 31)"
-          value={day}
-          onChangeText={setDay}
-          keyboardType="number-pad"
-        />
-        <Field
-          label={
-            initial?.billing?.enabled
-              ? "Próxima competência (YYYY-MM)"
-              : "Primeira competência (YYYY-MM)"
-          }
-          value={month}
-          onChangeText={setMonth}
-          editable={!initial?.billing?.enabled}
-        />
-        <Field
-          label="Nome do pagador ou responsável"
-          value={payer}
-          onChangeText={setPayer}
-          placeholder={name}
-        />
-        <Field
-          label="CPF ou CNPJ do pagador"
-          value={document}
-          onChangeText={setDocument}
-          keyboardType="number-pad"
-        />
-        <Label muted>
-          Alterações de valor e vencimento valem para mensalidades futuras. As
-          já emitidas conservam seus dados.
-        </Label>
-      </Card>
-      <Notice
-        message={
-          save.error?.message || invite.error?.message || revoke.error?.message
-        }
-      />
-      <Notice success message={message} />
-      <Button
-        loading={save.isPending}
-        onPress={() => {
-          setMessage("");
-          save.mutate();
-        }}
-      >
-        Salvar cadastro
-      </Button>
-      {initial ? (
-        <Card>
-          <Heading>Acesso do aluno</Heading>
-          <Label>Código: {initial.student_code}</Label>
-          {initial.user_id ? (
-            <Label muted>Conta já vinculada.</Label>
-          ) : (
-            <>
-              <Label muted>
-                O aluno abre o convite, entra na conta e aceita o vínculo.
-              </Label>
-              <Button
-                loading={invite.isPending}
-                onPress={() => invite.mutate()}
-              >
-                Gerar e copiar convite
-              </Button>
-              {link ? (
-                <Field
-                  label="Link do convite"
-                  value={link}
-                  editable={false}
-                  selectTextOnFocus
-                />
-              ) : null}
-              <Button
-                secondary
-                loading={revoke.isPending}
-                onPress={() => revoke.mutate()}
-              >
-                Revogar convites pendentes
-              </Button>
-            </>
-          )}
-        </Card>
-      ) : null}
-    </AcademyShell>
-  );
-}
 function DetailContent({ id }: { id: string }) {
   const { academy } = useSession();
   const a = academy!;
@@ -656,6 +364,12 @@ function DetailContent({ id }: { id: string }) {
     return (
       <AcademyShell title="Cadastro">
         <Notice message={error.message} />
+      </AcademyShell>
+    );
+  if (mods.data?.some((m) => typeof m.amount_cents !== "number"))
+    return (
+      <AcademyShell title="Cadastro do aluno">
+        <Notice message="Cadastro por etapas aguardando atualização da API." />
       </AcademyShell>
     );
   return (

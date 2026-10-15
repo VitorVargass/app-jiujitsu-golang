@@ -7,10 +7,12 @@ export const API_URL = resolveAPIURL({
   configured: process.env.EXPO_PUBLIC_API_URL,
   platform: Platform.OS,
   development: __DEV__,
-  expoHost: Constants.expoConfig?.hostUri,
+  expoHost:
+    Constants.expoConfig?.hostUri || Constants.expoGoConfig?.debuggerHost,
   browserHost:
     typeof window !== "undefined" ? window.location.hostname : undefined,
 });
+if (__DEV__) console.info("[Tatame] API: " + API_URL);
 export function setToken(value?: string) {
   token = value;
 }

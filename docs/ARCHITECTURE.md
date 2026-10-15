@@ -18,6 +18,18 @@ GenerateTx bloqueia configuração e aluno durante a geração. A restrição ac
 
 Os valores são inteiros em centavos; conversão para o provedor usa decimal exato. Vencimentos são datas da academia, enquanto aulas e presenças usam timestamptz em UTC e são apresentadas em seu fuso. O fuso inicial é America/Sao_Paulo.
 
+## Modalidades, graduações e forma de cobrança
+
+A migração 003 estende student_modalities com belt e amount_cents. O catálogo modalities guarda preço avulso e belt_options (rótulo e uma a três cores). O cadastro de aluno conserva o campo belt legado e acrescenta alternate_phone e charge_mode. As consultas e as validações permanecem limitadas à academia, incluindo o plano e cada modalidade.
+
+No modo modalities, normalizeEnrollments calcula a soma; valores negativos, repetições, graduações não configuradas e referências de outra academia são recusados. No modo plan, o aluno utiliza as modalidades do pacote e um valor mensal acordado. custom conserva contratos anteriores. A faixa retirada do catálogo pode permanecer no aluno que já a possuía, sem ser atribuída a novos alunos.
+
+O preço por aluno é persistido como valor contratado. O catálogo serve para preencher novos cadastros e não altera mensalidades emitidas. student_billing aceita zero somente com cobrança desativada. A gravação valida as referências e atualiza cadastro, modalidades e configuração financeira na mesma transação. O aluno é bloqueado antes da configuração financeira tanto na edição quanto no gerador, mantendo uma ordem de locks consistente.
+
+A confirmação do tablet e as listas de presença consultam a faixa da modalidade da turma. As credenciais, os IDs de presenças e os resultados idempotentes existentes são preservados.
+
+O frontend compartilha FormWizard e FormScrollContext: apenas a etapa atual é exibida, os valores ficam no formulário pai e o scroll volta ao início ao trocar de etapa. As seções permanecem montadas quando o gesto é desativado, evitando perda do estado do formulário.
+
 ## Asaas
 
 Configuração privada por academia é carregada de um arquivo JSON no servidor. O cliente HTTP usa access_token e timeout. Nenhuma credencial é entregue ao aplicativo.

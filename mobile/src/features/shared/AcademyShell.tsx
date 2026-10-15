@@ -75,11 +75,13 @@ export function AcademyShell({
   subtitle,
   titleAction,
   children,
+  swipeEnabled = true,
 }: {
   title: string;
   subtitle?: string;
   titleAction?: React.ReactNode;
   children: React.ReactNode;
+  swipeEnabled?: boolean;
 }) {
   const { academy, role, session } = useSession();
   const pathname = usePathname();
@@ -124,7 +126,7 @@ export function AcademyShell({
       title={title}
       subtitle={subtitle || academy?.name}
       titleAction={titleAction}
-      onSwipe={next && previous ? swipe : undefined}
+      onSwipe={swipeEnabled && next && previous ? swipe : undefined}
       swipePages={
         next && previous
           ? {

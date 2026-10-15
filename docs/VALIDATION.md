@@ -55,14 +55,14 @@ Os testes automatizados verificam a confirmação bancária simulada. A configur
 
 - artifacts/tatame-api.exe: executável Windows da API.
 - mobile/dist e artifacts/tatame-web.zip: portal web exportado.
-- artifacts/Tatame-arm64.apk: Android interno, arm64-v8a, com API de desenvolvimento em http://192.168.15.5:8080.
+- artifacts/Tatame-arm64.apk: Android interno, arm64-v8a, com API de desenvolvimento em http://192.168.15.6:8080.
 - artifacts/Tatame-arm64.apk.sha256: hash da versão final.
 
 O build Android local Gradle terminou com sucesso, incluindo Expo Clipboard e fontes locais. Após os últimos ajustes de interface, o bundle Hermes foi gerado pelo Expo, incorporado ao APK, alinhado e assinado novamente. A assinatura v2/v3 e o alinhamento de 16 KiB foram verificados com as ferramentas Android SDK.
 
 SHA-256 do APK:
 
-    85406e9fcda9b07d9074bc6c85f069191119da83d7693ffcfc07d2ef99df31ad
+    d3dd2788008c618da05e736a2eba64409e776dbf4a7e8119a1627d4519c8f3a0
 
 O APK usa assinatura de desenvolvimento e se destina ao teste interno. A API local e a versão web devem ser reiniciadas para utilizar o código atualizado.
 
@@ -106,6 +106,47 @@ A versão web foi exportada novamente. O APK conserva seus módulos nativos e at
 Os Stacks de autenticação e aplicação desabilitam gestureEnabled e a animação de transição. Não houve teste em aparelho iOS ou Android físico.
 
 Prévias desta revisão: artifacts/validation/pager-held.png e artifacts/validation/pager-student.png.
+
+## Configuração automática do Expo Go — 14/10/2026
+
+Nesta inspeção, o computador estava em 192.168.15.6 e mobile/.env ainda usava 192.168.15.5. O arquivo local agora usa EXPO_PUBLIC_API_URL=auto. O cliente identifica o host do Expo com expoConfig.hostUri e usa expoGoConfig.debuggerHost como alternativa. URLs explícitas continuam prevalecendo.
+
+A API e o seed agora carregam backend/.env com godotenv; variáveis do processo têm prioridade. A conexão local existente foi preservada com localhost:5432, e HTTP_ADDR=:8080 mantém acesso pela rede. ALLOWED_ORIGINS=auto identifica as origens web locais ao iniciar. O script de desenvolvimento respeita os dados salvos no arquivo e inicia Expo em modo LAN. O novo scripts/start-dev.cmd oferece uma entrada por duplo clique.
+
+Evidências desta revisão:
+
+| Etapa | Resultado |
+|---|---|
+| Descoberta do endereço | Testes da função resolveram três IPs diferentes sem editar a configuração, além de navegador, emulador e URL explícita |
+| Manifesto Android do Expo pela LAN | hostUri e debuggerHost apontaram para 192.168.15.6:8081 |
+| API e PostgreSQL | /healthz devolveu status ok tanto por localhost quanto pelo endereço atual da rede |
+| Login pela API | Uma conta diagnóstica inexistente recebeu 401 invalid_credentials |
+| App no navegador | Após reiniciar o Expo, o log mostrou API http://localhost:8080; o formulário exibiu “E-mail ou senha incorretos.” em vez de erro de conexão |
+| Backend | go test ./... -count=1, go vet ./... e compilação da API passaram |
+| Frontend | TypeScript e lint passaram |
+| Inicializador | Análise sintática e execução com os serviços existentes passaram, reutilizando PostgreSQL e API |
+
+O processo Expo anterior ainda mantinha o IP antigo. Ele foi reiniciado para carregar o preset automático, preservando a API e o PostgreSQL que estavam saudáveis. O executável Windows da API foi recompilado. Os testes não criaram contas nem usaram a senha pessoal do usuário.
+
+Não houve teste no celular físico nesta revisão. No Expo Go, é necessário fazer um Reload completo ou reabrir o projeto pelo endereço/QR atual. O modo auto depende da mesma rede local; APKs e exports de produção continuam exigindo uma URL explícita.
+
+## Cadastros por etapas — 15 de outubro de 2026
+
+Implementados cinco passos no aluno (identificação, modalidades, mensalidade, pagador e revisão), faixa visual independente por modalidade, telefone alternativo e cobrança por modalidades ou pacote de plano. Planos, modalidades, turmas e horários também usam etapas com revisão antes da gravação.
+
+Validação desta revisão:
+
+- go test ./... -count=1 com PostgreSQL 17 real em bancos exclusivos de testes e go vet ./... passaram. O teste de migração usou uma base nova desde a 001; o fluxo novo cobre valores por modalidade, plano, validações, isolamento entre academias e manutenção de mensalidades já emitidas.
+- TestRestoredCopyMigration passou numa cópia restaurada do banco local, em PostgreSQL 18 isolado na porta 55433. Assinaturas dos dados anteriores de dez tabelas permaneceram iguais após a 003. O backup está em artifacts/backups/tatame-before-wizard-20261015-031612.dump.
+- Um aluno com Jiu-Jitsu Azul e No-Gi Roxa manteve as graduações independentes. Check-in, lista da aula e histórico apresentaram a faixa correspondente à modalidade da turma.
+- No navegador, os passos conservaram dados ao voltar, validaram nome e documento, somaram R$ 150 + R$ 90 numa única mensalidade de R$ 240 e criaram um contrato por plano de R$ 200. Nenhum aluno foi salvo antes da revisão final; cancelar uma edição não alterou o registro.
+- Um plano, uma modalidade com graduação personalizada, uma turma e um horário semanal foram criados na base isolada. A modalidade personalizada manteve as cores escolhidas. O horário foi confirmado pela API como 18:30 e duração de 60 minutos.
+- Telas inspecionadas em 390 e 320 pixels, incluindo seletor visual de faixas e revisão. Prévias: artifacts/validation/wizard-modalities.png, wizard-review.png e wizard-review-320.png.
+- O teste de regressão do carrossel passou para segurar, recuar, arraste curto rápido, limite de confirmação, sentidos, ciclo, rolagem vertical, campos e toque na lista de alunos. Os formulários de turmas permanecem montados ao desativar o arraste durante a edição.
+- TypeScript, lint e formatação dos formulários passaram. Web e bundle Android Hermes versão 98 foram exportados. O APK atualizado passou na assinatura v2/v3 e no alinhamento de 16 KiB.
+- O executável preparado está em artifacts/tatame-api.exe; o portal em mobile/dist e artifacts/tatame-web.zip; o APK em artifacts/Tatame-arm64.apk. API de desenvolvimento dos exports: http://192.168.15.6:8080.
+
+A ativação foi autorizada explicitamente pelo usuário em 15 de outubro de 2026. Novo backup completo validado: artifacts/backups/tatame-before-wizard-activation-20261015-010445.dump. A migração 003 foi aplicada ao banco local tatame; as assinaturas dos dados anteriores das dez tabelas permaneceram iguais antes/depois. A API foi reiniciada e /healthz respondeu ok por localhost e por http://192.168.15.6:8080; o portal retornou HTTP 200. O bloqueio anterior da revisão automática foi resolvido pela autorização. Os testes funcionais com criação de registros continuaram restritos aos bancos isolados. Não houve teste em aparelho físico nesta revisão.
 
 ## Verificações ainda necessárias
 

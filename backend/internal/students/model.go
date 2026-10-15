@@ -8,36 +8,52 @@ type Billing struct {
 	PayerName     string `json:"payer_name"`
 	PayerDocument string `json:"payer_document"`
 }
+type BeltOption struct {
+	Label  string   `json:"label"`
+	Colors []string `json:"colors"`
+}
+type ModalityDetail struct {
+	ModalityID  string `json:"modality_id"`
+	Belt        string `json:"belt"`
+	AmountCents int64  `json:"amount_cents"`
+}
 type Student struct {
-	ID          string   `json:"id"`
-	AcademyID   string   `json:"academy_id"`
-	UserID      string   `json:"user_id"`
-	Name        string   `json:"name"`
-	Email       string   `json:"email"`
-	Phone       string   `json:"phone"`
-	Status      string   `json:"status"`
-	Belt        string   `json:"belt"`
-	PlanID      string   `json:"plan_id"`
-	StudentCode string   `json:"student_code"`
-	Modalities  []string `json:"modality_ids"`
-	Billing     *Billing `json:"billing"`
+	ID              string           `json:"id"`
+	AcademyID       string           `json:"academy_id"`
+	UserID          string           `json:"user_id"`
+	Name            string           `json:"name"`
+	Email           string           `json:"email"`
+	Phone           string           `json:"phone"`
+	AlternatePhone  string           `json:"alternate_phone"`
+	Status          string           `json:"status"`
+	Belt            string           `json:"belt"`
+	ChargeMode      string           `json:"charge_mode"`
+	PlanID          string           `json:"plan_id"`
+	StudentCode     string           `json:"student_code"`
+	Modalities      []string         `json:"modality_ids"`
+	ModalityDetails []ModalityDetail `json:"modality_details"`
+	Billing         *Billing         `json:"billing"`
 }
 type Input struct {
-	Name       string   `json:"name"`
-	Email      string   `json:"email"`
-	Phone      string   `json:"phone"`
-	Status     string   `json:"status"`
-	Belt       string   `json:"belt"`
-	PlanID     string   `json:"plan_id"`
-	Modalities []string `json:"modality_ids"`
-	Billing    *Billing `json:"billing"`
+	Name            string           `json:"name"`
+	Email           string           `json:"email"`
+	Phone           string           `json:"phone"`
+	AlternatePhone  string           `json:"alternate_phone"`
+	Status          string           `json:"status"`
+	Belt            string           `json:"belt"`
+	ChargeMode      string           `json:"charge_mode"`
+	PlanID          string           `json:"plan_id"`
+	Modalities      []string         `json:"modality_ids"`
+	ModalityDetails []ModalityDetail `json:"modality_details"`
+	Billing         *Billing         `json:"billing"`
 }
 type Catalog struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Active      bool     `json:"active"`
-	AmountCents int64    `json:"amount_cents,omitempty"`
-	Modalities  []string `json:"modality_ids,omitempty"`
+	ID          string       `json:"id"`
+	Name        string       `json:"name"`
+	Active      bool         `json:"active"`
+	AmountCents int64        `json:"amount_cents"`
+	Modalities  []string     `json:"modality_ids,omitempty"`
+	BeltOptions []BeltOption `json:"belt_options,omitempty"`
 }
 type Page[T any] struct {
 	Items    []T `json:"items"`

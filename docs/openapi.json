@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Tatame API",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "Gestão multiacademia, alunos independentes, mensalidades, Pix Asaas e presença exclusivamente por dispositivos autorizados."
   },
   "servers": [
@@ -697,8 +697,9 @@
           "amount_cents": {
             "type": "integer",
             "format": "int64",
-            "minimum": 1,
-            "maximum": 100000000
+            "minimum": 0,
+            "maximum": 100000000,
+            "description": "Positivo quando enabled=true. No modo modalities o servidor calcula a soma dos valores contratados."
           },
           "due_day": {
             "type": "integer",
@@ -737,6 +738,25 @@
           },
           "phone": {
             "type": "string"
+          },
+          "alternate_phone": {
+            "type": "string"
+          },
+          "charge_mode": {
+            "type": "string",
+            "enum": [
+              "custom",
+              "plan",
+              "modalities"
+            ],
+            "description": "custom preserva contratos legados. plan exige as modalidades do pacote. modalities soma os valores individuais em uma mensalidade."
+          },
+          "modality_details": {
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "$ref": "#/components/schemas/ModalityDetail"
+            }
           },
           "status": {
             "type": "string",
@@ -814,7 +834,7 @@
           "amount_cents": {
             "type": "integer",
             "format": "int64",
-            "minimum": 1,
+            "minimum": 0,
             "maximum": 100000000
           },
           "modality_ids": {
@@ -822,6 +842,13 @@
             "items": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          "belt_options": {
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "$ref": "#/components/schemas/BeltOption"
             }
           }
         },
@@ -835,6 +862,19 @@
           },
           "active": {
             "type": "boolean"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "belt_options": {
+            "type": "array",
+            "maxItems": 30,
+            "items": {
+              "$ref": "#/components/schemas/BeltOption"
+            }
           }
         },
         "required": [
@@ -1077,6 +1117,52 @@
           "id",
           "event",
           "payment"
+        ]
+      },
+      "BeltOption": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "colors": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$"
+            }
+          }
+        },
+        "required": [
+          "label",
+          "colors"
+        ]
+      },
+      "ModalityDetail": {
+        "type": "object",
+        "properties": {
+          "modality_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "belt": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 100000000
+          }
+        },
+        "required": [
+          "modality_id",
+          "belt",
+          "amount_cents"
         ]
       }
     }

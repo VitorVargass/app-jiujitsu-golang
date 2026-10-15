@@ -12,6 +12,15 @@ import (
 type Repository struct{ DB *pgxpool.Pool }
 
 func GenerateTx(ctx context.Context, tx pgx.Tx, a, student string, now time.Time) error {
+	// Every contract mutation and the generator lock the student before billing.
+	// Keeping the same lock order prevents a generator/edit deadlock.
+	var locked string
+	if err := tx.QueryRow(ctx, "SELECT id FROM students WHERE academy_id=$1 AND id=$2 FOR UPDATE", a, student).Scan(&locked); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return err
+	}
 	var enabled bool
 	var amount int64
 	var day int

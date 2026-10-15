@@ -13,7 +13,7 @@ func (r Repository) PagedHistory(ctx context.Context, a, session, student, month
 	if e := r.DB.QueryRow(ctx, "SELECT count(*)"+joins, args...).Scan(&out.Total); e != nil {
 		return out, e
 	}
-	rows, e := r.DB.Query(ctx, "SELECT p.id,st.id,p.session_id,c.name,st.name,st.belt,p.checked_in_at"+joins+" ORDER BY p.checked_in_at DESC,p.id LIMIT $6 OFFSET $7", append(args, size, (page-1)*size)...)
+	rows, e := r.DB.Query(ctx, "SELECT p.id,st.id,p.session_id,c.name,st.name,COALESCE((SELECT CASE WHEN sm.belt='' THEN 'Sem graduação' ELSE sm.belt END FROM student_modalities sm WHERE sm.academy_id=st.academy_id AND sm.student_id=st.id AND sm.modality_id=c.modality_id),st.belt),p.checked_in_at"+joins+" ORDER BY p.checked_in_at DESC,p.id LIMIT $6 OFFSET $7", append(args, size, (page-1)*size)...)
 	if e != nil {
 		return out, e
 	}

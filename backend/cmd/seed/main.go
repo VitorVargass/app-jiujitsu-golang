@@ -18,7 +18,8 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
+	cfg, e := config.Load()
+	must(e)
 	must(database.Migrate(cfg.DatabaseURL))
 	db, e := database.Open(context.Background(), cfg.DatabaseURL)
 	must(e)

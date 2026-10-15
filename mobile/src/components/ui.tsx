@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useCallback, useRef } from "react";
+import { FormScrollContext } from "./FormScrollContext";
 import {
   ActivityIndicator,
   Pressable,
@@ -36,33 +37,46 @@ export function Page({
   swipePages?: SwipePages;
   contentOnly?: boolean;
 }) {
+  const scrollRef = useRef<ScrollView>(null);
+  const resetScroll = useCallback(
+    () => scrollRef.current?.scrollTo({ y: 0, animated: false }),
+    [],
+  );
   const content = (
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={[
-        styles.page,
-        header || contentOnly ? styles.appPage : null,
-      ]}
-      keyboardShouldPersistTaps="handled"
-    >
-      {!header && !contentOnly ? (
-        <View style={styles.brand}>
-          <Text style={styles.logo}>◈</Text>
-          <Text style={styles.brandText}>Tatame</Text>
-          {action ? <View style={{ marginLeft: "auto" }}>{action}</View> : null}
-        </View>
-      ) : null}
-      {title ? (
-        <View style={styles.titleRow}>
-          <Text accessibilityRole="header" style={[styles.title, { flex: 1 }]}>
-            {title}
-          </Text>
-          {titleAction}
-        </View>
-      ) : null}
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-      {children}
-    </ScrollView>
+    <FormScrollContext.Provider value={resetScroll}>
+      <ScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          styles.page,
+          header || contentOnly ? styles.appPage : null,
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        {!header && !contentOnly ? (
+          <View style={styles.brand}>
+            <Text style={styles.logo}>◈</Text>
+            <Text style={styles.brandText}>Tatame</Text>
+            {action ? (
+              <View style={{ marginLeft: "auto" }}>{action}</View>
+            ) : null}
+          </View>
+        ) : null}
+        {title ? (
+          <View style={styles.titleRow}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.title, { flex: 1 }]}
+            >
+              {title}
+            </Text>
+            {titleAction}
+          </View>
+        ) : null}
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        {children}
+      </ScrollView>
+    </FormScrollContext.Provider>
   );
   if (contentOnly) return content;
   return (

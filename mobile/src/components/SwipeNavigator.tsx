@@ -174,7 +174,7 @@ export function SwipeNavigator({
     responder.activate();
     return () => responder.dispose();
   }, [responder]);
-  if (!onSwipe || !pages) return <View style={styles.frame}>{children}</View>;
+  if (!pages) return <View style={styles.frame}>{children}</View>;
   return (
     <View
       testID="section-pager"
