@@ -16,7 +16,9 @@ export type IconName =
   | "sliders"
   | "chevron-right"
   | "chevron-left"
-  | "close";
+  | "close"
+  | "edit"
+  | "tablet";
 
 const glyphs: Record<IconName, ReactNode> = {
   home: (
@@ -85,6 +87,18 @@ const glyphs: Record<IconName, ReactNode> = {
   ),
   "chevron-right": <Path d="m9 5 7 7-7 7" />,
   "chevron-left": <Path d="m15 5-7 7 7 7" />,
+  edit: (
+    <>
+      <Path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15Z" />
+      <Path d="M13 20h7" />
+    </>
+  ),
+  tablet: (
+    <>
+      <Rect x="5" y="2" width="14" height="20" rx="2" />
+      <Path d="M11 18h2" />
+    </>
+  ),
   close: <Path d="m6 6 12 12M6 18 18 6" />,
 };
 

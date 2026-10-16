@@ -25,10 +25,11 @@ func GenerateTx(ctx context.Context, tx pgx.Tx, a, student string, now time.Time
 	var amount int64
 	var day int
 	var next time.Time
-	var name, doc, zone, status string
-	e := tx.QueryRow(ctx, `SELECT b.enabled,b.amount_cents,b.due_day,b.next_month,b.payer_name,b.payer_document,a.timezone,s.status
+	var name, doc, zone, status, ownName, ownCPF string
+	var birth *time.Time
+	e := tx.QueryRow(ctx, `SELECT b.enabled,b.amount_cents,b.due_day,b.next_month,b.payer_name,b.payer_document,a.timezone,s.status,s.birth_date,s.name,s.cpf
  FROM student_billing b JOIN students s ON s.academy_id=b.academy_id AND s.id=b.student_id JOIN academies a ON a.id=b.academy_id
- WHERE b.academy_id=$1 AND b.student_id=$2 FOR UPDATE OF b,s`, a, student).Scan(&enabled, &amount, &day, &next, &name, &doc, &zone, &status)
+ WHERE b.academy_id=$1 AND b.student_id=$2 FOR UPDATE OF b,s`, a, student).Scan(&enabled, &amount, &day, &next, &name, &doc, &zone, &status, &birth, &ownName, &ownCPF)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return nil
 	}
@@ -43,6 +44,15 @@ func GenerateTx(ctx context.Context, tx pgx.Tx, a, student string, now time.Time
 		return e
 	}
 	local := now.In(loc)
+	if birth != nil && core.AgeOn(*birth, local) >= 18 {
+		if !ValidDocument(ownCPF) {
+			return core.E(422, "invalid_cpf", "Atualize o CPF do aluno maior de idade antes de emitir mensalidades.")
+		}
+		name, doc = ownName, ownCPF
+		if _, e = tx.Exec(ctx, "UPDATE student_billing SET payer_name=$3,payer_document=$4 WHERE academy_id=$1 AND student_id=$2", a, student, name, doc); e != nil {
+			return e
+		}
+	}
 	current := time.Date(local.Year(), local.Month(), 1, 0, 0, 0, 0, loc)
 	for !next.After(current) {
 		due := DueDate(next, day)

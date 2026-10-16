@@ -10,15 +10,27 @@ import {
 } from "react-native";
 import { Button, Label } from "./ui";
 import type { BeltOption } from "../types/billing";
-import { colors } from "../theme";
+import { colors, accents } from "../theme";
+import { degreeLabel, rankLabel } from "../types/graduation";
 
-export function BeltSwatch({ colors: bands }: { colors: readonly string[] }) {
+export function BeltSwatch({
+  colors: bands,
+  degrees = 0,
+}: {
+  colors: readonly string[];
+  degrees?: number;
+}) {
+  const count = Math.min(4, Math.max(0, Math.floor(degrees)));
   return (
     <View style={styles.swatch}>
       {bands.map((color, index) => (
         <View key={index} style={{ flex: 1, backgroundColor: color }} />
       ))}
-      <View style={styles.tip} />
+      <View style={styles.tip}>
+        {Array.from({ length: count }, (_, index) => (
+          <View key={index} style={styles.stripe} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -26,11 +38,13 @@ export function BeltPicker({
   modality,
   options,
   value,
+  degrees = 0,
   onChange,
 }: {
   modality: string;
   options: BeltOption[];
   value: string;
+  degrees?: number;
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -52,10 +66,15 @@ export function BeltPicker({
       >
         <View style={{ flex: 1, gap: 6 }}>
           <Text style={styles.hint}>GRADUAÇÃO</Text>
-          <Text style={styles.label}>{value || "Selecionar faixa"}</Text>
+          <Text style={styles.label}>
+            {value ? rankLabel(value, degrees) : "Selecionar faixa"}
+          </Text>
         </View>
         {value ? (
-          <BeltSwatch colors={selected?.colors ?? ["#929292"]} />
+          <BeltSwatch
+            colors={selected?.colors ?? ["#929292"]}
+            degrees={degrees}
+          />
         ) : (
           <Text style={styles.arrow}>›</Text>
         )}
@@ -109,6 +128,68 @@ export function BeltPicker({
     </>
   );
 }
+export function DegreePicker({
+  modality,
+  value,
+  onChange,
+}: {
+  modality: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <View style={{ gap: 10 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <Text style={styles.hint}>GRAUS DA FAIXA</Text>
+        <Text style={styles.degreeCaption}>{degreeLabel(value)}</Text>
+      </View>
+      <View style={styles.degreeOptions}>
+        {[0, 1, 2, 3, 4].map((degrees) => (
+          <Pressable
+            key={degrees}
+            accessibilityRole="button"
+            accessibilityLabel={
+              "Selecionar " +
+              degreeLabel(degrees).toLowerCase() +
+              " em " +
+              modality
+            }
+            accessibilityState={{ selected: value === degrees }}
+            onPress={() => onChange(degrees)}
+            style={({ pressed }) => [
+              styles.degreeOption,
+              value === degrees && styles.degreeSelected,
+              pressed && { opacity: 0.65 },
+            ]}
+          >
+            <Text
+              style={[
+                styles.degreeNumber,
+                value === degrees && { color: colors.primary },
+              ]}
+            >
+              {degrees}
+            </Text>
+            <View style={styles.degreePreview} pointerEvents="none">
+              {Array.from({ length: degrees }, (_, i) => (
+                <View key={i} style={styles.degreeTick} />
+              ))}
+            </View>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.degreeHelp}>
+        0 = sem grau. Ao trocar de faixa, os graus voltam para zero.
+      </Text>
+    </View>
+  );
+}
 const styles = StyleSheet.create({
   trigger: {
     borderWidth: 1,
@@ -142,13 +223,18 @@ const styles = StyleSheet.create({
     right: 8,
     top: 0,
     bottom: 0,
-    width: 9,
+    width: 26,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
     backgroundColor: "#080808",
     borderLeftWidth: 1,
     borderLeftColor: "#777",
     borderRightWidth: 1,
     borderRightColor: "#777",
   },
+  stripe: { width: 2, height: 14, backgroundColor: "#FFFFFF" },
   backdrop: {
     flex: 1,
     justifyContent: "center",
@@ -185,7 +271,51 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 10,
   },
-  selected: { borderColor: colors.text, backgroundColor: "#303030" },
+  selected: { borderColor: colors.primary, backgroundColor: accents.mint.soft },
+  degreeOptions: { flexDirection: "row", gap: 6 },
+  degreeOption: {
+    flex: 1,
+    minWidth: 36,
+    minHeight: 58,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  degreeSelected: {
+    borderColor: colors.primary,
+    backgroundColor: accents.mint.soft,
+  },
+  degreeNumber: {
+    color: colors.muted,
+    fontSize: 16,
+    fontFamily: "Lato_700Bold",
+  },
+  degreeCaption: {
+    color: colors.primary,
+    fontFamily: "Lato_700Bold",
+    fontSize: 11,
+  },
+  degreeHelp: {
+    color: colors.muted,
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    lineHeight: 17,
+  },
+  degreePreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    width: 26,
+    height: 8,
+    borderRadius: 2,
+    backgroundColor: "#080808",
+  },
+  degreeTick: { width: 2, height: 6, backgroundColor: "#FFFFFF" },
   optionLabel: {
     color: colors.text,
     fontFamily: "Lato_400Regular",

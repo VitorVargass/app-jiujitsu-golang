@@ -42,6 +42,9 @@ func normalizeEnrollments(in *Input) error {
 	for i := range in.ModalityDetails {
 		d := &in.ModalityDetails[i]
 		d.Belt = strings.TrimSpace(d.Belt)
+		if d.Degrees != nil && (*d.Degrees < 0 || *d.Degrees > 4) {
+			return core.E(422, "invalid_degrees", "Selecione de zero a quatro graus para cada faixa.")
+		}
 		if !core.ValidID(d.ModalityID) || seen[d.ModalityID] || len(d.Belt) > 50 || d.AmountCents < 0 || d.AmountCents > 100000000 {
 			return core.E(422, "invalid_modality", "Modalidade, faixa ou valor inválido.")
 		}
@@ -106,8 +109,8 @@ func validateBeltOptions(options []BeltOption) error {
 
 // Resolve against the academy inside the same transaction used to save the contract.
 func resolveEnrollments(ctx context.Context, tx pgx.Tx, a, id string, in *Input) error {
-	details := make([]ModalityDetail, 0, len(in.Modalities))
-	supplied := map[string]ModalityDetail{}
+	details := make([]EnrollmentInput, 0, len(in.Modalities))
+	supplied := map[string]EnrollmentInput{}
 	for _, d := range in.ModalityDetails {
 		supplied[d.ModalityID] = d
 	}
@@ -116,10 +119,12 @@ func resolveEnrollments(ctx context.Context, tx pgx.Tx, a, id string, in *Input)
 		var raw []byte
 		var price int64
 		var oldBelt string
+		var oldDegrees int
 		err := tx.QueryRow(ctx, `SELECT m.active,m.belt_options,m.amount_cents,
    EXISTS(SELECT 1 FROM student_modalities sm WHERE sm.academy_id=m.academy_id AND sm.modality_id=m.id AND sm.student_id=NULLIF($3,'')::uuid),
-   COALESCE((SELECT belt FROM student_modalities sm WHERE sm.academy_id=m.academy_id AND sm.modality_id=m.id AND sm.student_id=NULLIF($3,'')::uuid),'')
-   FROM modalities m WHERE m.academy_id=$1 AND m.id=$2`, a, mid, id).Scan(&active, &raw, &price, &existing, &oldBelt)
+   COALESCE((SELECT belt FROM student_modalities sm WHERE sm.academy_id=m.academy_id AND sm.modality_id=m.id AND sm.student_id=NULLIF($3,'')::uuid),''),
+   COALESCE((SELECT degrees FROM student_modalities sm WHERE sm.academy_id=m.academy_id AND sm.modality_id=m.id AND sm.student_id=NULLIF($3,'')::uuid),0)
+   FROM modalities m WHERE m.academy_id=$1 AND m.id=$2`, a, mid, id).Scan(&active, &raw, &price, &existing, &oldBelt, &oldDegrees)
 		if errors.Is(err, pgx.ErrNoRows) || err == nil && !active && !existing {
 			return core.E(422, "invalid_modality", "Selecione modalidades ativas desta academia.")
 		}
@@ -132,7 +137,7 @@ func resolveEnrollments(ctx context.Context, tx pgx.Tx, a, id string, in *Input)
 		}
 		d, present := supplied[mid]
 		if !present {
-			d = ModalityDetail{ModalityID: mid, AmountCents: price, Belt: oldBelt}
+			d = EnrollmentInput{ModalityID: mid, AmountCents: price, Belt: oldBelt}
 			if !existing && len(options) > 0 {
 				d.Belt = in.Belt
 			}
@@ -147,6 +152,16 @@ func resolveEnrollments(ctx context.Context, tx pgx.Tx, a, id string, in *Input)
 			if !valid && !(existing && d.Belt == oldBelt) {
 				return core.E(422, "invalid_belt", "Selecione uma graduação válida para cada modalidade.")
 			}
+		}
+		if d.Degrees == nil {
+			degrees := 0
+			if existing && d.Belt == oldBelt {
+				degrees = oldDegrees
+			}
+			d.Degrees = &degrees
+		}
+		if d.Belt == "" && *d.Degrees != 0 {
+			return core.E(422, "invalid_degrees", "Esta modalidade não utiliza graus sem uma faixa.")
 		}
 		details = append(details, d)
 	}

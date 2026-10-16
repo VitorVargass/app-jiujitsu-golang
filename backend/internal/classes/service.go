@@ -30,6 +30,11 @@ func (s Service) Save(ctx context.Context, a, id string, in ClassInput) (Class, 
 	if _, err := s.Access.Require(ctx, a, "admin"); err != nil {
 		return Class{}, err
 	}
+	if in.Schedules != nil {
+		if err := validateSchedules(*in.Schedules); err != nil {
+			return Class{}, err
+		}
+	}
 	in.Name = strings.TrimSpace(in.Name)
 	if in.ModalityID != "" {
 		var ok bool

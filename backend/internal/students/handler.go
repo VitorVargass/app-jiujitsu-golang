@@ -19,7 +19,7 @@ func (h Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	status, modality := r.URL.Query().Get("status"), r.URL.Query().Get("modality_id")
-	if (status != "" && status != "active" && status != "inactive") || (modality != "" && !core.ValidID(modality)) {
+	if (status != "" && status != "active" && status != "inactive" && status != "archived") || (modality != "" && !core.ValidID(modality)) {
 		core.Fail(w, core.E(422, "invalid_filter", "Filtro inválido."))
 		return
 	}

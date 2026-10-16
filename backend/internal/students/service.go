@@ -5,9 +5,8 @@ import (
 	"net/mail"
 	"strings"
 	"tatame/backend/internal/access"
-	"tatame/backend/internal/billing"
+
 	"tatame/backend/internal/core"
-	"time"
 )
 
 type Service struct {
@@ -24,6 +23,16 @@ func (s Service) Save(ctx context.Context, a, id string, in Input) (Student, err
 	}
 	if e := normalizeEnrollments(&in); e != nil {
 		return Student{}, e
+	}
+	if in.CPF == nil && id == "" {
+		return Student{}, core.E(422, "invalid_cpf", "Informe o CPF do próprio aluno.")
+	}
+	if in.CPF != nil {
+		cpf, ok := core.NormalizeCPF(*in.CPF)
+		if !ok || id == "" && cpf == "" {
+			return Student{}, core.E(422, "invalid_cpf", "Informe um CPF válido do próprio aluno.")
+		}
+		in.CPF = &cpf
 	}
 	in.Name = strings.TrimSpace(in.Name)
 	in.Email = strings.ToLower(strings.TrimSpace(in.Email))
@@ -57,44 +66,6 @@ func (s Service) Save(ctx context.Context, a, id string, in Input) (Student, err
 	for _, m := range in.Modalities {
 		if !core.ValidID(m) {
 			return Student{}, core.E(422, "invalid_modality", "Modalidade inválida.")
-		}
-	}
-	if b := in.Billing; b != nil {
-		b.PayerName = strings.TrimSpace(b.PayerName)
-		if b.PayerName == "" {
-			b.PayerName = in.Name
-		}
-		b.PayerDocument = strings.TrimSpace(b.PayerDocument)
-		month, e := time.Parse("2006-01", b.FirstMonth)
-		if e != nil || month.Year() < 2020 || month.Year() > 2100 || b.AmountCents < 0 || (b.Enabled && b.AmountCents < 1) || b.AmountCents > 100000000 || b.DueDay < 1 || b.DueDay > 31 || len(b.PayerName) < 2 || len(b.PayerName) > 100 || (b.Enabled || b.PayerDocument != "") && !billing.ValidDocument(b.PayerDocument) {
-			return Student{}, core.E(422, "invalid_billing", "Informe valor positivo, vencimento de 1 a 31, competência YYYY-MM e nome/CPF ou CNPJ válido do pagador.")
-		}
-		if b.Enabled && in.Status == "inactive" {
-			return Student{}, core.E(422, "inactive_billing", "Reative o aluno antes de ativar a cobrança.")
-		}
-		if b.Enabled {
-			previousEnabled := false
-			if id != "" {
-				v, e := s.Repo.Get(ctx, a, id)
-				if e != nil {
-					return Student{}, e
-				}
-				previousEnabled = v.Billing != nil && v.Billing.Enabled
-			}
-			if !previousEnabled {
-				var zone string
-				if e := s.Repo.DB.QueryRow(ctx, "SELECT timezone FROM academies WHERE id=$1", a).Scan(&zone); e != nil {
-					return Student{}, e
-				}
-				loc, e := time.LoadLocation(zone)
-				if e != nil {
-					return Student{}, e
-				}
-				now := time.Now().In(loc)
-				if b.FirstMonth < now.Format("2006-01") {
-					return Student{}, core.E(422, "past_start", "A ativação deve começar na competência atual ou futura.")
-				}
-			}
 		}
 	}
 	return s.Repo.Save(ctx, a, id, in)

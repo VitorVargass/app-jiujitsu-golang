@@ -1,516 +1,430 @@
 import { useState } from "react";
-import { FormWizard } from "../../components/FormWizard";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { Redirect, router } from "expo-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { Icon, IconName } from "../../components/Icon";
+import { Button, Empty, Label, Loading, Notice } from "../../components/ui";
 import { api, academyPath } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
-import { AcademyShell, RoleGate } from "../shared/AcademyShell";
-import {
-  Card,
-  Heading,
-  Label,
-  Button,
-  Field,
-  Notice,
-  Loading,
-  Row,
-  Chip,
-  Empty,
-} from "../../components/ui";
-import { Class, Member, Schedule } from "../../types";
+import { Class, Schedule, Session } from "../../types";
 import { Catalog } from "../../types/billing";
-import { weekdays } from "../../theme";
+import { accents, colors, displayTime } from "../../theme";
+import { AcademyShell, RoleGate } from "../shared/AcademyShell";
+import { ClassDialog } from "./ClassDialog";
+import { ClassEditor } from "./ClassEditor";
+import { daysLabel, groupWeekly } from "./weekly";
 
-function ModalityPicker({
-  value,
-  onChange,
+function MenuAction({
+  label,
+  icon,
+  danger = false,
+  disabled = false,
+  onPress,
 }: {
-  value: string;
-  onChange: (id: string, name?: string) => void;
+  label: string;
+  icon: IconName;
+  danger?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
 }) {
-  const { academy } = useSession();
-  const list = useQuery({
-    queryKey: ["modalities", academy!.id],
-    queryFn: () => api<Catalog[]>(academyPath(academy!.id, "/modalities")),
-  });
   return (
-    <>
-      <Label>Modalidade</Label>
-      <Notice message={list.error?.message} />
-      <Row>
-        {list.data
-          ?.filter((m) => m.active)
-          .map((m) => (
-            <Chip
-              key={m.id}
-              selected={value === m.id}
-              onPress={() => onChange(m.id, m.name)}
-            >
-              {m.name}
-            </Chip>
-          ))}
-      </Row>
-    </>
-  );
-}
-function TeacherPicker({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (id: string, name?: string) => void;
-}) {
-  const { academy } = useSession();
-  const members = useQuery({
-    queryKey: ["members", academy!.id],
-    queryFn: () => api<Member[]>(academyPath(academy!.id, "/members")),
-  });
-  const teachers =
-    members.data?.filter(
-      (m) => m.status === "active" && m.roles.includes("teacher"),
-    ) ?? [];
-  return (
-    <>
-      <Label>Professor responsável (opcional)</Label>
-      {members.isPending ? (
-        <Loading />
-      ) : (
-        <Row>
-          <Chip selected={!value} onPress={() => onChange("", "Sem professor")}>
-            Sem professor
-          </Chip>
-          {teachers.map((m) => (
-            <Chip
-              key={m.id}
-              selected={value === m.id}
-              onPress={() => onChange(m.id, m.name)}
-            >
-              {m.name}
-            </Chip>
-          ))}
-        </Row>
-      )}
-      <Notice message={members.error?.message} />
-      {members.data && !teachers.length && (
-        <Label muted>Você pode criar a turma sem professor vinculado.</Label>
-      )}
-    </>
-  );
-}
-
-function AddSchedule({
-  classId,
-  onFormChange,
-}: {
-  classId: string;
-  onFormChange: (key: string, open: boolean) => void;
-}) {
-  const { academy } = useSession();
-  const [adding, setAdding] = useState(false);
-  const [day, setDay] = useState(1),
-    [start, setStart] = useState("19:00"),
-    [duration, setDuration] = useState("60");
-  function close() {
-    setAdding(false);
-    onFormChange(classId + "-schedule", false);
-  }
-  const save = useMutation({
-    mutationFn: () =>
-      api(academyPath(academy!.id, "/classes/" + classId + "/schedules"), {
-        method: "POST",
-        body: {
-          weekday: day,
-          start_time: start,
-          duration_minutes: Number(duration),
-        },
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ["schedules", academy!.id, classId],
-      });
-      close();
-    },
-  });
-  if (!adding)
-    return (
-      <Button
-        secondary
-        onPress={() => {
-          save.reset();
-          setAdding(true);
-          onFormChange(classId + "-schedule", true);
-        }}
-      >
-        Adicionar horário semanal
-      </Button>
-    );
-  return (
-    <FormWizard
-      steps={["Dia e horário", "Revisão do horário"]}
-      submitLabel="Salvar horário"
-      pending={save.isPending}
-      error={save.error?.message}
-      onCancel={close}
-      onSubmit={() => save.mutate()}
-      validate={(step) =>
-        step === 0 &&
-        (!/^([01]\d|2[0-3]):[0-5]\d$/.test(start) ||
-          !/^\d+$/.test(duration) ||
-          Number(duration) < 15 ||
-          Number(duration) > 240)
-          ? "Informe horário HH:MM e duração entre 15 e 240 minutos."
-          : undefined
-      }
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        s.menuItem,
+        (pressed || disabled) && { opacity: 0.5 },
+      ]}
     >
-      {(step) =>
-        step === 0 ? (
-          <>
-            <Row>
-              {weekdays.map((label, index) => (
-                <Chip
-                  key={label}
-                  selected={day === index}
-                  onPress={() => setDay(index)}
-                >
-                  {label}
-                </Chip>
-              ))}
-            </Row>
-            <Field
-              label="Horário (HH:MM)"
-              value={start}
-              onChangeText={setStart}
-            />
-            <Field
-              label="Duração em minutos"
-              value={duration}
-              onChangeText={setDuration}
-              keyboardType="number-pad"
-            />
-          </>
-        ) : (
-          <>
-            <Heading>
-              {weekdays[day]} • {start}
-            </Heading>
-            <Label>{duration} minutos por aula</Label>
-          </>
-        )
-      }
-    </FormWizard>
+      <Icon
+        name={icon}
+        size={18}
+        color={danger ? colors.danger : colors.muted}
+      />
+      <Text style={[s.menuLabel, danger && { color: colors.danger }]}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
-
 function ClassCard({
   item,
-  onFormChange,
+  today,
+  onOptions,
+  onToday,
 }: {
   item: Class;
-  onFormChange: (key: string, open: boolean) => void;
+  today: number;
+  onOptions: () => void;
+  onToday: () => void;
 }) {
-  const { academy, role } = useSession();
-  const a = academy!;
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(item.name);
-  const [teacher, setTeacher] = useState(item.teacher_membership_id);
-  const [modality, setModality] = useState(item.modality_id);
-  const [modalityName, setModalityName] = useState(item.modality_name);
-  const [teacherName, setTeacherName] = useState(
-    item.teacher_name || "Sem professor",
-  );
-  const schedules = useQuery({
-    queryKey: ["schedules", a.id, item.id],
-    queryFn: () =>
-      api<Schedule[]>(academyPath(a.id, "/classes/" + item.id + "/schedules")),
-  });
-  const open = useMutation({
-    mutationFn: (id: string) =>
-      api(academyPath(a.id, "/classes/" + item.id + "/sessions"), {
-        method: "POST",
-        body: { schedule_id: id },
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      router.push(role === "admin" ? "/academy" : "/teacher");
-    },
-  });
-  const save = useMutation({
-    mutationFn: (body: object) =>
-      api(academyPath(a.id, "/classes/" + item.id), { method: "PATCH", body }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["classes", a.id] });
-      setEditing(false);
-      onFormChange(item.id, false);
-    },
-  });
-  const currentDay = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
-    new Intl.DateTimeFormat("en-US", {
-      weekday: "short",
-      timeZone: a.timezone,
-    }).format(new Date()),
-  );
-  const canOpen =
-    item.active &&
-    (role === "admin" ||
-      (role === "teacher" && item.teacher_membership_id === a.membership_id));
+  const groups = groupWeekly(item.schedules ?? []);
+  const slots = item.schedules?.filter((sc) => sc.weekday === today) ?? [];
   return (
-    <Card>
-      <Heading>
-        {item.name}
-        {!item.active ? " • Inativa" : ""}
-      </Heading>
-      <Label muted>
-        {item.modality_name}
-        {item.teacher_name ? " • " + item.teacher_name : ""}
-      </Label>
-      {schedules.isPending ? (
-        <Loading />
-      ) : schedules.error ? (
-        <Notice message={schedules.error.message} />
-      ) : schedules.data?.length ? (
-        schedules.data.map((sc) => (
-          <Row key={sc.id}>
-            <Chip>
-              {weekdays[sc.weekday]} • {sc.start_time.slice(0, 5)} •{" "}
-              {sc.duration_minutes} min
-            </Chip>
-            {canOpen && sc.weekday === currentDay && (
-              <Button
-                loading={open.isPending}
-                onPress={() => open.mutate(sc.id)}
-              >
-                Abrir aula
-              </Button>
-            )}
-          </Row>
-        ))
-      ) : (
-        <Label muted>Nenhum horário cadastrado.</Label>
-      )}
-      <Notice message={open.error?.message || save.error?.message} />
-      {role === "admin" && (
-        <>
-          <Row>
-            <Button
-              secondary
-              onPress={() => {
-                setEditing(!editing);
-                onFormChange(item.id, !editing);
-                save.reset();
-              }}
-            >
-              {editing ? "Fechar edição" : "Editar turma e horários"}
-            </Button>
-            <Button
-              secondary
-              loading={save.isPending}
-              onPress={() => save.mutate({ active: !item.active })}
-            >
-              {item.active ? "Desativar turma" : "Reativar turma"}
-            </Button>
-          </Row>
-          {editing ? (
-            <FormWizard
-              steps={[
-                "Nome da turma",
-                "Modalidade e responsável",
-                "Revisão da turma",
-              ]}
-              validate={(step) =>
-                step === 0 && name.trim().length < 2
-                  ? "Informe o nome da turma."
-                  : step === 1 && !modality
-                    ? "Selecione uma modalidade."
-                    : undefined
-              }
-              onCancel={() => {
-                setEditing(false);
-                onFormChange(item.id, false);
-              }}
-              pending={save.isPending}
-              error={save.error?.message}
-              submitLabel="Salvar turma"
-              onSubmit={() =>
-                save.mutate({
-                  name,
-                  teacher_membership_id: teacher,
-                  modality_id: modality,
-                  clear_teacher: !teacher,
-                })
-              }
-            >
-              {(step) =>
-                step === 0 ? (
-                  <Field
-                    label="Nome da turma"
-                    value={name}
-                    onChangeText={setName}
-                    autoCapitalize="words"
-                  />
-                ) : step === 1 ? (
-                  <>
-                    <ModalityPicker
-                      value={modality}
-                      onChange={(id, label) => {
-                        setModality(id);
-                        setModalityName(label ?? "");
-                      }}
-                    />
-                    <TeacherPicker
-                      value={teacher}
-                      onChange={(id, label) => {
-                        setTeacher(id);
-                        setTeacherName(label ?? "Sem professor");
-                      }}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Heading>{name}</Heading>
-                    <Label>{modalityName}</Label>
-                    <Label>{teacherName}</Label>
-                  </>
-                )
-              }
-            </FormWizard>
-          ) : (
-            <AddSchedule classId={item.id} onFormChange={onFormChange} />
-          )}
-        </>
-      )}
-    </Card>
+    <View style={s.card}>
+      <View style={s.cardHeader}>
+        <View style={{ flex: 1, gap: 6, minWidth: 0 }}>
+          <Text style={s.modality}>{item.modality_name || "Modalidade"}</Text>
+          <Text style={s.cardTitle}>{item.name}</Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={"Opções de " + item.name}
+          onPress={onOptions}
+          style={s.options}
+        >
+          <Icon name="more" size={21} color={colors.muted} />
+        </Pressable>
+      </View>
+      {!item.active ? <Text style={s.paused}>Pausada</Text> : null}
+      <View style={s.agenda}>
+        {groups.length ? (
+          groups.map((group) => (
+            <View key={group.key} style={s.agendaRow}>
+              <Icon name="calendar" size={15} color={accents.amber.color} />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={s.days}>{daysLabel(group.days)}</Text>
+                <Text style={s.times}>
+                  {group.times.replaceAll(", ", " · ")}
+                  <Text style={s.duration}> / {group.duration} min</Text>
+                </Text>
+              </View>
+            </View>
+          ))
+        ) : (
+          <Label muted>Sem horários. Configure a agenda em Opções.</Label>
+        )}
+      </View>
+      {item.teacher_name ? (
+        <Text style={[s.teacher, { paddingHorizontal: 18, paddingBottom: 12 }]}>
+          {item.teacher_name}
+        </Text>
+      ) : null}
+      {item.active && slots.length ? (
+        <View style={s.today}>
+          <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+            <Text style={s.todayLabel}>HOJE</Text>
+            <Text style={s.todayTimes}>
+              {slots.map((sc) => sc.start_time.slice(0, 5)).join(" · ")}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={"Aulas de hoje em " + item.name}
+            onPress={onToday}
+            style={({ pressed }) => [
+              s.todayButton,
+              pressed && { opacity: 0.6 },
+            ]}
+          >
+            <Text style={s.todayButtonText}>Ver aulas</Text>
+            <Icon name="chevron-right" size={14} color={accents.amber.color} />
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
   );
 }
-
 function Content() {
-  const { academy, role } = useSession();
-  const a = academy!;
-  const [name, setName] = useState("");
-  const [teacher, setTeacher] = useState("");
-  const [modality, setModality] = useState("");
-  const [modalityName, setModalityName] = useState("");
-  const [teacherName, setTeacherName] = useState("Sem professor");
-  const [creating, setCreating] = useState(false);
-  const [activeForms, setActiveForms] = useState<string[]>([]);
-  function formChange(key: string, open: boolean) {
-    setActiveForms((old) =>
-      open ? [...new Set([...old, key])] : old.filter((k) => k !== key),
-    );
-  }
+  const { academy } = useSession(),
+    a = academy!;
+  const { width } = useWindowDimensions();
+  const [editor, setEditor] = useState<Class | "new" | null>(null);
+  const [menu, setMenu] = useState<Class | null>(null);
+  const [deleting, setDeleting] = useState<Class | null>(null);
+  const [todayClass, setTodayClass] = useState<Class | null>(null);
+  const [filter, setFilter] = useState("active");
+  const [message, setMessage] = useState("");
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone: a.timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const today = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: a.timezone,
+      weekday: "short",
+    }).format(new Date()),
+  );
   const list = useQuery({
     queryKey: ["classes", a.id],
     queryFn: () => api<Class[]>(academyPath(a.id, "/classes")),
   });
-  const create = useMutation({
-    mutationFn: () =>
-      api<Class>(academyPath(a.id, "/classes"), {
-        method: "POST",
-        body: { name, teacher_membership_id: teacher, modality_id: modality },
+  const modalities = useQuery({
+    queryKey: ["modalities", a.id],
+    queryFn: () => api<Catalog[]>(academyPath(a.id, "/modalities")),
+  });
+  const sessions = useQuery({
+    queryKey: ["sessions", a.id, date],
+    queryFn: () => api<Session[]>(academyPath(a.id, "/sessions?date=" + date)),
+    enabled: !!todayClass,
+  });
+  const changeStatus = useMutation({
+    mutationFn: (item: Class) =>
+      api(academyPath(a.id, "/classes/" + item.id), {
+        method: "PATCH",
+        body: { active: !item.active },
       }),
-    onSuccess: () => {
-      setName("");
-      setCreating(false);
-      setTeacher("");
-      setModality("");
-      void queryClient.invalidateQueries({ queryKey: ["classes", a.id] });
+    onSuccess: (_, item) => {
+      setMenu(null);
+      setMessage(item.active ? "Turma pausada." : "Turma reativada.");
+      void queryClient.invalidateQueries();
     },
   });
-  const visible = list.data?.filter((c) => role === "admin" || c.active) ?? [];
+  const remove = useMutation({
+    mutationFn: (item: Class) =>
+      api(academyPath(a.id, "/classes/" + item.id), { method: "DELETE" }),
+    onSuccess: () => {
+      setDeleting(null);
+      setMessage("Turma excluída. Histórico preservado.");
+      void queryClient.invalidateQueries();
+    },
+  });
+  const open = useMutation({
+    mutationFn: ({ item, schedule }: { item: Class; schedule: Schedule }) =>
+      api<Session>(academyPath(a.id, "/classes/" + item.id + "/sessions"), {
+        method: "POST",
+        body: { schedule_id: schedule.id },
+      }),
+    onSuccess: (session) => {
+      setTodayClass(null);
+      void queryClient.invalidateQueries();
+      router.push({ pathname: "/attendance/[id]", params: { id: session.id } });
+    },
+  });
+  const active = list.data?.filter((c) => c.active).length ?? 0,
+    paused = (list.data?.length ?? 0) - active;
+  const visible =
+    list.data?.filter(
+      (c) => filter === "all" || (filter === "active" ? c.active : !c.active),
+    ) ?? [];
   return (
     <AcademyShell
-      title="Turmas e horários"
-      subtitle="Encontre seu próximo treino."
-      swipeEnabled={!creating && !activeForms.length}
-    >
-      {role === "admin" && !creating ? (
+      title="Turmas"
+      subtitle="Toda a semana, em uma só agenda."
+      swipeEnabled={!editor && !menu && !deleting && !todayClass}
+      titleAction={
         <Button
+          compact
           icon="plus"
           onPress={() => {
-            create.reset();
-            setCreating(true);
+            setMessage("");
+            setEditor("new");
           }}
         >
           Nova turma
         </Button>
-      ) : null}
-      {creating ? (
-        <Card>
-          <FormWizard
-            steps={[
-              "Identificação da turma",
-              "Modalidade e responsável",
-              "Revisão",
-            ]}
-            validate={(step) =>
-              step === 0 && name.trim().length < 2
-                ? "Informe o nome da turma."
-                : step === 1 && !modality
-                  ? "Selecione uma modalidade."
-                  : undefined
-            }
-            onCancel={() => setCreating(false)}
-            pending={create.isPending}
-            error={create.error?.message}
-            submitLabel="Criar turma"
-            onSubmit={() => create.mutate()}
+      }
+    >
+      <View style={s.filters}>
+        {[
+          ["active", "Ativas", active],
+          ["paused", "Pausadas", paused],
+          ["all", "Todas", list.data?.length ?? 0],
+        ].map(([key, label, count]) => (
+          <Pressable
+            key={key}
+            accessibilityRole="tab"
+            accessibilityLabel={String(label)}
+            accessibilityState={{ selected: filter === key }}
+            onPress={() => setFilter(String(key))}
+            style={[s.filter, filter === key && s.filterSelected]}
           >
-            {(step) =>
-              step === 0 ? (
-                <Field
-                  label="Nome da turma"
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                />
-              ) : step === 1 ? (
-                <>
-                  <ModalityPicker
-                    value={modality}
-                    onChange={(id, label) => {
-                      setModality(id);
-                      setModalityName(label ?? "");
-                    }}
-                  />
-                  <TeacherPicker
-                    value={teacher}
-                    onChange={(id, label) => {
-                      setTeacher(id);
-                      setTeacherName(label ?? "Sem professor");
-                    }}
-                  />
-                </>
-              ) : (
-                <>
-                  <Heading>{name}</Heading>
-                  <Label>{modalityName}</Label>
-                  <Label>{teacherName}</Label>
-                  <Label muted>
-                    Depois de criar, adicione os horários semanais à turma.
-                  </Label>
-                </>
-              )
-            }
-          </FormWizard>
-        </Card>
-      ) : null}
-      {create.isSuccess ? (
-        <Notice
-          success
-          message="Turma criada. Adicione os horários semanais abaixo."
+            <Text
+              style={[
+                s.filterText,
+                filter === key && { color: accents.amber.color },
+              ]}
+            >
+              {label} <Text style={s.filterCount}>{count}</Text>
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Notice success message={message} />
+      <Notice message={modalities.error?.message} />
+      {list.isPending ? (
+        <Loading />
+      ) : list.error ? (
+        <Notice message={list.error.message} />
+      ) : visible.length ? (
+        <View style={s.grid}>
+          {visible.map((item) => (
+            <View
+              key={item.id}
+              style={{ width: width >= 900 ? "48.7%" : "100%" }}
+            >
+              <ClassCard
+                item={item}
+                today={today}
+                onOptions={() => {
+                  changeStatus.reset();
+                  setMenu(item);
+                }}
+                onToday={() => {
+                  open.reset();
+                  setTodayClass(item);
+                }}
+              />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Empty>
+          {filter === "paused"
+            ? "Nenhuma turma pausada."
+            : filter === "active" && paused
+              ? "Nenhuma turma ativa. Consulte as pausadas ou crie uma turma."
+              : "Comece por Nova turma e cadastre todos os dias e horários de uma vez."}
+        </Empty>
+      )}
+      {editor ? (
+        <ClassEditor
+          key={editor === "new" ? "new" : editor.id}
+          academyId={a.id}
+          initial={editor === "new" ? undefined : editor}
+          modalities={modalities.data ?? []}
+          onClose={() => setEditor(null)}
         />
       ) : null}
-      {!creating &&
-        (list.isPending ? (
-          <Loading />
-        ) : list.error ? (
-          <Notice message={list.error.message} />
-        ) : visible.length ? (
-          visible.map((c) => (
-            <ClassCard key={c.id} item={c} onFormChange={formChange} />
-          ))
-        ) : (
-          <Empty>As turmas desta academia aparecerão aqui.</Empty>
-        ))}
+      {menu ? (
+        <ClassDialog
+          title={menu.name}
+          pending={changeStatus.isPending}
+          onClose={() => setMenu(null)}
+        >
+          <View>
+            <MenuAction
+              label="Editar turma e agenda"
+              icon="calendar"
+              disabled={changeStatus.isPending}
+              onPress={() => {
+                setEditor(menu);
+                setMenu(null);
+              }}
+            />
+            <MenuAction
+              label={menu.active ? "Pausar turma" : "Reativar turma"}
+              icon="swap"
+              disabled={changeStatus.isPending}
+              onPress={() => changeStatus.mutate(menu)}
+            />
+            <MenuAction
+              label="Excluir turma"
+              icon="close"
+              danger
+              disabled={changeStatus.isPending}
+              onPress={() => {
+                remove.reset();
+                setDeleting(menu);
+                setMenu(null);
+              }}
+            />
+          </View>
+          <Notice message={changeStatus.error?.message} />
+          {changeStatus.isPending ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : null}
+        </ClassDialog>
+      ) : null}
+      {todayClass ? (
+        <ClassDialog
+          title={"Aulas de hoje · " + todayClass.name}
+          pending={open.isPending}
+          onClose={() => setTodayClass(null)}
+        >
+          {sessions.isPending ? (
+            <Loading />
+          ) : sessions.error ? (
+            <Notice message={sessions.error.message} />
+          ) : (
+            todayClass.schedules
+              .filter((sc) => sc.weekday === today)
+              .map((sc) => {
+                const existing = sessions.data?.find(
+                  (session) =>
+                    session.class_id === todayClass.id &&
+                    displayTime(session.starts_at, a.timezone) ===
+                      sc.start_time.slice(0, 5),
+                );
+                return (
+                  <View key={sc.id} style={s.sessionRow}>
+                    <View style={{ gap: 5 }}>
+                      <Text style={s.sessionTime}>
+                        {sc.start_time.slice(0, 5)}
+                      </Text>
+                      <Text style={s.teacher}>
+                        {sc.duration_minutes} min
+                        {existing
+                          ? " · " +
+                            (existing.status === "open"
+                              ? "Aberta"
+                              : existing.status === "closed"
+                                ? "Encerrada"
+                                : "Cancelada")
+                          : ""}
+                      </Text>
+                    </View>
+                    {existing ? (
+                      <Button
+                        compact
+                        secondary
+                        disabled={open.isPending}
+                        onPress={() => {
+                          setTodayClass(null);
+                          router.push({
+                            pathname: "/attendance/[id]",
+                            params: { id: existing.id },
+                          });
+                        }}
+                      >
+                        Ver presenças
+                      </Button>
+                    ) : (
+                      <Button
+                        compact
+                        loading={
+                          open.isPending &&
+                          open.variables?.schedule.id === sc.id
+                        }
+                        disabled={open.isPending}
+                        onPress={() =>
+                          open.mutate({ item: todayClass, schedule: sc })
+                        }
+                      >
+                        Abrir aula
+                      </Button>
+                    )}
+                  </View>
+                );
+              })
+          )}
+          <Notice message={open.error?.message} />
+        </ClassDialog>
+      ) : null}
+      <ConfirmDialog
+        visible={!!deleting}
+        title={"Excluir " + (deleting?.name ?? "turma") + "?"}
+        message="A turma será removida e suas aulas abertas serão canceladas. Presenças e histórico serão preservados."
+        confirmLabel="Confirmar exclusão"
+        danger
+        pending={remove.isPending}
+        error={remove.error?.message}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          if (deleting) remove.mutate(deleting);
+        }}
+      />
     </AcademyShell>
   );
 }
@@ -524,3 +438,141 @@ export default function ClassesScreen() {
     </RoleGate>
   );
 }
+const s = StyleSheet.create({
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+    alignItems: "flex-start",
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 18,
+    paddingBottom: 10,
+    gap: 8,
+  },
+  modality: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 10,
+    color: accents.amber.color,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  cardTitle: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 18,
+    color: colors.text,
+    lineHeight: 25,
+  },
+  options: {
+    height: 44,
+    width: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -8,
+    marginRight: -8,
+  },
+  agenda: { paddingHorizontal: 18, paddingBottom: 16, gap: 14 },
+  agendaRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingTop: 7,
+  },
+  days: { fontFamily: "Lato_700Bold", fontSize: 13, color: colors.text },
+  times: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: colors.muted,
+    lineHeight: 20,
+  },
+  duration: { fontSize: 11, color: colors.muted },
+  paused: {
+    color: colors.muted,
+    fontFamily: "Lato_700Bold",
+    fontSize: 11,
+    paddingHorizontal: 18,
+    paddingBottom: 10,
+  },
+  teacher: {
+    color: colors.muted,
+    fontSize: 11,
+    fontFamily: "Lato_400Regular",
+    paddingHorizontal: 0,
+  },
+  today: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    backgroundColor: accents.amber.soft,
+    borderTopWidth: 1,
+    borderTopColor: accents.amber.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  todayLabel: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 9,
+    letterSpacing: 1,
+    color: accents.amber.color,
+  },
+  todayTimes: { fontFamily: "Lato_700Bold", fontSize: 12, color: colors.text },
+  todayButton: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  todayButtonText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 12,
+    color: accents.amber.color,
+  },
+  filters: {
+    flexDirection: "row",
+    gap: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  filter: {
+    minHeight: 44,
+    justifyContent: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  filterSelected: { borderBottomColor: accents.amber.color },
+  filterText: { fontFamily: "Lato_700Bold", fontSize: 13, color: colors.muted },
+  filterCount: { fontSize: 11, color: colors.muted },
+  menuItem: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  menuLabel: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 14,
+    color: colors.text,
+    flexShrink: 1,
+  },
+  sessionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 6,
+  },
+  sessionTime: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 19,
+    color: colors.text,
+  },
+});

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { FormScrollContext } from "./FormScrollContext";
 import {
   ActivityIndicator,
@@ -9,9 +9,11 @@ import {
   TextInput,
   View,
   TextInputProps,
+  StyleProp,
+  ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors } from "../theme";
+import { colors, accents, Accent } from "../theme";
 import { Icon, IconName } from "./Icon";
 import { SwipeNavigator, SwipeDirection, SwipePages } from "./SwipeNavigator";
 export function Page({
@@ -93,11 +95,64 @@ export function Page({
 export function Card({
   children,
   style,
+  onPress,
+  accessibilityLabel,
 }: {
   children: React.ReactNode;
-  style?: object;
+  style?: StyleProp<ViewStyle>;
+  onPress?: () => void;
+  accessibilityLabel?: string;
 }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  if (!onPress) return <View style={[styles.card, style]}>{children}</View>;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        style,
+        pressed && { opacity: 0.78, transform: [{ scale: 0.985 }] },
+      ]}
+    >
+      {children}
+    </Pressable>
+  );
+}
+export function Badge({
+  label,
+  tone = "mint",
+}: {
+  label: string;
+  tone?: Accent;
+}) {
+  const accent = accents[tone];
+  return (
+    <View
+      style={[
+        styles.badge,
+        { backgroundColor: accent.soft, borderColor: accent.border },
+      ]}
+    >
+      <View
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: 3,
+          backgroundColor: accent.color,
+        }}
+      />
+      <Text
+        style={{
+          color: accent.color,
+          fontFamily: "Lato_700Bold",
+          fontSize: 11,
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
 }
 export function Label({
   children,
@@ -119,15 +174,37 @@ export function Heading({ children }: { children: React.ReactNode }) {
     </Text>
   );
 }
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
+export function Field({
+  label,
+  style,
+  onFocus,
+  onBlur,
+  ...props
+}: TextInputProps & { label: string }) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={{ gap: 8 }}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor={colors.muted}
-        style={styles.input}
+        style={[
+          styles.input,
+          focused && {
+            borderColor: colors.primary,
+            backgroundColor: colors.surfaceRaised,
+          },
+          style,
+        ]}
         autoCapitalize="none"
+        onFocus={(event) => {
+          setFocused(true);
+          onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setFocused(false);
+          onBlur?.(event);
+        }}
         {...props}
       />
     </View>
@@ -140,6 +217,7 @@ export function Button({
   secondary = false,
   disabled = false,
   compact = false,
+  danger = false,
   icon,
 }: {
   children: React.ReactNode;
@@ -148,6 +226,7 @@ export function Button({
   secondary?: boolean;
   disabled?: boolean;
   compact?: boolean;
+  danger?: boolean;
   icon?: IconName;
 }) {
   return (
@@ -160,12 +239,22 @@ export function Button({
         styles.button,
         secondary && styles.secondary,
         compact && styles.compactButton,
+        danger && {
+          backgroundColor: colors.danger,
+          borderColor: colors.danger,
+        },
         (pressed || disabled || loading) && { opacity: 0.6 },
       ]}
     >
       {loading ? (
         <ActivityIndicator
-          color={secondary ? colors.text : colors.background}
+          color={
+            danger
+              ? colors.background
+              : secondary
+                ? colors.text
+                : colors.onPrimary
+          }
         />
       ) : (
         <View style={styles.buttonContent}>
@@ -173,7 +262,13 @@ export function Button({
             <Icon
               name={icon}
               size={18}
-              color={secondary ? colors.text : colors.background}
+              color={
+                danger
+                  ? colors.background
+                  : secondary
+                    ? colors.text
+                    : colors.onPrimary
+              }
             />
           ) : null}
           <Text
@@ -181,6 +276,7 @@ export function Button({
               styles.buttonText,
               compact && { fontSize: 13 },
               secondary && { color: colors.primaryLight },
+              danger && { color: colors.background },
             ]}
           >
             {children}
@@ -224,7 +320,7 @@ export function IconButton({
       <Icon
         name={icon}
         size={20}
-        color={selected ? colors.background : colors.muted}
+        color={selected ? colors.onPrimary : colors.muted}
       />
     </Pressable>
   );
@@ -242,8 +338,9 @@ export function SearchBar({
   label: string;
   action?: React.ReactNode;
 }) {
+  const [focused, setFocused] = useState(false);
   return (
-    <View style={styles.search}>
+    <View style={[styles.search, focused && { borderColor: colors.primary }]}>
       <Icon name="search" size={20} color={colors.muted} />
       <TextInput
         style={styles.searchInput}
@@ -254,6 +351,8 @@ export function SearchBar({
         value={value}
         onChangeText={onChangeText}
         returnKeyType="search"
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
       />
       {value ? (
         <Pressable
@@ -323,11 +422,14 @@ export function Chip({
   children,
   selected = false,
   onPress,
+  tone = "mint",
 }: {
   children: React.ReactNode;
   selected?: boolean;
   onPress?: () => void;
+  tone?: Accent;
 }) {
+  const accent = accents[tone];
   return (
     <Pressable
       accessibilityRole={onPress ? "button" : undefined}
@@ -336,14 +438,14 @@ export function Chip({
       style={[
         styles.chip,
         selected && {
-          backgroundColor: colors.primary,
-          borderColor: colors.primary,
+          backgroundColor: accent.soft,
+          borderColor: accent.border,
         },
       ]}
     >
       <Text
         style={{
-          color: selected ? colors.background : colors.muted,
+          color: selected ? accent.color : colors.muted,
           fontWeight: "600",
         }}
       >
@@ -355,7 +457,7 @@ export function Chip({
 export function Avatar({ name }: { name: string }) {
   return (
     <View style={styles.avatar}>
-      <Text style={{ color: colors.text, fontWeight: "700" }}>
+      <Text style={{ color: accents.blue.color, fontFamily: "Lato_700Bold" }}>
         {name
           .split(" ")
           .slice(0, 2)
@@ -382,7 +484,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#1E1E1E",
+    borderBottomColor: colors.borderSubtle,
   },
   appPage: { paddingHorizontal: 20, paddingTop: 24, gap: 20 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
@@ -407,7 +509,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#2A2A2A",
+    borderColor: colors.border,
     borderRadius: 11,
   },
   search: {
@@ -419,7 +521,7 @@ export const styles = StyleSheet.create({
     paddingRight: 5,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#292929",
+    borderColor: colors.border,
     borderRadius: 14,
   },
   searchInput: {
@@ -466,7 +568,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 18,
     padding: 20,
     gap: 12,
   },
@@ -503,14 +605,25 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   secondary: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
   },
   buttonText: {
     fontSize: 15,
     fontFamily: "Lato_700Bold",
-    color: colors.background,
+    color: colors.onPrimary,
+  },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignSelf: "flex-start",
+    flexShrink: 1,
   },
   notice: {
     padding: 14,
@@ -533,7 +646,9 @@ export const styles = StyleSheet.create({
     height: 44,
     width: 44,
     borderRadius: 22,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: accents.blue.soft,
+    borderWidth: 1,
+    borderColor: accents.blue.border,
     alignItems: "center",
     justifyContent: "center",
   },

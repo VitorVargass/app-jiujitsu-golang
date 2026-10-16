@@ -75,6 +75,24 @@ func main() {
 			must(err)
 			profile, err := ss.Repo.Get(ctx, a.ID, studentID)
 			must(err)
+			// Demo CPFs are independent from the payer document and never overwrite saved values.
+			if profile.CPF == "" {
+				cpf := "52998224725"
+				if email == "ana@tatame.demo" {
+					cpf = "11144477735"
+				}
+				_, err = db.Exec(ctx, "UPDATE students SET cpf=$1 WHERE academy_id=$2 AND id=$3 AND cpf=''", cpf, a.ID, studentID)
+				must(err)
+			}
+			// Demo dates are explicit and do not replace a saved birth date.
+			if profile.BirthDate == "" {
+				birth := "1995-04-12"
+				if email == "ana@tatame.demo" {
+					birth = "2013-06-20"
+				}
+				_, err = db.Exec(ctx, "UPDATE students SET birth_date=$1 WHERE academy_id=$2 AND id=$3 AND birth_date IS NULL", birth, a.ID, studentID)
+				must(err)
+			}
 			// Configure demonstration billing only once; reruns preserve edited profiles/invoices.
 			if profile.Billing == nil {
 				modalityIDs := []string{}

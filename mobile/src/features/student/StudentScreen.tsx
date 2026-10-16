@@ -5,6 +5,7 @@ import { AcademyShell, RoleGate } from "../shared/AcademyShell";
 import { Card, Heading, Label, Notice, Loading } from "../../components/ui";
 import { api, academyPath } from "../../services/api";
 import { useSession } from "../../services/session";
+import { formatCPF } from "../../types/cpf";
 import { Credential } from "../../types";
 import { InvoiceList } from "../finance/FinanceScreen";
 export function QRScreen() {
@@ -18,7 +19,7 @@ export function QRScreen() {
       ),
   });
   return (
-    <AcademyShell title="Meu código">
+    <AcademyShell title="Meu CPF e QR">
       {credential.isPending ? (
         <Loading />
       ) : credential.error ? (
@@ -37,24 +38,33 @@ export function QRScreen() {
             selectable
             style={{
               color: "white",
-              fontSize: 30,
+              fontSize: credential.data.cpf ? 22 : 30,
               fontFamily: "Montserrat_700Bold",
-              letterSpacing: 3,
+              letterSpacing: 1,
             }}
           >
-            {credential.data.student_code}
+            {credential.data.cpf
+              ? formatCPF(credential.data.cpf)
+              : credential.data.student_code}
           </Text>
           <Heading>{credential.data.student_name}</Heading>
           <Label muted>
             {credential.data.belt} • {a.name}
           </Label>
           {credential.data.status === "inactive" ? (
-            <Notice message="Seu cadastro está inativo. Converse com a academia para voltar aos treinos." />
+            <Notice
+              message={
+                credential.data.archived_at
+                  ? "Seu cadastro está arquivado. Peça ao gestor para restaurá-lo antes de voltar aos treinos."
+                  : "Seu cadastro está inativo. Converse com a academia para voltar aos treinos."
+              }
+            />
           ) : null}
         </Card>
       ) : null}
       <Label muted>
-        Apresente o QR Code no tablet da academia ou digite o código numérico.
+        Apresente o QR Code no tablet ou digite seu CPF. Se seu cadastro ainda
+        não tiver CPF, peça ao gestor para atualizá-lo.
       </Label>
     </AcademyShell>
   );

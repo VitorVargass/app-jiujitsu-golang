@@ -126,5 +126,12 @@ func (h Handler) Credential(w http.ResponseWriter, r *http.Request) {
 		core.Fail(w, e)
 		return
 	}
-	core.Write(w, 200, map[string]string{"student_code": code, "qr_token": "tatame:" + qr, "student_name": st.Name, "belt": st.Belt, "status": st.Status})
+	rank := st.Belt
+	for _, detail := range st.ModalityDetails {
+		if detail.Belt == st.Belt {
+			rank = students.RankLabel(detail.Belt, detail.Degrees)
+			break
+		}
+	}
+	core.Write(w, 200, map[string]any{"cpf": st.CPF, "archived_at": st.ArchivedAt, "student_code": code, "qr_token": "tatame:" + qr, "student_name": st.Name, "belt": rank, "status": st.Status, "modality_details": st.ModalityDetails})
 }

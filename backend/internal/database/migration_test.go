@@ -82,12 +82,25 @@ func TestLegacyMigrationPreservesAttendance(t *testing.T) {
 	if e = db.QueryRow("SELECT student_code,qr_token FROM students WHERE id=$1", m).Scan(&code, &token); e != nil || code != "12345678" || token != qr {
 		t.Fatal("credential changed", e)
 	}
+	var legacyCPF string
+	var archived bool
+	if e = db.QueryRow("SELECT cpf,archived_at IS NOT NULL FROM students WHERE id=$1", m).Scan(&legacyCPF, &archived); e != nil || legacyCPF != "" || archived {
+		t.Fatal("legacy student CPF/lifecycle changed", e)
+	}
+	var birth *string
+	if e = db.QueryRow("SELECT birth_date::text FROM students WHERE id=$1", m).Scan(&birth); e != nil || birth != nil {
+		t.Fatal("migration guessed birth date", e)
+	}
 	var n int
 	if e = db.QueryRow("SELECT count(*) FROM attendances WHERE id=$1 AND membership_id=$2", p, m).Scan(&n); e != nil || n != 1 {
 		t.Fatal("attendance lost", e)
 	}
 	if e = db.QueryRow("SELECT count(*) FROM invoices WHERE academy_id=$1", a).Scan(&n); e != nil || n != 1 {
 		t.Fatal("unexpected invoice generation", e)
+	}
+	var degrees int
+	if e = db.QueryRow("SELECT degrees FROM student_modalities WHERE student_id=$1", m).Scan(&degrees); e != nil || degrees != 0 {
+		t.Fatal("legacy belt degrees must start at zero", e)
 	}
 	var mode, rank, invoiceStatus string
 	var amount, invoiceAmount int64

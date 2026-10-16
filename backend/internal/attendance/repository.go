@@ -13,7 +13,7 @@ import (
 type Repository struct{ DB *pgxpool.Pool }
 
 func (r Repository) History(ctx context.Context, a, session, member string) ([]History, error) {
-	rows, e := r.DB.Query(ctx, `SELECT p.id,p.session_id,c.name,m.name,COALESCE((SELECT CASE WHEN sm.belt='' THEN 'Sem graduação' ELSE sm.belt END FROM student_modalities sm WHERE sm.academy_id=m.academy_id AND sm.student_id=m.id AND sm.modality_id=c.modality_id),m.belt),p.checked_in_at FROM attendances p JOIN class_sessions s ON s.id=p.session_id AND s.academy_id=p.academy_id JOIN classes c ON c.id=s.class_id AND c.academy_id=s.academy_id JOIN students m ON m.id=p.membership_id AND m.academy_id=p.academy_id
+	rows, e := r.DB.Query(ctx, `SELECT p.id,p.session_id,c.name,m.name,COALESCE((SELECT student_rank_label(sm.belt,sm.degrees) FROM student_modalities sm WHERE sm.academy_id=m.academy_id AND sm.student_id=m.id AND sm.modality_id=c.modality_id),m.belt),p.checked_in_at FROM attendances p JOIN class_sessions s ON s.id=p.session_id AND s.academy_id=p.academy_id JOIN classes c ON c.id=s.class_id AND c.academy_id=s.academy_id JOIN students m ON m.id=p.membership_id AND m.academy_id=p.academy_id
  WHERE p.academy_id=$1 AND ($2::text='' OR p.session_id::text=$2) AND ($3::text='' OR p.membership_id::text=$3) ORDER BY p.checked_in_at DESC LIMIT 200`, a, session, member)
 	if e != nil {
 		return nil, e
@@ -78,19 +78,26 @@ func (r Repository) Record(ctx context.Context, a, session, key string, in Input
 		return Result{}, e
 	}
 	var status, modality string
-	if e = tx.QueryRow(ctx, "SELECT s.status,COALESCE(c.modality_id::text,'') FROM class_sessions s JOIN classes c ON c.academy_id=s.academy_id AND c.id=s.class_id WHERE s.academy_id=$1 AND s.id=$2 FOR SHARE OF s,c", a, session).Scan(&status, &modality); e != nil {
+	// Lock class before session, matching class deletion and avoiding lock inversions.
+	if e = tx.QueryRow(ctx, "SELECT COALESCE(c.modality_id::text,'') FROM classes c JOIN class_sessions s ON s.academy_id=c.academy_id AND s.class_id=c.id WHERE s.academy_id=$1 AND s.id=$2 AND c.deleted_at IS NULL FOR SHARE OF c", a, session).Scan(&modality); e != nil {
+		return Result{}, core.E(404, "not_found", "Aula não encontrada.")
+	}
+	if e = tx.QueryRow(ctx, "SELECT status FROM class_sessions WHERE academy_id=$1 AND id=$2 FOR SHARE", a, session).Scan(&status); e != nil {
 		return Result{}, core.E(404, "not_found", "Aula não encontrada.")
 	}
 	if status != "open" {
 		return Result{}, core.E(409, "session_closed", "Esta aula não está aberta.")
 	}
 	var mid, name, belt, memberStatus string
-	var student bool
-	e = tx.QueryRow(ctx, `SELECT m.id,m.name,COALESCE((SELECT CASE WHEN sm.belt='' THEN 'Sem graduação' ELSE sm.belt END FROM student_modalities sm WHERE sm.academy_id=m.academy_id AND sm.student_id=m.id AND sm.modality_id::text=$5),m.belt),m.status,true
+	var student, archived bool
+	e = tx.QueryRow(ctx, `SELECT m.id,m.name,COALESCE((SELECT student_rank_label(sm.belt,sm.degrees) FROM student_modalities sm WHERE sm.academy_id=m.academy_id AND sm.student_id=m.id AND sm.modality_id::text=$5),m.belt),m.status,true,m.archived_at IS NOT NULL
  FROM students m WHERE m.academy_id=$1 AND
- (($2::text<>'' AND m.qr_token=$2) OR ($3::text<>'' AND m.student_code=$3) OR ($4::text<>'' AND m.id::text=$4)) FOR SHARE OF m`, a, strings.TrimPrefix(in.QRToken, "tatame:"), in.StudentCode, in.MembershipID, modality).Scan(&mid, &name, &belt, &memberStatus, &student)
+ (($2::text<>'' AND m.qr_token=$2) OR ($3::text<>'' AND m.student_code=$3) OR ($4::text<>'' AND m.id::text=$4) OR ($6::text<>'' AND m.cpf=$6)) FOR SHARE OF m`, a, strings.TrimPrefix(in.QRToken, "tatame:"), in.StudentCode, in.MembershipID, modality, in.CPF).Scan(&mid, &name, &belt, &memberStatus, &student, &archived)
 	if e != nil || !student {
 		return Result{}, core.E(404, "student_not_found", "Aluno não encontrado nesta academia.")
+	}
+	if archived {
+		return Result{}, core.E(410, "student_archived", "Cadastro arquivado. Peça ao gestor para restaurar o aluno antes de registrar presença.")
 	}
 	if memberStatus != "active" {
 		return Result{}, core.E(403, "student_blocked", "O vínculo deste aluno está bloqueado.")

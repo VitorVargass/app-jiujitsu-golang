@@ -11,29 +11,50 @@ import {
 import { Icon, IconName } from "../../components/Icon";
 import { useSession } from "../../services/session";
 import { Role } from "../../types";
-import { roleLabel, colors } from "../../theme";
+import { roleLabel, colors, accents, Accent } from "../../theme";
 
-type Tab = { label: string; url: string; icon: IconName; routes: string[] };
+type Tab = {
+  label: string;
+  url: string;
+  icon: IconName;
+  routes: string[];
+  tone: Accent;
+};
 const managerTabs: Tab[] = [
-  { label: "Início", url: "/academy", icon: "home", routes: ["/academy"] },
-  { label: "Alunos", url: "/students", icon: "users", routes: ["/students"] },
+  {
+    label: "Início",
+    url: "/academy",
+    icon: "home",
+    tone: "mint",
+    routes: ["/academy"],
+  },
+  {
+    label: "Alunos",
+    url: "/students",
+    icon: "users",
+    tone: "blue",
+    routes: ["/students"],
+  },
   {
     label: "Financeiro",
     url: "/finance",
     icon: "wallet",
+    tone: "mint",
     routes: ["/finance", "/invoice"],
   },
   {
     label: "Turmas",
     url: "/classes",
     icon: "calendar",
+    tone: "amber",
     routes: ["/classes", "/attendance"],
   },
   {
     label: "Mais",
     url: "/more",
     icon: "more",
-    routes: ["/more", "/catalog", "/academy-history"],
+    tone: "lavender",
+    routes: ["/more", "/catalog", "/academy-history", "/devices"],
   },
 ];
 const studentTabs: Tab[] = [
@@ -41,15 +62,23 @@ const studentTabs: Tab[] = [
     label: "Mensalidades",
     url: "/student",
     icon: "wallet",
+    tone: "mint",
     routes: ["/student", "/invoice"],
   },
   {
     label: "Presenças",
     url: "/history",
     icon: "check-circle",
+    tone: "blue",
     routes: ["/history"],
   },
-  { label: "Meu código", url: "/qr", icon: "qr", routes: ["/qr"] },
+  {
+    label: "Meu QR",
+    url: "/qr",
+    icon: "qr",
+    tone: "lavender",
+    routes: ["/qr"],
+  },
 ];
 
 export function RoleGate({
@@ -170,6 +199,7 @@ export function AcademyShell({
       footer={
         <View style={styles.dock}>
           {tabs.map((tab) => {
+            const accent = accents[tab.tone];
             const selected = tab.routes.some(
               (url) => pathname === url || pathname.startsWith(url + "/"),
             );
@@ -190,16 +220,24 @@ export function AcademyShell({
                   pressed && { opacity: 0.65 },
                 ]}
               >
-                <View style={[styles.tabIcon, selected && styles.selectedIcon]}>
+                <View
+                  style={[
+                    styles.tabIcon,
+                    selected && {
+                      backgroundColor: accent.soft,
+                      borderColor: accent.border,
+                    },
+                  ]}
+                >
                   <Icon
                     name={tab.icon}
                     size={22}
-                    color={selected ? colors.background : colors.muted}
+                    color={selected ? accent.color : colors.muted}
                   />
                 </View>
                 <Text
                   numberOfLines={1}
-                  style={[styles.tabLabel, selected && { color: colors.text }]}
+                  style={[styles.tabLabel, selected && { color: accent.color }]}
                 >
                   {tab.label}
                 </Text>
@@ -221,7 +259,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   brand: { flexDirection: "row", alignItems: "center", gap: 6 },
-  mark: { color: colors.text, fontSize: 27 },
+  mark: { color: colors.primary, fontSize: 27 },
   brandName: {
     color: colors.text,
     fontFamily: "Montserrat_700Bold",
@@ -244,7 +282,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   name: { color: colors.text, fontFamily: "Lato_700Bold", fontSize: 12 },
-  role: { color: colors.muted, fontFamily: "Lato_400Regular", fontSize: 11 },
+  role: { color: colors.primary, fontFamily: "Lato_400Regular", fontSize: 11 },
   switch: {
     minHeight: 44,
     paddingHorizontal: 9,
@@ -252,16 +290,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 5,
     borderWidth: 1,
-    borderColor: "#292929",
+    borderColor: colors.border,
     borderRadius: 12,
   },
   switchText: { color: colors.muted, fontFamily: "Lato_700Bold", fontSize: 11 },
   dock: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#141414",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#292929",
+    borderColor: colors.border,
     borderRadius: 24,
     paddingVertical: 8,
     paddingHorizontal: 4,
@@ -280,7 +318,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "transparent",
   },
-  selectedIcon: { backgroundColor: colors.primary },
   tabLabel: { fontFamily: "Lato_700Bold", fontSize: 10, color: colors.muted },
 });

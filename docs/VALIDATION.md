@@ -62,7 +62,7 @@ O build Android local Gradle terminou com sucesso, incluindo Expo Clipboard e fo
 
 SHA-256 do APK:
 
-    d3dd2788008c618da05e736a2eba64409e776dbf4a7e8119a1627d4519c8f3a0
+    9d986d666134e3e0d6a7deacdd804975a50d8162f38728abbe41f6427ff73273
 
 O APK usa assinatura de desenvolvimento e se destina ao teste interno. A API local e a versão web devem ser reiniciadas para utilizar o código atualizado.
 
@@ -147,6 +147,85 @@ Validação desta revisão:
 - O executável preparado está em artifacts/tatame-api.exe; o portal em mobile/dist e artifacts/tatame-web.zip; o APK em artifacts/Tatame-arm64.apk. API de desenvolvimento dos exports: http://192.168.15.6:8080.
 
 A ativação foi autorizada explicitamente pelo usuário em 15 de outubro de 2026. Novo backup completo validado: artifacts/backups/tatame-before-wizard-activation-20261015-010445.dump. A migração 003 foi aplicada ao banco local tatame; as assinaturas dos dados anteriores das dez tabelas permaneceram iguais antes/depois. A API foi reiniciada e /healthz respondeu ok por localhost e por http://192.168.15.6:8080; o portal retornou HTTP 200. O bloqueio anterior da revisão automática foi resolvido pela autorização. Os testes funcionais com criação de registros continuaram restritos aos bancos isolados. Não houve teste em aparelho físico nesta revisão.
+
+## Revisão de cores e cards — 15 de outubro de 2026
+
+Tema atualizado com fundo azul-escuro, destaque verde-menta e acentos azul, âmbar, lavanda e coral. Aplicado em botões, campos com foco, etapas, cabeçalho, navegação, alunos, financeiro e menus de Mais. O dashboard tem ícones, valores destacados, indicação de ação e atalho compacto para cadastro.
+
+No navegador, todos os cards do início abriram o destino correspondente: alunos, financeiro, histórico, gráfico, lista da aula e cadastro de aluno. O cartão inteiro recebe o toque. Os cards das mensalidades e os atalhos de Mais também abrem seus detalhes. Filtros do Financeiro preservados e recolhidos inicialmente para priorizar as cobranças.
+
+TypeScript e lint passaram. Foram verificadas larguras de 320, 390 e 1280 pixels, sem transbordamento horizontal, além de foco dos campos e ativação dos cards com Tab/Enter. Em 320 pixels, os valores monetários ajustam o tamanho da fonte; R$ 1.280,00 foi exibido completo. O teste de toque do carrossel passou para arraste curto, segurar, recuar, ciclo, ambos os sentidos, rolagem vertical, multitoque, seleção de texto em campo, mudança de largura e toque no aluno. As prévias laterais do carrossel receberam inert somente na web para não capturarem o foco do teclado. A graduação e a cobrança não tiveram mudanças nesta revisão.
+
+Prévias em artifacts/validation: design-colors-home-390.png, design-colors-home-320.png, design-colors-home-web.png, design-colors-chart-390.png, design-colors-finance-390.png, design-colors-students-390.png, design-colors-more-390.png e design-colors-form-390.png. Os dados exibidos são de um banco exclusivo de testes.
+
+Web exportado em mobile/dist e artifacts/tatame-web.zip; APK atualizado em artifacts/Tatame-arm64.apk. Bundle Hermes 98 gerado com sucesso; assinatura v2/v3 e alinhamento de 16 KiB verificados. O APK anterior foi conservado em artifacts/Tatame-before-color-design-20261015.apk. API dos exports: http://192.168.15.6:8080. O export foi servido com HTTP 200 pela API isolada de testes. A API principal respondeu ok em /healthz; seu processo já estava sob controle do usuário e não foi reiniciado nesta revisão. Não houve teste em celular físico nesta revisão.
+
+## Graus por faixa — 15 de outubro de 2026
+
+Adicionado degrees ao vínculo aluno/modalidade: inteiro de 0 a 4, com zero para sem grau. O seletor visual mostra números e listras; a faixa escolhida e a revisão mostram o grau por modalidade. Mudar a faixa pelo formulário reinicia o seletor em zero. Lista de alunos, credencial e presenças também exibem os graus. As telas de presença mantêm a modalidade da aula como referência.
+
+- go test ./... -count=1 com PostgreSQL 17 real, go vet ./... e compilação da API passaram. Foram verificados graus independentes, leitura após gravação, zero explícito, edição por cliente antigo sem apagar graus, mudança de faixa, limites inválidos, frações e graus em modalidade sem faixa.
+- Check-in, lista da aula, histórico pessoal e credencial exibiram os graus corretos. O reenvio idempotente manteve a resposta original mesmo após alterar a graduação. Alterar graus não criou mensalidades.
+- A migração 004 foi testada desde um banco antigo de teste e em duas cópias restauradas do banco local no PostgreSQL 18 isolado. A comparação final incluiu todas as colunas anteriores de dez tabelas; apenas a nova coluna degrees foi excluída da assinatura.
+- No navegador, um aluno foi cadastrado com Jiu-Jitsu Branca/2 graus e No-Gi Azul/4 graus. A escolha persistiu ao avançar, voltar e abrir a edição. A troca de faixa zerou os graus do seletor. Inspeção visual em 390 e 320 pixels, sem transbordamento. Não houve erros JavaScript.
+- TypeScript e lint passaram. Web e bundle Android Hermes 98 foram gerados. O APK atualizado passou nas verificações de assinatura v2/v3 e alinhamento de 16 KiB.
+
+Ativação local concluída com backup em artifacts/backups/tatame-before-degrees-activation-20261015-154128.dump. A 004 foi aplicada ao banco tatame; as assinaturas dos dados anteriores das dez tabelas permaneceram iguais. API 2.2.0 saudável na porta 8080, inclusive pelo IP da rede; portal web retornou HTTP 200. Os registros de validação foram criados somente em bancos isolados.
+
+Prévias: artifacts/validation/belt-degrees-selection-390.png, belt-degrees-selection-320.png e belt-degrees-review-390.png. Entregas atualizadas em artifacts/tatame-api.exe, artifacts/tatame-web.zip e artifacts/Tatame-arm64.apk; o APK anterior está em artifacts/Tatame-before-degrees-20261015.apk. Não houve teste em aparelho físico nesta revisão.
+
+
+## CPF e ciclo de vida — 15 de outubro de 2026
+
+- Suíte Go completa com PostgreSQL 17 real e go vet passaram. CPF com e sem máscara foi validado; inválidos foram recusados. A unicidade inclui arquivados e respeita a academia.
+- CPF e QR simultâneos geraram uma presença. Reenvio conservou a resposta; chave com dados diferentes foi recusada. Tentativas antigas por código conservaram o hash após adicionar CPF. O tablet não recebe CPF no resultado.
+- Arquivar bloqueou presença, ocultou o aluno da lista principal e desativou cobrança. Busca por CPF e aba Arquivados localizaram o cadastro. O gerador numa data futura não criou dívidas do arquivado. O titular ainda consultou cobranças e histórico. Restaurar conservou ID, QR, código e débitos, sem ativar cobrança. Restauração repetida de aluno ativo não alterou contrato.
+- Excluir turma cancelou aulas abertas, bloqueou reativação e novos horários/aulas e conservou presenças antigas. Alunos e gestores de outra academia não puderam arquivar/excluir.
+- Migração 005 passou desde base antiga e em cópia do PostgreSQL 18. Na ativação local, backup e comparação confirmaram os dados anteriores de 12 tabelas.
+- TypeScript e lint passaram. No navegador: cadastro com CPF, validação, cancelamento/confirmação de arquivamento, filtros, busca, restauração e exclusão de turma. No tablet simulado: CPF, recusa de arquivado e nova tentativa após restauração sem duplicar. Larguras 320, 390 e 768 sem transbordamento e nenhum erro JavaScript.
+- Web e bundle Android Hermes 98 gerados. APK interno com assinatura v2/v3 e alinhamento de 16 KiB verificados. Backup: artifacts/Tatame-before-cpf-20261015.apk. Entregas em artifacts/Tatame-arm64.apk, artifacts/tatame-web.zip e artifacts/tatame-api.exe.
+
+API 2.3.0 reiniciada e saudável por localhost e rede; portal HTTP 200. Nenhum cadastro real foi arquivado/excluído na validação. Capturas em artifacts/validation: cpf-identification-390.png, student-archive-confirmation-390.png, students-archived-390.png, students-archived-320.png, student-restored-390.png, class-delete-confirmation-390.png, cpf-kiosk-768.png, cpf-kiosk-success-768.png, cpf-kiosk-archived-768.png e cpf-kiosk-success-390.png. Teste em aparelho físico e câmera continua pendente.
+
+
+## Turmas e agenda semanal em lote — 15 de outubro de 2026
+
+- A suíte Go passou com PostgreSQL 17 real; go vet também passou. Foram verificados criação e edição com vários dias/horários, resposta/listagem com grade completa, repetição sem duplicar horários, identidade dos horários conservados, validação e isolamento de academia.
+- Erros de banco forçados após inserir/editar a turma desfizeram tanto os metadados quanto os horários, sem turma órfã ou grade parcial.
+- Remover um horário da grade impediu nova abertura por ele, preservando aula já aberta e presença. O cadastro individual legado conseguiu restaurar o mesmo horário/ID e recusou duplicação. PATCH sem schedules conservou a grade.
+- Migração 006 passou desde banco antigo e em cópia restaurada do PostgreSQL 18. A ativação local teve backup e comparação dos dados anteriores de 13 tabelas, sem mudanças.
+- No navegador, o formulário criou oito horários de uma vez: seg/qua/sex às 19h e 20h; sábado às 9h e 10h30. Edição alterou três horários para 21h sem duplicar. Menu compacto, pausa/reativação e acesso às presenças da aula aberta passaram.
+- Inspeção visual e fluxo em 320, 390 e 1280 pixels, sem transbordamento horizontal. Duas colunas no desktop, dias e horários agrupados em cards no celular. Nenhum erro JavaScript. TypeScript e lint passaram.
+- Web, API e APK interno atualizados. Bundle Hermes 98, assinatura v2/v3 e alinhamento de 16 KiB verificados. Backup do APK anterior: artifacts/Tatame-before-weekly-20261015.apk.
+- API 2.4.0 saudável por localhost e IP da rede; portal web HTTP 200. Os testes de cadastro/edição usaram somente a base isolada.
+
+Capturas em artifacts/validation: weekly-create-390.png, weekly-create-320.png, weekly-list-390.png, weekly-list-desktop.png, weekly-options-390.png, weekly-create-desktop.png e weekly-today-390.png. Teste no aparelho físico continua pendente.
+
+
+## Perfil do aluno e aparelhos de check-in — 15 de outubro de 2026
+
+- Perfil com seções e lápis de edição para contato, graduação, mensalidade e pagador; arquivamento no menu. Alteração de modalidades/plano abre a etapa correspondente do formulário.
+- Nova operação de graduação altera somente a modalidade selecionada e o fallback legado, sem reescrever contrato nem chamar o gerador de mensalidades. Suíte Go passou com PostgreSQL real, incluindo cursor financeiro atrasado, graus independentes, valores inválidos, aluno arquivado e isolamento de academia. go vet passou.
+- Acessos de check-in mostram a data de ativação e separam autorizados/encerrados. Ativação informa a troca de sessão e pede confirmação. Sair do check-in encerra a credencial do próprio aparelho no servidor; encerramento remoto também pede confirmação.
+- Testes Go comprovaram que um aparelho encerra apenas seu acesso, não pode encerrar acesso em outra academia, fica sem autenticação após sair e não interfere em outro aparelho ou na sessão pessoal do gestor.
+- No navegador, edição de graduação preservou contrato e cobranças; edição de mensalidade e vencimento manteve valores emitidos; contato/pagador foram alterados em separado, preservando o CPF do aluno. A troca de plano manteve graus e débitos. Arquivamento e restauração também passaram.
+- Preparação do check-in, cancelamento da ativação, saída confirmada, cancelamento da saída, encerramento remoto e histórico de acessos passaram. Layouts 320, 390 e 1280 sem transbordamento; nenhum erro JavaScript. TypeScript e lint passaram.
+- Não há migração nova: esquema permanece na versão 006. API 2.5.0 ativada após backup em artifacts/backups/tatame-before-profile-activation-20261015-175956.dump e comparação de todos os dados de 15 tabelas, incluindo dispositivos e sessões pessoais. Assinaturas permaneceram iguais.
+- API saudável por localhost e rede; portal HTTP 200. Web, API e APK atualizados. Bundle Hermes 98, assinatura v2/v3 e alinhamento de 16 KiB verificados. APK anterior conservado em artifacts/Tatame-before-profile-20261015.apk.
+
+Capturas em artifacts/validation: student-profile-390.png, student-profile-320.png, student-profile-desktop.png, student-rank-edit-390.png, student-billing-edit-390.png, more-checkin-390.png, checkin-accesses-390.png, checkin-help-expanded-390.png, checkin-activation-390.png, checkin-ended-390.png e checkin-ended-320.png. Todos os cadastros e encerramentos de validação usaram banco isolado. Teste em aparelho físico continua pendente.
+
+## Matrícula, presenças no perfil e responsável de menor — 15 de outubro de 2026
+
+- Perfil nas abas Matrícula, Presenças e Dados. Matrícula conecta modalidades/valores individuais ou pacote do plano ao total mensal. Graduação tem seção própria e edição direta.
+- Presenças mostra total, último check-in, turma, modalidade, horário da aula e data/hora do registro, com filtro mensal e paginação. Continua exclusiva a dispositivos autorizados a gravação da presença.
+- Novo cadastro exige nascimento. Adulto segue quatro etapas e usa nome/CPF próprios; menor segue cinco, com responsável financeiro. Campos do responsável aparecem apenas para menores. A API também aplica a regra.
+- Suíte Go completa passou com PostgreSQL real: adulto/menor, nascimento omitido/inválido/futuro, preservação por cliente antigo, responsável diferente do menor, transição aos 18 anos no gerador, mensalidades emitidas imutáveis, turma excluída, aluno arquivado, isolamento e paginação. Limites de mês em UTC foram conferidos no fuso da academia. go vet passou.
+- Migração 007 passou desde a 001 e numa cópia restaurada do PostgreSQL 18. Ativação local após backup e comparação de dados anteriores de 15 tabelas: assinaturas iguais. Ver MIGRATION.md.
+- No navegador, adulto e menor foram cadastrados até a emissão da mensalidade. Edição de valor preservou mensalidade emitida; troca de modalidades para plano mostrou pacote e valor único. Check-in enviado pelo tablet apareceu no perfil. Filtros, vazio e duas páginas de 27 presenças passaram.
+- Layouts 320, 390 e 1280 sem transbordamento e sem erros JavaScript. TypeScript e lint passaram. API 2.6.0 saudável por localhost e rede; portal HTTP 200.
+- Web, API e APK interno atualizados. Bundle Hermes 98, assinatura v2/v3 e alinhamento de 16 KiB verificados. APK anterior: artifacts/Tatame-before-enrollment-20261015.apk. SHA-256 do novo: 30716ef702d49a3395eef52974df03351cccd5b99df980be1dbd53b479e6924a.
+- Capturas em artifacts/validation: student-contract-390.png, student-contract-320.png, student-contract-desktop.png, student-guardian-390.png, student-identification-age-390.png, student-plan-390.png, student-attendances-390.png, student-attendances-empty-390.png, student-attendances-pagination-390.png, student-attendances-320.png e student-attendances-desktop.png. Dados fictícios somente nos bancos isolados. Teste físico permanece pendente.
 
 ## Verificações ainda necessárias
 

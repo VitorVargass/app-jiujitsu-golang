@@ -200,6 +200,7 @@ export function SwipeNavigator({
           pointerEvents="none"
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
+          {...(Platform.OS === "web" ? { inert: true } : {})}
           aria-hidden
           style={[styles.panel, { width, left: -width }]}
         >
@@ -216,6 +217,7 @@ export function SwipeNavigator({
           pointerEvents="none"
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
+          {...(Platform.OS === "web" ? { inert: true } : {})}
           aria-hidden
           style={[styles.panel, { width, left: width }]}
         >

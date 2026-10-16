@@ -24,7 +24,7 @@ func (r Repository) Create(ctx context.Context, a, name, userToken string) (Cred
 	return v, tx.Commit(ctx)
 }
 func (r Repository) List(ctx context.Context, a string) ([]Device, error) {
-	rows, e := r.DB.Query(ctx, "SELECT id,name,active FROM devices WHERE academy_id=$1 ORDER BY created_at DESC", a)
+	rows, e := r.DB.Query(ctx, "SELECT id,name,active,created_at FROM devices WHERE academy_id=$1 ORDER BY created_at DESC", a)
 	if e != nil {
 		return nil, e
 	}
@@ -32,7 +32,7 @@ func (r Repository) List(ctx context.Context, a string) ([]Device, error) {
 	out := []Device{}
 	for rows.Next() {
 		var d Device
-		if e = rows.Scan(&d.ID, &d.Name, &d.Active); e != nil {
+		if e = rows.Scan(&d.ID, &d.Name, &d.Active, &d.CreatedAt); e != nil {
 			return nil, e
 		}
 		out = append(out, d)

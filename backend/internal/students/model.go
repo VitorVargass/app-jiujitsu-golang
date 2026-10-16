@@ -1,5 +1,7 @@
 package students
 
+import "time"
+
 type Billing struct {
 	Enabled       bool   `json:"enabled"`
 	AmountCents   int64  `json:"amount_cents"`
@@ -15,6 +17,15 @@ type BeltOption struct {
 type ModalityDetail struct {
 	ModalityID  string `json:"modality_id"`
 	Belt        string `json:"belt"`
+	Degrees     int    `json:"degrees"`
+	AmountCents int64  `json:"amount_cents"`
+}
+
+// Omitted degrees preserve a saved value when an older client edits an enrollment.
+type EnrollmentInput struct {
+	ModalityID  string `json:"modality_id"`
+	Belt        string `json:"belt"`
+	Degrees     *int   `json:"degrees"`
 	AmountCents int64  `json:"amount_cents"`
 }
 type Student struct {
@@ -23,6 +34,9 @@ type Student struct {
 	UserID          string           `json:"user_id"`
 	Name            string           `json:"name"`
 	Email           string           `json:"email"`
+	CPF             string           `json:"cpf"`
+	BirthDate       string           `json:"birth_date"`
+	ArchivedAt      *time.Time       `json:"archived_at"`
 	Phone           string           `json:"phone"`
 	AlternatePhone  string           `json:"alternate_phone"`
 	Status          string           `json:"status"`
@@ -35,17 +49,19 @@ type Student struct {
 	Billing         *Billing         `json:"billing"`
 }
 type Input struct {
-	Name            string           `json:"name"`
-	Email           string           `json:"email"`
-	Phone           string           `json:"phone"`
-	AlternatePhone  string           `json:"alternate_phone"`
-	Status          string           `json:"status"`
-	Belt            string           `json:"belt"`
-	ChargeMode      string           `json:"charge_mode"`
-	PlanID          string           `json:"plan_id"`
-	Modalities      []string         `json:"modality_ids"`
-	ModalityDetails []ModalityDetail `json:"modality_details"`
-	Billing         *Billing         `json:"billing"`
+	Name            string            `json:"name"`
+	Email           string            `json:"email"`
+	CPF             *string           `json:"cpf"`
+	BirthDate       *string           `json:"birth_date"`
+	Phone           string            `json:"phone"`
+	AlternatePhone  string            `json:"alternate_phone"`
+	Status          string            `json:"status"`
+	Belt            string            `json:"belt"`
+	ChargeMode      string            `json:"charge_mode"`
+	PlanID          string            `json:"plan_id"`
+	Modalities      []string          `json:"modality_ids"`
+	ModalityDetails []EnrollmentInput `json:"modality_details"`
+	Billing         *Billing          `json:"billing"`
 }
 type Catalog struct {
 	ID          string       `json:"id"`

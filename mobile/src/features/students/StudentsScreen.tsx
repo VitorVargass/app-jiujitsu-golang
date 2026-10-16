@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { View, Pressable, Text, StyleSheet } from "react-native";
 import { colors } from "../../theme";
+import { rankLabel } from "../../types/graduation";
 import { Icon } from "../../components/Icon";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import Form from "./StudentForm";
+import StudentProfile from "./StudentProfile";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
 import {
   Button,
@@ -70,8 +72,8 @@ function ListContent() {
     >
       <View style={{ gap: 12 }}>
         <SearchBar
-          label="Buscar aluno pelo nome"
-          placeholder="Buscar por nome..."
+          label="Buscar aluno por nome ou CPF"
+          placeholder="Nome ou CPF completo..."
           value={search}
           onChangeText={(v) => {
             setSearch(v);
@@ -92,6 +94,7 @@ function ListContent() {
             ["", "Todos"],
             ["active", "Ativos"],
             ["inactive", "Inativos"],
+            ["archived", "Arquivados"],
           ].map(([value, label]) => (
             <Pressable
               key={value}
@@ -110,7 +113,7 @@ function ListContent() {
               <Text
                 style={[
                   listStyles.statusText,
-                  status === value && { color: colors.text },
+                  status === value && { color: colors.primary },
                 ]}
               >
                 {label}
@@ -211,7 +214,9 @@ function ListContent() {
                           )?.name;
                           return (
                             (name ?? "Modalidade") +
-                            (d.belt ? " • " + d.belt : "")
+                            (d.belt
+                              ? " • " + rankLabel(d.belt, d.degrees ?? 0)
+                              : "")
                           );
                         })
                         .join(" / ")
@@ -227,7 +232,11 @@ function ListContent() {
                     ]}
                   />
                   <Text style={listStyles.studentMeta}>
-                    {s.status === "active" ? "Ativo" : "Inativo"}
+                    {s.archived_at
+                      ? "Arquivado"
+                      : s.status === "active"
+                        ? "Ativo"
+                        : "Inativo"}
                   </Text>
                 </View>
               </View>
@@ -265,9 +274,10 @@ function ListContent() {
 const listStyles = StyleSheet.create({
   statusTabs: {
     flexDirection: "row",
-    gap: 24,
+    gap: 16,
+    flexWrap: "wrap",
     borderBottomWidth: 1,
-    borderBottomColor: "#262626",
+    borderBottomColor: colors.borderSubtle,
   },
   statusTab: {
     minHeight: 44,
@@ -276,13 +286,13 @@ const listStyles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
   },
-  statusSelected: { borderBottomColor: colors.text },
+  statusSelected: { borderBottomColor: colors.primary },
   statusText: { fontFamily: "Lato_700Bold", fontSize: 14, color: colors.muted },
   count: { fontFamily: "Lato_400Regular", fontSize: 12, color: colors.muted },
   list: {
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#292929",
+    borderColor: colors.border,
     backgroundColor: colors.surface,
     overflow: "hidden",
   },
@@ -294,7 +304,7 @@ const listStyles = StyleSheet.create({
     paddingHorizontal: 14,
     gap: 12,
   },
-  rowDivider: { borderTopWidth: 1, borderTopColor: "#292929" },
+  rowDivider: { borderTopWidth: 1, borderTopColor: colors.borderSubtle },
   studentInfo: { flex: 1, minWidth: 0, gap: 4 },
   studentName: { color: colors.text, fontFamily: "Lato_700Bold", fontSize: 15 },
   studentMeta: {
@@ -371,6 +381,14 @@ function DetailContent({ id }: { id: string }) {
       <AcademyShell title="Cadastro do aluno">
         <Notice message="Cadastro por etapas aguardando atualização da API." />
       </AcademyShell>
+    );
+  if (id !== "new" && student.data)
+    return (
+      <StudentProfile
+        student={student.data}
+        modalities={mods.data ?? []}
+        plans={plans.data ?? []}
+      />
     );
   return (
     <Form

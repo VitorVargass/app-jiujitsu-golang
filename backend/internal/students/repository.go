@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"strings"
 	"tatame/backend/internal/billing"
 	"tatame/backend/internal/core"
 	"time"
@@ -13,8 +15,8 @@ import (
 
 type Repository struct{ DB *pgxpool.Pool }
 
-const studentJSON = `jsonb_build_object('id',s.id,'academy_id',s.academy_id,'user_id',COALESCE(s.user_id::text,''),'name',s.name,'email',s.email,'phone',s.phone,'alternate_phone',s.alternate_phone,'charge_mode',s.charge_mode,'status',s.status,'belt',s.belt,'plan_id',COALESCE(s.plan_id::text,''),'student_code',s.student_code,
- 'modality_details',COALESCE((SELECT jsonb_agg(jsonb_build_object('modality_id',sm.modality_id,'belt',sm.belt,'amount_cents',sm.amount_cents) ORDER BY sm.modality_id) FROM student_modalities sm WHERE sm.academy_id=s.academy_id AND sm.student_id=s.id),'[]'::jsonb),
+const studentJSON = `jsonb_build_object('id',s.id,'academy_id',s.academy_id,'user_id',COALESCE(s.user_id::text,''),'name',s.name,'email',s.email,'cpf',s.cpf,'birth_date',COALESCE(to_char(s.birth_date,'YYYY-MM-DD'),''),'archived_at',s.archived_at,'phone',s.phone,'alternate_phone',s.alternate_phone,'charge_mode',s.charge_mode,'status',s.status,'belt',s.belt,'plan_id',COALESCE(s.plan_id::text,''),'student_code',s.student_code,
+ 'modality_details',COALESCE((SELECT jsonb_agg(jsonb_build_object('modality_id',sm.modality_id,'belt',sm.belt,'degrees',sm.degrees,'amount_cents',sm.amount_cents) ORDER BY sm.modality_id) FROM student_modalities sm WHERE sm.academy_id=s.academy_id AND sm.student_id=s.id),'[]'::jsonb),
  'modality_ids',COALESCE((SELECT jsonb_agg(modality_id ORDER BY modality_id) FROM student_modalities WHERE academy_id=s.academy_id AND student_id=s.id),'[]'::jsonb),
  'billing',(SELECT jsonb_build_object('enabled',b.enabled,'amount_cents',b.amount_cents,'due_day',b.due_day,'first_month',to_char(b.next_month,'YYYY-MM'),'payer_name',b.payer_name,'payer_document',b.payer_document) FROM student_billing b WHERE b.academy_id=s.academy_id AND b.student_id=s.id))`
 
@@ -41,24 +43,36 @@ func (r Repository) OwnID(ctx context.Context, a, u string) (string, error) {
 }
 func (r Repository) List(ctx context.Context, a, search, status, modality string, page, size int) (core.Page[Student], error) {
 	out := core.Page[Student]{Items: []Student{}, Page: page, PageSize: size}
-	if e := r.DB.QueryRow(ctx, "SELECT count(*) FROM students s WHERE academy_id=$1 AND name ILIKE '%'||$2||'%' AND ($3::text='' OR status=$3) AND ($4::text='' OR EXISTS(SELECT 1 FROM student_modalities sm WHERE sm.academy_id=s.academy_id AND sm.student_id=s.id AND sm.modality_id::text=$4))", a, search, status, modality).Scan(&out.Total); e != nil {
-		return out, e
+	search = strings.TrimSpace(search)
+	cpf, valid := core.NormalizeCPF(search)
+	if !valid {
+		cpf = ""
 	}
-	rows, e := r.DB.Query(ctx, "SELECT "+studentJSON+" FROM students s WHERE academy_id=$1 AND name ILIKE '%'||$2||'%' AND ($3::text='' OR status=$3) AND ($4::text='' OR EXISTS(SELECT 1 FROM student_modalities sm WHERE sm.academy_id=s.academy_id AND sm.student_id=s.id AND sm.modality_id::text=$4)) ORDER BY name,id LIMIT $5 OFFSET $6", a, search, status, modality, size, (page-1)*size)
-	if e != nil {
-		return out, e
+	where := ` FROM students s WHERE s.academy_id=$1
+ AND (s.name ILIKE '%'||$2||'%' OR ($5::text<>'' AND s.cpf=$5))
+ AND (($3::text='' AND (s.archived_at IS NULL OR $5::text<>''))
+   OR ($3='archived' AND s.archived_at IS NOT NULL)
+   OR ($3 IN ('active','inactive') AND s.archived_at IS NULL AND s.status=$3))
+ AND ($4::text='' OR EXISTS(SELECT 1 FROM student_modalities sm WHERE sm.academy_id=s.academy_id AND sm.student_id=s.id AND sm.modality_id::text=$4))`
+	args := []any{a, search, status, modality, cpf}
+	if err := r.DB.QueryRow(ctx, "SELECT count(*)"+where, args...).Scan(&out.Total); err != nil {
+		return out, err
+	}
+	rows, err := r.DB.Query(ctx, "SELECT "+studentJSON+where+" ORDER BY s.name,s.id LIMIT $6 OFFSET $7", append(args, size, (page-1)*size)...)
+	if err != nil {
+		return out, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var raw []byte
-		var v Student
-		if e = rows.Scan(&raw); e != nil {
-			return out, e
+		var student Student
+		if err = rows.Scan(&raw); err != nil {
+			return out, err
 		}
-		if e = json.Unmarshal(raw, &v); e != nil {
-			return out, e
+		if err = json.Unmarshal(raw, &student); err != nil {
+			return out, err
 		}
-		out.Items = append(out.Items, v)
+		out.Items = append(out.Items, student)
 	}
 	return out, rows.Err()
 }
@@ -68,39 +82,57 @@ func (r Repository) Save(ctx context.Context, a, id string, in Input) (Student, 
 		return Student{}, e
 	}
 	defer tx.Rollback(ctx)
+	oldBirth := ""
 	if id != "" {
-		var locked string
-		if err := tx.QueryRow(ctx, "SELECT id FROM students WHERE academy_id=$1 AND id=$2 FOR UPDATE", a, id).Scan(&locked); err != nil {
+		var locked, oldCPF string
+		var archived *time.Time
+		if err := tx.QueryRow(ctx, "SELECT id,cpf,archived_at,COALESCE(to_char(birth_date,'YYYY-MM-DD'),'') FROM students WHERE academy_id=$1 AND id=$2 FOR UPDATE", a, id).Scan(&locked, &oldCPF, &archived, &oldBirth); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return Student{}, core.E(404, "not_found", "Aluno não encontrado.")
 			}
 			return Student{}, err
 		}
+		if archived != nil {
+			return Student{}, core.E(409, "student_archived", "Restaure o cadastro antes de editá-lo.")
+		}
+		if in.CPF == nil {
+			in.CPF = &oldCPF
+		} else if oldCPF != "" && *in.CPF == "" {
+			return Student{}, core.E(422, "invalid_cpf", "O CPF cadastrado não pode ficar vazio.")
+		}
+	}
+	adult, err := resolveIdentity(ctx, tx, a, id, &in, oldBirth)
+	if err != nil {
+		return Student{}, err
 	}
 	if err := resolveEnrollments(ctx, tx, a, id, &in); err != nil {
 		return Student{}, err
 	}
 	if id == "" {
 		id = core.ID()
-		_, e = tx.Exec(ctx, `INSERT INTO students(id,academy_id,name,email,phone,status,belt,student_code,qr_token,plan_id,alternate_phone,charge_mode) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,'')::uuid,$11,$12)`, id, a, in.Name, in.Email, in.Phone, in.Status, in.Belt, core.Digits(), core.Token(), in.PlanID, in.AlternatePhone, in.ChargeMode)
+		_, e = tx.Exec(ctx, `INSERT INTO students(id,academy_id,name,email,phone,status,belt,student_code,qr_token,plan_id,alternate_phone,charge_mode,cpf,birth_date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,'')::uuid,$11,$12,$13,NULLIF($14,'')::date)`, id, a, in.Name, in.Email, in.Phone, in.Status, in.Belt, core.Digits(), core.Token(), in.PlanID, in.AlternatePhone, in.ChargeMode, *in.CPF, *in.BirthDate)
 	} else {
 		if e = billing.GenerateTx(ctx, tx, a, id, time.Now()); e != nil {
 			return Student{}, e
 		}
-		result, err := tx.Exec(ctx, `UPDATE students SET name=$3,email=$4,phone=$5,status=$6,belt=$7,plan_id=NULLIF($8,'')::uuid,alternate_phone=$9,charge_mode=$10 WHERE academy_id=$1 AND id=$2`, a, id, in.Name, in.Email, in.Phone, in.Status, in.Belt, in.PlanID, in.AlternatePhone, in.ChargeMode)
+		result, err := tx.Exec(ctx, `UPDATE students SET name=$3,email=$4,phone=$5,status=$6,belt=$7,plan_id=NULLIF($8,'')::uuid,alternate_phone=$9,charge_mode=$10,cpf=$11,birth_date=NULLIF($12,'')::date WHERE academy_id=$1 AND id=$2`, a, id, in.Name, in.Email, in.Phone, in.Status, in.Belt, in.PlanID, in.AlternatePhone, in.ChargeMode, *in.CPF, *in.BirthDate)
 		e = err
 		if e == nil && result.RowsAffected() == 0 {
 			e = core.E(404, "not_found", "Aluno não encontrado.")
 		}
 	}
 	if e != nil {
+		var conflict *pgconn.PgError
+		if errors.As(e, &conflict) && conflict.ConstraintName == "students_academy_cpf_unique" {
+			return Student{}, core.E(409, "cpf_already_registered", "Este CPF já tem cadastro nesta academia, inclusive entre os arquivados. Busque pelo CPF na lista de alunos.")
+		}
 		return Student{}, e
 	}
 	if _, e = tx.Exec(ctx, "DELETE FROM student_modalities WHERE academy_id=$1 AND student_id=$2", a, id); e != nil {
 		return Student{}, e
 	}
 	for _, detail := range in.ModalityDetails {
-		if _, e = tx.Exec(ctx, "INSERT INTO student_modalities(academy_id,student_id,modality_id,belt,amount_cents) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING", a, id, detail.ModalityID, detail.Belt, detail.AmountCents); e != nil {
+		if _, e = tx.Exec(ctx, "INSERT INTO student_modalities(academy_id,student_id,modality_id,belt,amount_cents,degrees) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING", a, id, detail.ModalityID, detail.Belt, detail.AmountCents, *detail.Degrees); e != nil {
 			return Student{}, e
 		}
 	}
@@ -112,6 +144,11 @@ func (r Repository) Save(ctx context.Context, a, id string, in Input) (Student, 
   next_month=CASE WHEN NOT student_billing.enabled AND EXCLUDED.enabled THEN EXCLUDED.next_month ELSE student_billing.next_month END,
   payer_name=EXCLUDED.payer_name,payer_document=EXCLUDED.payer_document`, a, id, b.Enabled && in.Status == "active", b.AmountCents, b.DueDay, b.FirstMonth+"-01", b.PayerName, b.PayerDocument)
 		if e != nil {
+			return Student{}, e
+		}
+	}
+	if adult {
+		if _, e = tx.Exec(ctx, "UPDATE student_billing SET payer_name=$3,payer_document=$4 WHERE academy_id=$1 AND student_id=$2", a, id, in.Name, *in.CPF); e != nil {
 			return Student{}, e
 		}
 	}
@@ -233,10 +270,13 @@ func (r Repository) Invite(ctx context.Context, a, id string) (string, error) {
 		return "", e
 	}
 	defer tx.Rollback(ctx)
-	var linked bool
-	e = tx.QueryRow(ctx, "SELECT user_id IS NOT NULL FROM students WHERE academy_id=$1 AND id=$2 FOR UPDATE", a, id).Scan(&linked)
+	var linked, archived bool
+	e = tx.QueryRow(ctx, "SELECT user_id IS NOT NULL,archived_at IS NOT NULL FROM students WHERE academy_id=$1 AND id=$2 FOR UPDATE", a, id).Scan(&linked, &archived)
 	if e != nil {
 		return "", core.E(404, "not_found", "Aluno não encontrado.")
+	}
+	if archived {
+		return "", core.E(409, "student_archived", "Restaure o cadastro antes de gerar um novo convite.")
 	}
 	if linked {
 		return "", core.E(409, "already_linked", "Este aluno já possui uma conta vinculada.")

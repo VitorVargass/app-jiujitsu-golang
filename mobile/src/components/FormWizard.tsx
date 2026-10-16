@@ -13,6 +13,7 @@ export function FormWizard({
   pending = false,
   error,
   submitLabel = "Salvar",
+  initialStep = 0,
 }: {
   steps: readonly string[];
   children: (step: number) => ReactNode;
@@ -22,8 +23,9 @@ export function FormWizard({
   pending?: boolean;
   error?: string;
   submitLabel?: string;
+  initialStep?: number;
 }) {
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(initialStep);
   const [message, setMessage] = useState("");
   const resetScroll = useContext(FormScrollContext);
   function change(next: number) {
@@ -119,8 +121,8 @@ const styles = StyleSheet.create({
   root: { gap: 20 },
   progress: { gap: 10 },
   bars: { flexDirection: "row", gap: 6 },
-  bar: { height: 4, flex: 1, borderRadius: 4, backgroundColor: "#353535" },
-  reached: { backgroundColor: colors.text },
+  bar: { height: 4, flex: 1, borderRadius: 4, backgroundColor: colors.border },
+  reached: { backgroundColor: colors.primary },
   counter: {
     fontFamily: "Lato_700Bold",
     color: colors.muted,

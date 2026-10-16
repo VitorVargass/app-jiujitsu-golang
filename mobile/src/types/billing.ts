@@ -8,6 +8,7 @@ export type BeltOption = { label: string; colors: string[] };
 export type ModalityDetail = {
   modality_id: string;
   belt: string;
+  degrees: number;
   amount_cents: number;
 };
 export type ChargeMode = "custom" | "plan" | "modalities";
@@ -25,6 +26,9 @@ export type Student = {
   user_id: string;
   name: string;
   email: string;
+  cpf: string;
+  birth_date: string;
+  archived_at: string | null;
   phone: string;
   alternate_phone: string;
   charge_mode: ChargeMode;

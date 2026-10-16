@@ -66,7 +66,7 @@ func TestStudentWizardRanksAndPricing(t *testing.T) {
 		if mode == "plan" {
 			p = plan["id"].(string)
 		}
-		return map[string]any{"name": "Aluno em etapas", "phone": "41999990000", "alternate_phone": "4133332222", "status": "active", "charge_mode": mode, "plan_id": p, "modality_ids": []string{jj, ng},
+		return map[string]any{"birth_date": "2012-04-12", "cpf": testCPF(), "name": "Aluno em etapas", "phone": "41999990000", "alternate_phone": "4133332222", "status": "active", "charge_mode": mode, "plan_id": p, "modality_ids": []string{jj, ng},
 			"modality_details": []any{map[string]any{"modality_id": jj, "belt": "Faixa Azul", "amount_cents": 15000}, map[string]any{"modality_id": ng, "belt": "Faixa Roxa", "amount_cents": 10000}},
 			"billing":          map[string]any{"enabled": true, "amount_cents": 20000, "due_day": 31, "first_month": month, "payer_name": "Responsável Etapas", "payer_document": "52998224725"}}
 	}

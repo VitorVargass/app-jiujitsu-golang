@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Redirect } from "expo-router";
 import { Text, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
@@ -21,6 +22,7 @@ import {
   Avatar,
   Empty,
 } from "../../components/ui";
+import { cpfDigits, formatCPF, validCPF } from "../../types/cpf";
 import { colors, displayTime } from "../../theme";
 function Content() {
   const { session, logout } = useSession();
@@ -33,11 +35,15 @@ function Content() {
     [scanning, setScanning] = useState(false),
     [scanError, setScanError] = useState(""),
     [clock, setClock] = useState(new Date());
+  const [exit, setExit] = useState(false),
+    [exiting, setExiting] = useState(false),
+    [exitError, setExitError] = useState("");
+  const [legacyCode, setLegacyCode] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const submitting = useRef(false);
   const event = useRef<{
     sessionId: string;
-    body: { qr_token?: string; student_code?: string };
+    body: { qr_token?: string; student_code?: string; cpf?: string };
     key: string;
   } | null>(null);
   const sessions = useQuery({
@@ -74,7 +80,7 @@ function Content() {
     return () => clearTimeout(timer);
   }, [isSuccess, resetCheckin]);
   async function submit(
-    body: { qr_token?: string; student_code?: string },
+    body: { qr_token?: string; student_code?: string; cpf?: string },
     retry = false,
   ) {
     if (!active || submitting.current) return;
@@ -108,7 +114,7 @@ function Content() {
       ) : sessions.error ? (
         <Notice message={sessions.error.message} />
       ) : !active ? (
-        <Empty>Nenhuma aula aberta. Peça ao professor para abrir a aula.</Empty>
+        <Empty>Nenhuma aula aberta. Peça ao gestor para abrir a aula.</Empty>
       ) : (
         <Row>
           {sessions.data?.map((s) => (
@@ -160,23 +166,42 @@ function Content() {
       ) : (
         <Card>
           <Field
-            label="Código do aluno"
+            label={legacyCode ? "Código anterior do aluno" : "CPF do aluno"}
             editable={!checkin.isPending}
             value={code}
             onChangeText={(v) => {
-              setCode(v.replace(/[^0-9]/g, ""));
+              setCode(legacyCode ? v.replace(/[^0-9]/g, "") : formatCPF(v));
               checkin.reset();
             }}
             keyboardType="number-pad"
-            maxLength={8}
-            placeholder="Digite os 8 números"
+            maxLength={legacyCode ? 8 : 14}
+            placeholder={legacyCode ? "Digite os 8 números" : "000.000.000-00"}
           />
           <Button
-            disabled={!active || code.length !== 8}
+            disabled={
+              !active || (legacyCode ? code.length !== 8 : !validCPF(code))
+            }
             loading={checkin.isPending}
-            onPress={() => void submit({ student_code: code })}
+            onPress={() =>
+              void submit(
+                legacyCode ? { student_code: code } : { cpf: cpfDigits(code) },
+              )
+            }
           >
             Confirmar presença
+          </Button>
+          <Button
+            compact
+            secondary
+            disabled={checkin.isPending}
+            onPress={() => {
+              setLegacyCode(!legacyCode);
+              setCode("");
+              checkin.reset();
+              event.current = null;
+            }}
+          >
+            {legacyCode ? "Usar CPF" : "Cadastro antigo? Usar código anterior"}
           </Button>
           <Label muted>ou apresente seu QR Code</Label>
           <Button
@@ -233,9 +258,34 @@ function Content() {
       <Label muted>
         Aguarde a confirmação na tela antes de entrar no tatame.
       </Label>
-      <Button secondary onPress={() => void logout()}>
-        Sair do modo tablet
+      <Label muted>
+        Para voltar à gestão, encerre este acesso e entre novamente na sua
+        conta.
+      </Label>
+      <Button
+        secondary
+        onPress={() => {
+          setExitError("");
+          setExit(true);
+        }}
+      >
+        Encerrar check-in e sair
       </Button>
+      <ConfirmDialog
+        visible={exit}
+        title="Encerrar este check-in?"
+        message="Este aparelho deixará de registrar presenças com este acesso. Para voltar à gestão ou ativá-lo novamente, entre na sua conta."
+        confirmLabel="Encerrar e sair"
+        pending={exiting}
+        error={exitError}
+        onCancel={() => setExit(false)}
+        onConfirm={() => {
+          setExiting(true);
+          void logout()
+            .catch((error: Error) => setExitError(error.message))
+            .finally(() => setExiting(false));
+        }}
+      />
     </Page>
   );
 }

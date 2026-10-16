@@ -34,6 +34,7 @@ export type Class = {
   modality_id: string;
   modality_name: string;
   active: boolean;
+  schedules: Schedule[];
 };
 export type Schedule = {
   id: string;
@@ -59,6 +60,8 @@ export type Attendance = {
   student_name: string;
   belt: string;
   checked_in_at: string;
+  modality_name?: string;
+  starts_at?: string;
 };
 export type CheckinResult = {
   id: string;
@@ -66,6 +69,8 @@ export type CheckinResult = {
   student_name: string;
   belt: string;
   checked_in_at: string;
+  modality_name?: string;
+  starts_at?: string;
   duplicate: boolean;
 };
 export type Dashboard = {
@@ -77,8 +82,15 @@ export type Dashboard = {
   open_cents: number;
   week: { date: string; count: number }[];
 };
-export type Device = { id: string; name: string; active: boolean };
+export type Device = {
+  id: string;
+  name: string;
+  active: boolean;
+  created_at: string;
+};
 export type Credential = {
+  cpf: string;
+  archived_at: string | null;
   student_code: string;
   qr_token: string;
   student_name: string;

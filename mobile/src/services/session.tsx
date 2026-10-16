@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { QueryClient } from "@tanstack/react-query";
-import { api, setToken, setUnauthorized } from "./api";
+import { api, APIError, setToken, setUnauthorized } from "./api";
 import { Academy, Role, User } from "../types";
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -95,6 +95,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           await api("/v1/auth/logout", { method: "POST" });
         } catch {
           /* Local credentials must still be removed. */
+        }
+      } else if (session?.kind === "device") {
+        try {
+          await api(
+            "/v1/academies/" + session.academy_id + "/devices/current",
+            { method: "DELETE" },
+          );
+        } catch (error) {
+          if (!(error instanceof APIError) || error.status !== 401) throw error;
         }
       }
       await save(null);

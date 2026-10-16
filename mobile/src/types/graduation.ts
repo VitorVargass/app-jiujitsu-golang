@@ -1,4 +1,12 @@
 import type { BeltOption } from "./billing";
+export function degreeLabel(degrees = 0) {
+  return degrees === 0
+    ? "Sem grau"
+    : degrees + (degrees === 1 ? " grau" : " graus");
+}
+export function rankLabel(belt: string, degrees = 0) {
+  return belt ? belt + " • " + degreeLabel(degrees) : "Sem graduação";
+}
 export const bjjBelts: BeltOption[] = [
   { label: "Faixa Branca", colors: ["#F5F5F5"] },
   { label: "Faixa Cinza e Branca", colors: ["#929292", "#F5F5F5"] },

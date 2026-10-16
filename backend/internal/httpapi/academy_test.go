@@ -98,7 +98,7 @@ func TestAcademyBillingAndAsaas(t *testing.T) {
 	manager.Connections[conn.ID] = conn
 	mods := admin.list(prefix + "/modalities")
 	month := time.Now().In(time.FixedZone("BR", -3*3600)).Format("2006-01")
-	body := map[string]any{"name": "Maria da Silva", "email": "maria@example.com", "phone": "11999999999", "status": "active", "belt": "Faixa Azul", "modality_ids": []string{mods[0]["id"].(string), mods[1]["id"].(string)}, "billing": map[string]any{"enabled": true, "amount_cents": 20050, "due_day": 31, "first_month": month, "payer_name": "Maria da Silva", "payer_document": "52998224725"}}
+	body := map[string]any{"birth_date": "2012-04-12", "cpf": testCPF(), "name": "Maria da Silva", "email": "maria@example.com", "phone": "11999999999", "status": "active", "belt": "Faixa Azul", "modality_ids": []string{mods[0]["id"].(string), mods[1]["id"].(string)}, "billing": map[string]any{"enabled": true, "amount_cents": 20050, "due_day": 31, "first_month": month, "payer_name": "Maria da Silva", "payer_document": "52998224725"}}
 	st := admin.ok("POST", prefix+"/students", body)
 	sid := st["id"].(string)
 	if st["user_id"] != "" {
@@ -253,7 +253,7 @@ func TestAcademyBillingAndAsaas(t *testing.T) {
 		t.Fatal("future amount snapshot", futureAmount)
 	}
 	// Expired and revoked invitations cannot attach a second profile.
-	st2 := admin.ok("POST", prefix+"/students", map[string]any{"name": "Aluno sem conta", "status": "active", "modality_ids": []string{}})
+	st2 := admin.ok("POST", prefix+"/students", map[string]any{"birth_date": "2012-04-12", "cpf": testCPF(), "name": "Aluno sem conta", "status": "active", "modality_ids": []string{}})
 	iv := admin.ok("POST", prefix+"/students/"+st2["id"].(string)+"/invitations", nil)
 	admin.ok("DELETE", prefix+"/students/"+st2["id"].(string)+"/invitations", nil)
 	if code, _ := kiosk.request("POST", path, map[string]string{"student_code": st2["student_code"].(string)}, core.ID()); code != 200 {
