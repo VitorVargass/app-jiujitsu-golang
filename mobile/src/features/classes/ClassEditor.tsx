@@ -91,6 +91,10 @@ export function ClassEditor({
         </>
       }
     >
+      <Label muted>
+        Cadastre uma vez. A turma permanece na grade até você editar, pausar ou
+        excluir.
+      </Label>
       <View style={{ gap: 10 }}>
         <Label>Modalidade</Label>
         <Row>
@@ -131,8 +135,8 @@ export function ClassEditor({
       />
       {count ? (
         <Label muted>
-          {count} {count === 1 ? "aula por semana" : "aulas por semana"} • Toda
-          a agenda será salva junto.
+          {count} {count === 1 ? "horário semanal" : "horários semanais"} •
+          Repetição contínua, sem data final.
         </Label>
       ) : null}
       <Pressable
@@ -150,7 +154,7 @@ export function ClassEditor({
         <Icon name="users" size={16} color={colors.muted} />
         <Text
           style={{
-            fontFamily: "Lato_700Bold",
+            fontFamily: "Inter_600SemiBold",
             fontSize: 13,
             color: colors.muted,
           }}
@@ -186,8 +190,8 @@ export function ClassEditor({
       ) : null}
       {initial ? (
         <Label muted>
-          As mudanças valem para as próximas aulas. Presenças e aulas já abertas
-          são mantidas.
+          As mudanças atualizam a grade semanal. O histórico de presenças de
+          cada dia é preservado.
         </Label>
       ) : null}
       <Notice message={error || save.error?.message} />

@@ -19,6 +19,7 @@ import { EditorDialog } from "../../components/EditorDialog";
 import { Catalog, Student } from "../../types/billing";
 import { formatCPF } from "../../types/cpf";
 import { formatBirth, ageOn } from "../../types/age";
+import { StudentProgress } from "./StudentProgress";
 import { StudentEnrollment } from "./StudentEnrollment";
 import { StudentAttendances } from "./StudentAttendances";
 import { colors, accents } from "../../theme";
@@ -62,9 +63,9 @@ export default function StudentProfile({
 }) {
   const { academy } = useSession(),
     a = academy!;
-  const [tab, setTab] = useState<"enrollment" | "attendance" | "personal">(
-    "enrollment",
-  );
+  const [tab, setTab] = useState<
+    "enrollment" | "attendance" | "progress" | "personal"
+  >("enrollment");
   const [editor, setEditor] = useState<StudentSection | null>(null),
     [full, setFull] = useState<number | null>(null);
   const [menu, setMenu] = useState(false),
@@ -115,7 +116,7 @@ export default function StudentProfile({
       setArchive(false);
       setMessage(
         archived
-          ? "Aluno restaurado. Revise a competência antes de ativar a cobrança."
+          ? "Aluno restaurado. Revise o mês de início da cobrança antes de ativar a cobrança."
           : "Aluno arquivado. Históricos e débitos preservados.",
       );
     },
@@ -203,6 +204,7 @@ export default function StudentProfile({
           [
             { id: "enrollment", label: "Matrícula", icon: "wallet" },
             { id: "attendance", label: "Presenças", icon: "calendar" },
+            { id: "progress", label: "Evolução", icon: "check-circle" },
             { id: "personal", label: "Dados", icon: "users" },
           ] as const
         ).map((item) => (
@@ -216,7 +218,7 @@ export default function StudentProfile({
             <Icon
               name={item.icon}
               size={18}
-              color={tab === item.id ? accents.mint.color : colors.muted}
+              color={tab === item.id ? accents.brand.color : colors.muted}
             />
             <Text
               style={[s.tabText, tab === item.id && { color: colors.text }]}
@@ -237,7 +239,21 @@ export default function StudentProfile({
         />
       ) : null}
       {tab === "attendance" ? (
-        <StudentAttendances key={student.id} studentId={student.id} />
+        <StudentAttendances
+          key={student.id}
+          studentId={student.id}
+          canRecord={!archived && student.status === "active"}
+        />
+      ) : null}
+      {tab === "progress" ? (
+        <StudentProgress
+          key={student.id}
+          student={student}
+          modalities={modalities}
+          academyId={a.id}
+          timezone={a.timezone}
+          onEdit={(id) => edit({ rank: id })}
+        />
       ) : null}
       {tab === "personal" ? (
         <>
@@ -296,12 +312,18 @@ export default function StudentProfile({
                 ? "O aluno já pode entrar no portal para consultar mensalidades, presenças e QR."
                 : "O convite permite ao aluno criar uma conta ou entrar com uma existente para acessar seu portal."}
             </Label>
+            {!student.email ? (
+              <Label muted>
+                Informe o e-mail próprio do aluno para liberar o convite.
+              </Label>
+            ) : null}
             {!archived && !student.user_id ? (
               <View style={{ alignItems: "flex-start", gap: 10 }}>
                 <Button
                   compact
                   icon="plus"
                   loading={invite.isPending}
+                  disabled={!student.email}
                   onPress={() => invite.mutate()}
                 >
                   Gerar convite
@@ -391,7 +413,7 @@ export default function StudentProfile({
         title={archived ? "Restaurar aluno?" : "Arquivar aluno?"}
         message={
           archived
-            ? "O aluno poderá treinar novamente. A cobrança automática permanecerá desativada até você revisar a competência e ativá-la."
+            ? "O aluno poderá treinar novamente. A cobrança automática permanecerá desativada até você revisar o mês de início da cobrança e ativá-la."
             : "Novos check-ins e mensalidades serão interrompidos. CPF, QR, graduações, histórico e débitos serão preservados."
         }
         confirmLabel={
@@ -417,15 +439,19 @@ const s = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    minHeight: 48,
-    flexDirection: "row",
+    minHeight: 56,
+    flexDirection: "column",
     gap: 7,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 11,
   },
-  tabActive: { backgroundColor: accents.mint.soft },
-  tabText: { fontFamily: "Lato_700Bold", fontSize: 13, color: colors.muted },
+  tabActive: { backgroundColor: accents.brand.soft },
+  tabText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    color: colors.muted,
+  },
 
   hero: {
     padding: 20,
@@ -437,7 +463,7 @@ const s = StyleSheet.create({
   },
   identity: { flexDirection: "row", alignItems: "center", gap: 14 },
   name: {
-    fontFamily: "Montserrat_700Bold",
+    fontFamily: "Inter_700Bold",
     fontSize: 22,
     lineHeight: 30,
     color: colors.text,
@@ -477,14 +503,14 @@ const s = StyleSheet.create({
     borderBottomColor: colors.borderSubtle,
   },
   value: {
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     color: colors.text,
     lineHeight: 21,
     flexShrink: 1,
   },
   caption: {
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     fontSize: 12,
     color: colors.muted,
     lineHeight: 19,
@@ -497,17 +523,17 @@ const s = StyleSheet.create({
     flexWrap: "wrap",
   },
   actionText: {
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 12,
     color: accents.blue.color,
   },
   amount: {
-    fontFamily: "Montserrat_700Bold",
+    fontFamily: "Inter_700Bold",
     fontSize: 28,
     color: colors.text,
   },
   amountSuffix: {
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     fontSize: 12,
     color: colors.muted,
   },

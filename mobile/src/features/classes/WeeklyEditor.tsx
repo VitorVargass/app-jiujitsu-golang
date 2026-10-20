@@ -25,7 +25,8 @@ export function WeeklyEditor({
   return (
     <View style={{ gap: 14 }}>
       <Label muted>
-        Marque os dias e informe todos os horários separados por vírgula.
+        Marque os dias e informe o início e o fim. A grade se repete toda
+        semana, sem data de término.
       </Label>
       {groups.map((group, index) => (
         <View key={group.key} style={s.group}>
@@ -57,6 +58,7 @@ export function WeeklyEditor({
                   checked: group.days.includes(day),
                   disabled,
                 }}
+                aria-checked={group.days.includes(day)}
                 disabled={disabled}
                 onPress={() =>
                   update(group.key, {
@@ -85,38 +87,44 @@ export function WeeklyEditor({
           <View style={s.fields}>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Field
-                label="Horários"
+                label="Início"
                 accessibilityLabel={
                   groups.length > 1
-                    ? "Horários da linha " + (index + 1)
-                    : "Horários"
+                    ? "Horário de início da linha " + (index + 1)
+                    : "Horário de início"
                 }
                 value={group.times}
                 onChangeText={(times) => update(group.key, { times })}
-                placeholder="19:00, 20:00"
+                placeholder="19:00"
                 editable={!disabled}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
             </View>
-            <View style={{ width: 92 }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
               <Field
-                label="Duração (min)"
+                label="Fim"
                 accessibilityLabel={
                   groups.length > 1
-                    ? "Duração da linha " + (index + 1)
-                    : "Duração (min)"
+                    ? "Horário de fim da linha " + (index + 1)
+                    : "Horário de fim"
                 }
-                value={group.duration}
-                onChangeText={(duration) => update(group.key, { duration })}
-                keyboardType="number-pad"
+                value={group.ends}
+                onChangeText={(ends) => update(group.key, { ends })}
+                placeholder="20:00"
                 editable={!disabled}
-                maxLength={3}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
           </View>
         </View>
       ))}
+      <Label muted>
+        Vários horários nos mesmos dias? Separe por vírgula nos dois campos, na
+        mesma ordem. Ex.: início 07:00, 19:00 e fim 08:00, 20:00. Se o fim for
+        após a meia-noite, informe o horário do dia seguinte.
+      </Label>
       <Pressable
         accessibilityRole="button"
         disabled={disabled || groups.length >= 10}
@@ -143,7 +151,11 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  heading: { fontFamily: "Lato_700Bold", fontSize: 13, color: colors.text },
+  heading: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    color: colors.text,
+  },
   remove: {
     minHeight: 44,
     width: 44,
@@ -163,7 +175,11 @@ const s = StyleSheet.create({
     borderColor: colors.border,
   },
   daySelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  dayText: { fontSize: 11, fontFamily: "Lato_700Bold", color: colors.muted },
+  dayText: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    color: colors.muted,
+  },
   fields: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   add: {
     minHeight: 44,
@@ -173,7 +189,7 @@ const s = StyleSheet.create({
     alignSelf: "flex-start",
   },
   addText: {
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 13,
     color: colors.primary,
     flexShrink: 1,

@@ -1,3 +1,6 @@
+import { MonthPicker, DueDayPicker } from "../../components/BillingDatePicker";
+import { academyDate } from "../../types/attendance";
+import { dueDateLabel, formatMonth } from "../../types/month";
 import { validDocument } from "../../types/documents";
 import { ageOn, birthToISO, formatBirth } from "../../types/age";
 import { useState } from "react";
@@ -25,7 +28,8 @@ import {
   DegreePicker,
 } from "../../components/BeltPicker";
 import { rankLabel } from "../../types/graduation";
-import { api, academyPath } from "../../services/api";
+import { BillingToggle } from "./BillingToggle";
+import { api, academyPath, APIError } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
 import { portalLink } from "../../services/links";
 import {
@@ -58,18 +62,44 @@ export default function StudentForm({
   startStep?: number;
   onExit?: () => void;
 }) {
-  const { academy } = useSession();
+  const { academy, session } = useSession();
+  const actor = session?.kind === "user" ? session.user : undefined;
   const a = academy!;
   const [editing, setEditing] = useState(!initial || !!onExit);
   const [name, setName] = useState(initial?.name ?? "");
   const [cpf, setCPF] = useState(formatCPF(initial?.cpf ?? ""));
   const [birth, setBirth] = useState(formatBirth(initial?.birth_date ?? ""));
+  const [started, setStarted] = useState(() =>
+    formatBirth(initial?.started_on ?? academyDate(a.timezone)),
+  );
+  const startedISO = birthToISO(started);
   const birthISO = birthToISO(birth);
   const age = ageOn(birthISO, a.timezone),
     minor = age !== null && age < 18;
   const steps = minor ? allSteps : allSteps.filter((_, i) => i !== 3);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [email, setEmail] = useState(initial?.email ?? "");
+  const [useMine, setUseMine] = useState(false),
+    [confirmReuse, setConfirmReuse] = useState(false),
+    [reuse, setReuse] = useState(false);
+  function changeEmail(value: string) {
+    setEmail(value);
+    setUseMine(false);
+    setReuse(false);
+  }
+  async function ownIdentity() {
+    if (!actor) return;
+    setName(actor.name);
+    setEmail(actor.email);
+    setUseMine(true);
+    setReuse(true);
+    try {
+      const p = await api<{ cpf: string }>(
+        academyPath(a.id, "/me/participation"),
+      );
+      if (p.cpf) setCPF(formatCPF(p.cpf));
+    } catch {}
+  }
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [alternate, setAlternate] = useState(initial?.alternate_phone ?? "");
   const [status, setStatus] = useState(initial?.status ?? "active");
@@ -90,7 +120,9 @@ export default function StudentForm({
       ]),
     ),
   );
-  const [enabled, setEnabled] = useState(initial?.billing?.enabled ?? false);
+  const [enabled, setEnabled] = useState(
+    initial ? (initial.billing?.enabled ?? false) : true,
+  );
   const [amount, setAmount] = useState(
     initial?.billing ? (initial.billing.amount_cents / 100).toFixed(2) : "0",
   );
@@ -181,6 +213,7 @@ export default function StudentForm({
     setName(s.name);
     setCPF(formatCPF(s.cpf ?? ""));
     setBirth(formatBirth(s.birth_date ?? ""));
+    setStarted(formatBirth(s.started_on));
     setEmail(s.email);
     setPhone(s.phone);
     setAlternate(s.alternate_phone);
@@ -220,15 +253,19 @@ export default function StudentForm({
     } else router.replace("/students");
   }
   const save = useMutation({
-    mutationFn: () =>
+    mutationFn: (forceReuse: boolean = false) =>
       api<Student>(
         academyPath(a.id, "/students" + (initial ? "/" + initial.id : "")),
         {
           method: initial ? "PATCH" : "POST",
           body: {
             name,
+            reuse_existing_identity: reuse || forceReuse,
+            use_my_account: useMine,
             cpf: cpfDigits(cpf),
             birth_date: birthISO,
+            started_on: startedISO,
+            expected_started_on: initial?.started_on,
             email,
             phone,
             alternate_phone: alternate,
@@ -317,7 +354,7 @@ export default function StudentForm({
       setMessage(
         action === "archive"
           ? "Aluno arquivado. Histórico e débitos preservados."
-          : "Aluno restaurado. Revise a competência antes de reativar a cobrança.",
+          : "Aluno restaurado. Revise o mês de início da cobrança antes de reativar a cobrança.",
       );
     },
   });
@@ -328,6 +365,11 @@ export default function StudentForm({
         return "Informe um CPF válido do próprio aluno.";
       if (age === null)
         return "Informe uma data de nascimento válida (DD/MM/AAAA), sem datas futuras.";
+      if (
+        ageOn(startedISO, a.timezone) === null ||
+        (birthISO && startedISO < birthISO)
+      )
+        return "Informe o início na academia entre a data de nascimento e hoje.";
       if (name.trim().length < 2 || name.trim().length > 100)
         return "Informe o nome completo, com 2 a 100 caracteres.";
       if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
@@ -357,7 +399,7 @@ export default function StudentForm({
       if (!/^\d+$/.test(day) || Number(day) < 1 || Number(day) > 31)
         return "O vencimento deve ser um dia entre 1 e 31.";
       if (!/^(20[2-9]\d|2100)-(0[1-9]|1[0-2])$/.test(month))
-        return "Informe a competência no formato YYYY-MM.";
+        return "Informe o mês no formato AAAA-MM (ex.: 2026-11).";
       if (enabled && !initial?.billing?.enabled && month < monthNow())
         return "A cobrança deve começar no mês atual ou em um mês futuro.";
     }
@@ -385,7 +427,8 @@ export default function StudentForm({
                 : "Aluno inativo"}
           </Label>
           <Label>CPF: {cpf || "Pendente de atualização"}</Label>
-          <Label>
+          <Label>Início na academia: {started}</Label>
+          <Label muted>
             Nascimento: {birth}
             {age !== null ? " · " + age + " anos" : ""}
           </Label>
@@ -432,7 +475,7 @@ export default function StudentForm({
               : "Cobrança automática desativada"}
           </Label>
           <Label>
-            Vencimento: dia {day} • Competência: {month}
+            Vencimento: dia {day} • Mês da cobrança: {formatMonth(month)}
           </Label>
         </Card>
         {minor ? (
@@ -458,6 +501,26 @@ export default function StudentForm({
       }
     >
       <Notice success message={message} />
+      {save.error instanceof APIError &&
+      save.error.code === "identity_exists" &&
+      !initial ? (
+        <Button secondary compact onPress={() => setConfirmReuse(true)}>
+          Reutilizar identidade existente
+        </Button>
+      ) : null}
+      <ConfirmDialog
+        visible={confirmReuse}
+        title="É a mesma pessoa?"
+        message="Este e-mail já pertence a uma identidade. Reutilize somente se for a mesma pessoa. O acesso à academia continuará dependendo da confirmação do convite."
+        confirmLabel="Confirmar mesma pessoa"
+        pending={save.isPending}
+        onCancel={() => setConfirmReuse(false)}
+        onConfirm={() => {
+          setConfirmReuse(false);
+          setReuse(true);
+          save.mutate(true);
+        }}
+      />
       {editing ? (
         <FormWizard
           steps={steps}
@@ -468,7 +531,7 @@ export default function StudentForm({
           submitLabel={initial ? "Salvar alterações" : "Cadastrar aluno"}
           onSubmit={() => {
             setMessage("");
-            save.mutate();
+            save.mutate(false);
           }}
           onCancel={cancel}
         >
@@ -478,6 +541,18 @@ export default function StudentForm({
               <>
                 {step === 0 ? (
                   <Card>
+                    {!initial && actor ? (
+                      <Button
+                        compact
+                        secondary
+                        icon="users"
+                        onPress={() => void ownIdentity()}
+                      >
+                        {useMine
+                          ? "Usando minha própria conta"
+                          : "Usar minha própria conta"}
+                      </Button>
+                    ) : null}
                     <Field
                       label="Nome completo"
                       value={name}
@@ -515,11 +590,34 @@ export default function StudentForm({
                           : "Maior de idade: o próprio aluno será o pagador."}
                     </Label>
                     <Field
+                      label="Data de início na academia"
+                      value={started}
+                      onChangeText={(v) => setStarted(formatBirth(v))}
+                      keyboardType="number-pad"
+                      placeholder="DD/MM/AAAA"
+                      maxLength={10}
+                    />
+                    <Label muted>
+                      Quando começou a treinar nesta academia. Pode ser uma data
+                      anterior ao uso do aplicativo.
+                    </Label>
+                    <Field
                       label="E-mail"
                       value={email}
-                      onChangeText={setEmail}
+                      onChangeText={changeEmail}
+                      editable={!initial?.email_locked}
                       keyboardType="email-address"
                     />
+                    {initial?.email_locked ? (
+                      <Label muted>
+                        E-mail da identidade: não é alterado pela matrícula.
+                      </Label>
+                    ) : (
+                      <Label muted>
+                        Informe o e-mail próprio da pessoa. Ele identifica uma
+                        única pessoa no sistema.
+                      </Label>
+                    )}
                     <Field
                       label="Celular"
                       value={phone}
@@ -704,45 +802,42 @@ export default function StudentForm({
                       </Label>
                     </Card>
                     <Card>
-                      <Chip
-                        selected={enabled}
-                        onPress={() => {
-                          if (status === "active") {
-                            setEnabled(!enabled);
-                            if (
-                              !enabled &&
-                              !initial?.billing?.enabled &&
-                              month < monthNow()
-                            )
-                              setMonth(monthNow());
-                          }
+                      <BillingToggle
+                        enabled={enabled}
+                        disabled={status !== "active" || save.isPending}
+                        onChange={(next) => {
+                          setEnabled(next);
+                          if (
+                            next &&
+                            !initial?.billing?.enabled &&
+                            month < monthNow()
+                          )
+                            setMonth(monthNow());
                         }}
-                      >
-                        {enabled
-                          ? "✓ Cobrança mensal ativa"
-                          : "Ativar cobrança mensal"}
-                      </Chip>
+                      />
                       {status === "inactive" ? (
                         <Label muted>
                           Reative o aluno para habilitar a cobrança.
                         </Label>
                       ) : null}
-                      <Field
-                        label="Dia do vencimento (1 a 31)"
-                        value={day}
-                        onChangeText={setDay}
-                        keyboardType="number-pad"
-                      />
-                      <Field
+                      <DueDayPicker value={day} onChange={setDay} />
+                      <MonthPicker
                         label={
                           initial?.billing?.enabled
-                            ? "Próxima competência (YYYY-MM)"
-                            : "Primeira competência (YYYY-MM)"
+                            ? "Próxima emissão"
+                            : "Começar a cobrança em"
                         }
                         value={month}
-                        onChangeText={setMonth}
-                        editable={!initial?.billing?.enabled}
+                        onChange={setMonth}
+                        disabled={!!initial?.billing?.enabled}
+                        min={!initial?.billing?.enabled ? monthNow() : ""}
                       />
+                      <Label muted>
+                        {initial?.billing?.enabled
+                          ? "Próxima emissão prevista: "
+                          : "Primeiro vencimento: "}
+                        {dueDateLabel(month, Number(day))}
+                      </Label>
                       <Label muted>
                         Mensalidades já emitidas mantêm seus valores. As
                         alterações serão usadas nas próximas emissões.

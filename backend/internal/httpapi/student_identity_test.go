@@ -127,7 +127,7 @@ func TestStudentAgePayerAndProfileAttendance(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if _, err = db.Exec(ctx, "INSERT INTO attendances(id,academy_id,session_id,membership_id,checked_in_at) VALUES($1,$2,$3,$4,$5)", core.ID(), a, sn, sid, now.Add(-time.Duration(i)*time.Minute)); err != nil {
+		if _, err = db.Exec(ctx, "INSERT INTO attendances(id,academy_id,session_id,participant_id,checked_in_at) VALUES($1,$2,$3,$4,$5)", core.ID(), a, sn, child["participant_id"], now.Add(-time.Duration(i)*time.Minute)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -153,7 +153,7 @@ func TestStudentAgePayerAndProfileAttendance(t *testing.T) {
 		if _, err = db.Exec(ctx, "INSERT INTO class_sessions(id,academy_id,class_id,schedule_id,starts_at,status) VALUES($1,$2,$3,$4,$5,'closed')", sn, a, cid, schedule, instant.Add(time.Duration(i)*time.Minute)); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = db.Exec(ctx, "INSERT INTO attendances(id,academy_id,session_id,membership_id,checked_in_at) VALUES($1,$2,$3,$4,$5)", core.ID(), a, sn, sid, instant); err != nil {
+		if _, err = db.Exec(ctx, "INSERT INTO attendances(id,academy_id,session_id,participant_id,checked_in_at) VALUES($1,$2,$3,$4,$5)", core.ID(), a, sn, child["participant_id"], instant); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -166,7 +166,10 @@ func TestStudentAgePayerAndProfileAttendance(t *testing.T) {
 	if code, _ := outsider.request("GET", history, nil, ""); code != 403 {
 		t.Fatal("tenant history isolation", code)
 	}
-	inviteStudent := admin.ok("POST", prefix+"/students", body(adultBirth))
+	inviteBody := body(adultBirth)
+	inviteBody["email"] = getEmail(t, db, owner.token)
+	inviteBody["reuse_existing_identity"] = true
+	inviteStudent := admin.ok("POST", prefix+"/students", inviteBody)
 	inv := admin.ok("POST", prefix+"/students/"+inviteStudent["id"].(string)+"/invitations", nil)
 	owner.ok("POST", "/v1/invitations/"+inv["token"].(string)+"/accept", nil)
 	if code, _ := owner.request("GET", history, nil, ""); code != 403 {

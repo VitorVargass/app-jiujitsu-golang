@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
+import { Brand } from "./Brand";
 import { FormScrollContext } from "./FormScrollContext";
 import {
   ActivityIndicator,
@@ -27,6 +28,7 @@ export function Page({
   onSwipe,
   swipePages,
   contentOnly = false,
+  wide = false,
 }: {
   children: React.ReactNode;
   title?: string;
@@ -38,6 +40,7 @@ export function Page({
   onSwipe?: (direction: SwipeDirection) => void;
   swipePages?: SwipePages;
   contentOnly?: boolean;
+  wide?: boolean;
 }) {
   const scrollRef = useRef<ScrollView>(null);
   const resetScroll = useCallback(
@@ -52,13 +55,13 @@ export function Page({
         contentContainerStyle={[
           styles.page,
           header || contentOnly ? styles.appPage : null,
+          wide && styles.widePage,
         ]}
         keyboardShouldPersistTaps="handled"
       >
         {!header && !contentOnly ? (
           <View style={styles.brand}>
-            <Text style={styles.logo}>◈</Text>
-            <Text style={styles.brandText}>Tatame</Text>
+            <Brand />
             {action ? (
               <View style={{ marginLeft: "auto" }}>{action}</View>
             ) : null}
@@ -83,7 +86,11 @@ export function Page({
   if (contentOnly) return content;
   return (
     <SafeAreaView style={styles.safe}>
-      {header ? <View style={styles.appHeader}>{header}</View> : null}
+      {header ? (
+        <View style={[styles.appHeader, wide && styles.widePage]}>
+          {header}
+        </View>
+      ) : null}
       <SwipeNavigator onSwipe={onSwipe} pages={swipePages}>
         {content}
       </SwipeNavigator>
@@ -145,7 +152,7 @@ export function Badge({
       <Text
         style={{
           color: accent.color,
-          fontFamily: "Lato_700Bold",
+          fontFamily: "Inter_600SemiBold",
           fontSize: 11,
         }}
       >
@@ -422,7 +429,7 @@ export function Chip({
   children,
   selected = false,
   onPress,
-  tone = "mint",
+  tone = "brand",
 }: {
   children: React.ReactNode;
   selected?: boolean;
@@ -457,7 +464,9 @@ export function Chip({
 export function Avatar({ name }: { name: string }) {
   return (
     <View style={styles.avatar}>
-      <Text style={{ color: accents.blue.color, fontFamily: "Lato_700Bold" }}>
+      <Text
+        style={{ color: accents.blue.color, fontFamily: "Inter_600SemiBold" }}
+      >
         {name
           .split(" ")
           .slice(0, 2)
@@ -487,6 +496,7 @@ export const styles = StyleSheet.create({
     borderBottomColor: colors.borderSubtle,
   },
   appPage: { paddingHorizontal: 20, paddingTop: 24, gap: 20 },
+  widePage: { maxWidth: 1240 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   footer: {
     width: "100%",
@@ -530,7 +540,7 @@ export const styles = StyleSheet.create({
     height: 52,
     color: colors.text,
     fontSize: 14,
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
   },
   clearSearch: {
     width: 44,
@@ -544,15 +554,9 @@ export const styles = StyleSheet.create({
     gap: 9,
     marginBottom: 12,
   },
-  logo: { fontSize: 38, color: colors.primary },
-  brandText: {
-    fontSize: 24,
-    fontFamily: "Montserrat_700Bold",
-    color: colors.text,
-  },
   title: {
     fontSize: 30,
-    fontFamily: "Montserrat_700Bold",
+    fontFamily: "Inter_700Bold",
     color: colors.text,
     letterSpacing: -0.7,
   },
@@ -560,7 +564,7 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
     color: colors.muted,
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     marginTop: -8,
     marginBottom: 6,
   },
@@ -574,14 +578,14 @@ export const styles = StyleSheet.create({
   },
   heading: {
     fontSize: 18,
-    fontFamily: "Montserrat_600SemiBold",
+    fontFamily: "Inter_600SemiBold",
     color: colors.text,
   },
   label: {
     fontSize: 14,
     lineHeight: 22,
     color: colors.text,
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
   },
   input: {
     backgroundColor: colors.surface,
@@ -592,7 +596,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 15,
     fontSize: 16,
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     minHeight: 52,
   },
   button: {
@@ -611,7 +615,7 @@ export const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 15,
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     color: colors.onPrimary,
   },
   badge: {

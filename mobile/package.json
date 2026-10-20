@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
-    "@expo-google-fonts/lato": "^0.4.1",
-    "@expo-google-fonts/montserrat": "^0.4.2",
+    "@expo-google-fonts/inter": "^0.4.2",
     "@expo/metro-runtime": "~57.0.16",
     "@expo/vector-icons": "^15.0.2",
     "@tanstack/react-query": "^5.104.1",
@@ -44,6 +43,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "test:access": "node --experimental-strip-types --test tests/access.test.mjs",
+    "test:weekly": "node --experimental-strip-types --test tests/weekly.test.mjs",
     "export:web": "expo export --platform web",
     "lint": "expo lint"
   },

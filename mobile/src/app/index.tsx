@@ -12,11 +12,7 @@ export default function Index() {
   return (
     <Redirect
       href={
-        !session
-          ? "/login"
-          : session.kind === "device"
-            ? "/kiosk"
-            : "/onboarding"
+        !session ? "/login" : session.kind === "device" ? "/kiosk" : "/entry"
       }
     />
   );

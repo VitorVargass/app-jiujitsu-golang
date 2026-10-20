@@ -5,22 +5,23 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
-import { Redirect, router } from "expo-router";
+import { router } from "expo-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Icon, IconName } from "../../components/Icon";
-import { Button, Empty, Label, Loading, Notice } from "../../components/ui";
+import { Button, Label, Loading, Notice } from "../../components/ui";
 import { api, academyPath } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
-import { Class, Schedule, Session } from "../../types";
+import { Class, Schedule } from "../../types";
+import { academyDate } from "../../types/attendance";
 import { Catalog } from "../../types/billing";
-import { accents, colors, displayTime } from "../../theme";
+import { accents, colors } from "../../theme";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
 import { ClassDialog } from "./ClassDialog";
 import { ClassEditor } from "./ClassEditor";
-import { daysLabel, groupWeekly } from "./weekly";
+import { WeeklyTimetable } from "./WeeklyTimetable";
+import { fullDays, scheduleRange } from "./weekly";
 
 function MenuAction({
   label,
@@ -56,100 +57,18 @@ function MenuAction({
     </Pressable>
   );
 }
-function ClassCard({
-  item,
-  today,
-  onOptions,
-  onToday,
-}: {
-  item: Class;
-  today: number;
-  onOptions: () => void;
-  onToday: () => void;
-}) {
-  const groups = groupWeekly(item.schedules ?? []);
-  const slots = item.schedules?.filter((sc) => sc.weekday === today) ?? [];
-  return (
-    <View style={s.card}>
-      <View style={s.cardHeader}>
-        <View style={{ flex: 1, gap: 6, minWidth: 0 }}>
-          <Text style={s.modality}>{item.modality_name || "Modalidade"}</Text>
-          <Text style={s.cardTitle}>{item.name}</Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={"Opções de " + item.name}
-          onPress={onOptions}
-          style={s.options}
-        >
-          <Icon name="more" size={21} color={colors.muted} />
-        </Pressable>
-      </View>
-      {!item.active ? <Text style={s.paused}>Pausada</Text> : null}
-      <View style={s.agenda}>
-        {groups.length ? (
-          groups.map((group) => (
-            <View key={group.key} style={s.agendaRow}>
-              <Icon name="calendar" size={15} color={accents.amber.color} />
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={s.days}>{daysLabel(group.days)}</Text>
-                <Text style={s.times}>
-                  {group.times.replaceAll(", ", " · ")}
-                  <Text style={s.duration}> / {group.duration} min</Text>
-                </Text>
-              </View>
-            </View>
-          ))
-        ) : (
-          <Label muted>Sem horários. Configure a agenda em Opções.</Label>
-        )}
-      </View>
-      {item.teacher_name ? (
-        <Text style={[s.teacher, { paddingHorizontal: 18, paddingBottom: 12 }]}>
-          {item.teacher_name}
-        </Text>
-      ) : null}
-      {item.active && slots.length ? (
-        <View style={s.today}>
-          <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-            <Text style={s.todayLabel}>HOJE</Text>
-            <Text style={s.todayTimes}>
-              {slots.map((sc) => sc.start_time.slice(0, 5)).join(" · ")}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={"Aulas de hoje em " + item.name}
-            onPress={onToday}
-            style={({ pressed }) => [
-              s.todayButton,
-              pressed && { opacity: 0.6 },
-            ]}
-          >
-            <Text style={s.todayButtonText}>Ver aulas</Text>
-            <Icon name="chevron-right" size={14} color={accents.amber.color} />
-          </Pressable>
-        </View>
-      ) : null}
-    </View>
-  );
-}
+type Selection = { item: Class; schedule?: Schedule };
+
 function Content() {
   const { academy } = useSession(),
     a = academy!;
-  const { width } = useWindowDimensions();
   const [editor, setEditor] = useState<Class | "new" | null>(null);
-  const [menu, setMenu] = useState<Class | null>(null);
+  const [menu, setMenu] = useState<Selection | null>(null);
   const [deleting, setDeleting] = useState<Class | null>(null);
-  const [todayClass, setTodayClass] = useState<Class | null>(null);
   const [filter, setFilter] = useState("active");
   const [message, setMessage] = useState("");
-  const date = new Intl.DateTimeFormat("en-CA", {
-    timeZone: a.timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  const [browsing, setBrowsing] = useState(false);
+  const date = academyDate(a.timezone);
   const today = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
     new Intl.DateTimeFormat("en-US", {
       timeZone: a.timezone,
@@ -163,11 +82,6 @@ function Content() {
   const modalities = useQuery({
     queryKey: ["modalities", a.id],
     queryFn: () => api<Catalog[]>(academyPath(a.id, "/modalities")),
-  });
-  const sessions = useQuery({
-    queryKey: ["sessions", a.id, date],
-    queryFn: () => api<Session[]>(academyPath(a.id, "/sessions?date=" + date)),
-    enabled: !!todayClass,
   });
   const changeStatus = useMutation({
     mutationFn: (item: Class) =>
@@ -190,29 +104,24 @@ function Content() {
       void queryClient.invalidateQueries();
     },
   });
-  const open = useMutation({
-    mutationFn: ({ item, schedule }: { item: Class; schedule: Schedule }) =>
-      api<Session>(academyPath(a.id, "/classes/" + item.id + "/sessions"), {
-        method: "POST",
-        body: { schedule_id: schedule.id },
-      }),
-    onSuccess: (session) => {
-      setTodayClass(null);
-      void queryClient.invalidateQueries();
-      router.push({ pathname: "/attendance/[id]", params: { id: session.id } });
-    },
-  });
-  const active = list.data?.filter((c) => c.active).length ?? 0,
-    paused = (list.data?.length ?? 0) - active;
+  const active = list.data?.filter((c) => c.active).length ?? 0;
+  const paused = (list.data?.length ?? 0) - active;
   const visible =
     list.data?.filter(
       (c) => filter === "all" || (filter === "active" ? c.active : !c.active),
     ) ?? [];
+  const emptyMessage =
+    filter === "paused"
+      ? "Nenhuma turma pausada."
+      : filter === "active" && paused
+        ? "Nenhuma turma ativa. Consulte as pausadas ou crie uma turma."
+        : "Crie sua primeira turma para preencher os dias e horários desta grade.";
   return (
     <AcademyShell
+      wide
       title="Turmas"
-      subtitle="Toda a semana, em uma só agenda."
-      swipeEnabled={!editor && !menu && !deleting && !todayClass}
+      subtitle="Os horários da sua academia, em uma só grade."
+      swipeEnabled={!browsing && !editor && !menu && !deleting}
       titleAction={
         <Button
           compact
@@ -243,7 +152,7 @@ function Content() {
             <Text
               style={[
                 s.filterText,
-                filter === key && { color: accents.amber.color },
+                filter === key && { color: accents.brand.color },
               ]}
             >
               {label} <Text style={s.filterCount}>{count}</Text>
@@ -257,36 +166,17 @@ function Content() {
         <Loading />
       ) : list.error ? (
         <Notice message={list.error.message} />
-      ) : visible.length ? (
-        <View style={s.grid}>
-          {visible.map((item) => (
-            <View
-              key={item.id}
-              style={{ width: width >= 900 ? "48.7%" : "100%" }}
-            >
-              <ClassCard
-                item={item}
-                today={today}
-                onOptions={() => {
-                  changeStatus.reset();
-                  setMenu(item);
-                }}
-                onToday={() => {
-                  open.reset();
-                  setTodayClass(item);
-                }}
-              />
-            </View>
-          ))}
-        </View>
       ) : (
-        <Empty>
-          {filter === "paused"
-            ? "Nenhuma turma pausada."
-            : filter === "active" && paused
-              ? "Nenhuma turma ativa. Consulte as pausadas ou crie uma turma."
-              : "Comece por Nova turma e cadastre todos os dias e horários de uma vez."}
-        </Empty>
+        <WeeklyTimetable
+          items={visible}
+          today={today}
+          emptyMessage={emptyMessage}
+          onInteractionChange={setBrowsing}
+          onSelect={(item, schedule) => {
+            changeStatus.reset();
+            setMenu({ item, schedule });
+          }}
+        />
       )}
       {editor ? (
         <ClassEditor
@@ -299,25 +189,64 @@ function Content() {
       ) : null}
       {menu ? (
         <ClassDialog
-          title={menu.name}
+          title={menu.item.name}
           pending={changeStatus.isPending}
           onClose={() => setMenu(null)}
         >
+          {menu.schedule ? (
+            <View style={s.lessonSummary}>
+              <View style={s.summaryIcon}>
+                <Icon name="calendar" size={22} color={accents.brand.color} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+                <Text style={s.summaryDay}>
+                  {fullDays[menu.schedule.weekday]} ·{" "}
+                  {scheduleRange(menu.schedule)}
+                </Text>
+                <Label muted>
+                  {menu.item.modality_name} ·{" "}
+                  {menu.item.active ? "Repete toda semana" : "Turma pausada"}
+                </Label>
+              </View>
+            </View>
+          ) : (
+            <Label muted>
+              Configure os dias e horários para incluir esta turma na grade.
+            </Label>
+          )}
+          {menu.item.active && menu.schedule?.weekday === today ? (
+            <Button
+              compact
+              secondary
+              icon="check-circle"
+              onPress={() => {
+                if (!menu.schedule) return;
+                const scheduleId = menu.schedule.id;
+                setMenu(null);
+                router.push({
+                  pathname: "/attendance-day",
+                  params: { scheduleId, date },
+                });
+              }}
+            >
+              Presenças de hoje
+            </Button>
+          ) : null}
           <View>
             <MenuAction
               label="Editar turma e agenda"
               icon="calendar"
               disabled={changeStatus.isPending}
               onPress={() => {
-                setEditor(menu);
+                setEditor(menu.item);
                 setMenu(null);
               }}
             />
             <MenuAction
-              label={menu.active ? "Pausar turma" : "Reativar turma"}
+              label={menu.item.active ? "Pausar turma" : "Reativar turma"}
               icon="swap"
               disabled={changeStatus.isPending}
-              onPress={() => changeStatus.mutate(menu)}
+              onPress={() => changeStatus.mutate(menu.item)}
             />
             <MenuAction
               label="Excluir turma"
@@ -326,7 +255,7 @@ function Content() {
               disabled={changeStatus.isPending}
               onPress={() => {
                 remove.reset();
-                setDeleting(menu);
+                setDeleting(menu.item);
                 setMenu(null);
               }}
             />
@@ -335,81 +264,6 @@ function Content() {
           {changeStatus.isPending ? (
             <ActivityIndicator color={colors.primary} />
           ) : null}
-        </ClassDialog>
-      ) : null}
-      {todayClass ? (
-        <ClassDialog
-          title={"Aulas de hoje · " + todayClass.name}
-          pending={open.isPending}
-          onClose={() => setTodayClass(null)}
-        >
-          {sessions.isPending ? (
-            <Loading />
-          ) : sessions.error ? (
-            <Notice message={sessions.error.message} />
-          ) : (
-            todayClass.schedules
-              .filter((sc) => sc.weekday === today)
-              .map((sc) => {
-                const existing = sessions.data?.find(
-                  (session) =>
-                    session.class_id === todayClass.id &&
-                    displayTime(session.starts_at, a.timezone) ===
-                      sc.start_time.slice(0, 5),
-                );
-                return (
-                  <View key={sc.id} style={s.sessionRow}>
-                    <View style={{ gap: 5 }}>
-                      <Text style={s.sessionTime}>
-                        {sc.start_time.slice(0, 5)}
-                      </Text>
-                      <Text style={s.teacher}>
-                        {sc.duration_minutes} min
-                        {existing
-                          ? " · " +
-                            (existing.status === "open"
-                              ? "Aberta"
-                              : existing.status === "closed"
-                                ? "Encerrada"
-                                : "Cancelada")
-                          : ""}
-                      </Text>
-                    </View>
-                    {existing ? (
-                      <Button
-                        compact
-                        secondary
-                        disabled={open.isPending}
-                        onPress={() => {
-                          setTodayClass(null);
-                          router.push({
-                            pathname: "/attendance/[id]",
-                            params: { id: existing.id },
-                          });
-                        }}
-                      >
-                        Ver presenças
-                      </Button>
-                    ) : (
-                      <Button
-                        compact
-                        loading={
-                          open.isPending &&
-                          open.variables?.schedule.id === sc.id
-                        }
-                        disabled={open.isPending}
-                        onPress={() =>
-                          open.mutate({ item: todayClass, schedule: sc })
-                        }
-                      >
-                        Abrir aula
-                      </Button>
-                    )}
-                  </View>
-                );
-              })
-          )}
-          <Notice message={open.error?.message} />
         </ClassDialog>
       ) : null}
       <ConfirmDialog
@@ -429,9 +283,6 @@ function Content() {
   );
 }
 export default function ClassesScreen() {
-  const { academy, session } = useSession();
-  if (session?.kind === "device") return <Redirect href="/kiosk" />;
-  if (!academy) return <Redirect href="/onboarding" />;
   return (
     <RoleGate role="admin">
       <Content />
@@ -439,103 +290,6 @@ export default function ClassesScreen() {
   );
 }
 const s = StyleSheet.create({
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-    alignItems: "flex-start",
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 18,
-    overflow: "hidden",
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    padding: 18,
-    paddingBottom: 10,
-    gap: 8,
-  },
-  modality: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 10,
-    color: accents.amber.color,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  cardTitle: {
-    fontFamily: "Montserrat_700Bold",
-    fontSize: 18,
-    color: colors.text,
-    lineHeight: 25,
-  },
-  options: {
-    height: 44,
-    width: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: -8,
-    marginRight: -8,
-  },
-  agenda: { paddingHorizontal: 18, paddingBottom: 16, gap: 14 },
-  agendaRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    paddingTop: 7,
-  },
-  days: { fontFamily: "Lato_700Bold", fontSize: 13, color: colors.text },
-  times: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 13,
-    color: colors.muted,
-    lineHeight: 20,
-  },
-  duration: { fontSize: 11, color: colors.muted },
-  paused: {
-    color: colors.muted,
-    fontFamily: "Lato_700Bold",
-    fontSize: 11,
-    paddingHorizontal: 18,
-    paddingBottom: 10,
-  },
-  teacher: {
-    color: colors.muted,
-    fontSize: 11,
-    fontFamily: "Lato_400Regular",
-    paddingHorizontal: 0,
-  },
-  today: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    backgroundColor: accents.amber.soft,
-    borderTopWidth: 1,
-    borderTopColor: accents.amber.border,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  todayLabel: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 9,
-    letterSpacing: 1,
-    color: accents.amber.color,
-  },
-  todayTimes: { fontFamily: "Lato_700Bold", fontSize: 12, color: colors.text },
-  todayButton: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  todayButtonText: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 12,
-    color: accents.amber.color,
-  },
   filters: {
     flexDirection: "row",
     gap: 20,
@@ -548,8 +302,12 @@ const s = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
   },
-  filterSelected: { borderBottomColor: accents.amber.color },
-  filterText: { fontFamily: "Lato_700Bold", fontSize: 13, color: colors.muted },
+  filterSelected: { borderBottomColor: accents.brand.color },
+  filterText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    color: colors.muted,
+  },
   filterCount: { fontSize: 11, color: colors.muted },
   menuItem: {
     minHeight: 48,
@@ -558,21 +316,24 @@ const s = StyleSheet.create({
     gap: 12,
   },
   menuLabel: {
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     color: colors.text,
     flexShrink: 1,
   },
-  sessionRow: {
-    flexDirection: "row",
+  lessonSummary: { flexDirection: "row", alignItems: "center", gap: 12 },
+  summaryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: accents.brand.soft,
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 6,
+    justifyContent: "center",
   },
-  sessionTime: {
-    fontFamily: "Montserrat_700Bold",
-    fontSize: 19,
+  summaryDay: {
+    fontFamily: "Inter_600SemiBold",
     color: colors.text,
+    fontSize: 14,
+    lineHeight: 21,
   },
 });

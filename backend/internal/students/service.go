@@ -41,7 +41,7 @@ func (s Service) Save(ctx context.Context, a, id string, in Input) (Student, err
 		return Student{}, core.E(422, "invalid_student", "Informe nome e contato válidos.")
 	}
 	if in.Email != "" {
-		if _, e := mail.ParseAddress(in.Email); e != nil {
+		if address, e := mail.ParseAddress(in.Email); e != nil || address.Address != in.Email || len(in.Email) > 254 {
 			return Student{}, core.E(422, "invalid_email", "E-mail inválido.")
 		}
 	}

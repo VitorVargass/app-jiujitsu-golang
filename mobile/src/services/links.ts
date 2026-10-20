@@ -4,7 +4,7 @@ export function safeNext(value?: string) {
   return value &&
     /^\/(invite\/[a-f0-9]{64}|pay\/[a-f0-9-]{36}\/[a-f0-9-]{36})$/.test(value)
     ? value
-    : "/onboarding";
+    : "/entry";
 }
 export function portalLink(path: string) {
   const base =

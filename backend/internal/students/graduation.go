@@ -23,6 +23,9 @@ func (r Repository) UpdateGraduation(ctx context.Context, a, id, modality string
 		return Student{}, err
 	}
 	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, "SELECT set_config('tatame.actor_user_id',$1,true)", core.P(ctx).UserID); err != nil {
+		return Student{}, err
+	}
 	var archived *time.Time
 	if err = tx.QueryRow(ctx, "SELECT archived_at FROM students WHERE academy_id=$1 AND id=$2 FOR UPDATE", a, id).Scan(&archived); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

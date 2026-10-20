@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Tatame API",
-    "version": "2.6.0",
-    "description": "Gestão multiacademia, alunos independentes, mensalidades, Pix Asaas e presença exclusivamente por dispositivos autorizados."
+    "version": "2.12.0",
+    "description": "Gestão multiacademia, alunos independentes, mensalidades, Pix Asaas, check-in por horário no tablet e lançamento de presença pelo gestor."
   },
   "servers": [
     {
@@ -69,6 +69,10 @@
           },
           "email": {
             "type": "string"
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -564,6 +568,32 @@
           },
           "duplicate": {
             "type": "boolean"
+          },
+          "participant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_id": {
+            "type": "string",
+            "description": "Opcional: matrícula do aluno quando existir."
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "class_name": {
+            "type": "string"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "tablet",
+              "manager"
+            ]
           }
         }
       },
@@ -598,6 +628,26 @@
             "type": "string",
             "format": "date-time",
             "description": "Início da aula. checked_in_at continua indicando o instante do registro."
+          },
+          "participant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_id": {
+            "type": "string",
+            "description": "Vazio quando a participação não tem matrícula financeira."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "tablet",
+              "manager"
+            ],
+            "description": "Origem do primeiro registro; reenvio ou duplicata não altera a autoria."
           }
         }
       },
@@ -753,7 +803,8 @@
           },
           "first_month": {
             "type": "string",
-            "pattern": "^\\d{4}-\\d{2}$"
+            "pattern": "^\\d{4}-\\d{2}$",
+            "description": "Ao ativar a cobrança, a primeira mensalidade é emitida imediatamente com o vencimento no mês escolhido, inclusive futuro. As seguintes são emitidas no início de cada mês. No retorno, representa a próxima competência ainda não emitida; a edição de contrato ativo não altera mensalidades já emitidas."
           },
           "payer_name": {
             "type": "string",
@@ -776,6 +827,14 @@
       "StudentInput": {
         "type": "object",
         "properties": {
+          "reuse_existing_identity": {
+            "type": "boolean",
+            "description": "Confirma explicitamente a mesma identidade já existente para este e-mail. Não concede acesso: o titular ainda aceita o convite."
+          },
+          "use_my_account": {
+            "type": "boolean",
+            "description": "Usa a conta autenticada do próprio gestor para matrícula opcional. Exige seu e-mail, reaproveita CPF/QR e histórico, sem criar cobrança automaticamente."
+          },
           "name": {
             "type": "string"
           },
@@ -785,6 +844,16 @@
           "cpf": {
             "type": "string",
             "description": "CPF do próprio aluno. Obrigatório no cadastro; aceita máscara e armazena 11 dígitos. Na edição, omitir preserva o CPF. Legados podem permanecer sem CPF até atualização."
+          },
+          "started_on": {
+            "type": "string",
+            "format": "date",
+            "description": "Data de início na academia, YYYY-MM-DD, entre o nascimento e hoje no fuso da academia. No cadastro, omitir usa hoje; na edição, omitir preserva. Não altera o início de cobrança."
+          },
+          "expected_started_on": {
+            "type": "string",
+            "format": "date",
+            "description": "Data previamente lida para evitar sobrescrever outra correção no formulário completo."
           },
           "birth_date": {
             "type": "string",
@@ -860,9 +929,21 @@
                 "type": "string",
                 "format": "uuid"
               },
+              "person_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "participant_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "email_locked": {
+                "type": "boolean",
+                "description": "E-mail pertence à identidade com login ou compartilhada entre academias; não pode ser alterado pelo cadastro do aluno."
+              },
               "user_id": {
                 "type": "string",
-                "description": "Vazio até o aluno aceitar o convite."
+                "description": "Vazio até o aluno aceitar o convite, exceto vínculo explícito com a própria conta."
               },
               "student_code": {
                 "type": "string"
@@ -998,6 +1079,33 @@
             "minimum": 1,
             "maximum": 100000000
           },
+          "original_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 100000000
+          },
+          "discount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "discount_reason": {
+            "type": "string"
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": [
+              "",
+              "asaas_pix",
+              "cash",
+              "pix",
+              "card",
+              "transfer",
+              "other"
+            ]
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -1018,6 +1126,12 @@
       "Pix": {
         "type": "object",
         "properties": {
+          "amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 100000000
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -1270,6 +1384,474 @@
         "required": [
           "belt",
           "degrees"
+        ]
+      },
+      "Participation": {
+        "type": "object",
+        "properties": {
+          "participant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "academy_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_id": {
+            "type": "string",
+            "description": "Matrícula financeira opcional."
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "cpf": {
+            "type": "string"
+          },
+          "student_code": {
+            "type": "string"
+          },
+          "qr_token": {
+            "type": "string"
+          },
+          "can_check_in": {
+            "type": "boolean"
+          },
+          "has_student_registration": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "participant_id",
+          "person_id",
+          "academy_id",
+          "name",
+          "email",
+          "cpf",
+          "student_code",
+          "qr_token",
+          "can_check_in",
+          "has_student_registration"
+        ]
+      },
+      "ParticipationInput": {
+        "type": "object",
+        "properties": {
+          "cpf": {
+            "type": "string",
+            "description": "CPF próprio válido. Aceita máscara; não pode ficar vazio."
+          }
+        },
+        "required": [
+          "cpf"
+        ]
+      },
+      "InvitationPreview": {
+        "type": "object",
+        "properties": {
+          "academy_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "academy_name": {
+            "type": "string"
+          },
+          "student_name": {
+            "type": "string"
+          },
+          "cpf_registered": {
+            "type": "boolean"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "academy_id",
+          "academy_name",
+          "student_name",
+          "cpf_registered",
+          "expires_at"
+        ]
+      },
+      "AcceptInvitationInput": {
+        "type": "object",
+        "properties": {
+          "cpf": {
+            "type": "string",
+            "description": "Opcional. Completa somente CPF ausente, valida os dígitos e a unicidade na academia. CPF já registrado só pode ser corrigido pelo gestor."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "LessonOption": {
+        "type": "object",
+        "properties": {
+          "schedule_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "class_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "class_name": {
+            "type": "string"
+          },
+          "modality_name": {
+            "type": "string"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "attendance_count": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "scheduled",
+              "open",
+              "closed",
+              "cancelled"
+            ]
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "upcoming",
+              "live",
+              "ended"
+            ]
+          },
+          "can_record": {
+            "type": "boolean"
+          }
+        },
+        "required": []
+      },
+      "AttendanceOptions": {
+        "type": "object",
+        "properties": {
+          "timezone": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LessonOption"
+            }
+          }
+        },
+        "required": []
+      },
+      "ScheduledCheckInInput": {
+        "type": "object",
+        "properties": {
+          "cpf": {
+            "type": "string"
+          },
+          "qr_token": {
+            "type": "string"
+          },
+          "student_code": {
+            "type": "string"
+          },
+          "schedule_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "ManualAttendanceInput": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "schedule_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "student_id",
+          "schedule_id",
+          "date"
+        ],
+        "additionalProperties": false
+      },
+      "InvoiceDiscountInput": {
+        "type": "object",
+        "properties": {
+          "discount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 100000000,
+            "description": "Desconto total desta mensalidade, menor que o valor original. Zero remove o desconto."
+          },
+          "expected_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 100000000
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "discount_cents",
+          "expected_amount_cents",
+          "reason"
+        ]
+      },
+      "ManualPaymentInput": {
+        "type": "object",
+        "properties": {
+          "expected_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 100000000
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "cash",
+              "pix",
+              "card",
+              "transfer",
+              "other"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "expected_amount_cents",
+          "method"
+        ]
+      },
+      "InvoiceAdjustment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "discount",
+              "manual_payment"
+            ]
+          },
+          "actor_name": {
+            "type": "string"
+          },
+          "previous_amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 100000000
+          },
+          "amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "maximum": 100000000
+          },
+          "discount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "payment_method": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": []
+      },
+      "InvoiceAdjustmentList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/InvoiceAdjustment"
+        }
+      },
+      "GraduationEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modality_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modality_name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "baseline",
+              "initial",
+              "change"
+            ]
+          },
+          "previous_belt": {
+            "type": "string",
+            "nullable": true
+          },
+          "previous_degrees": {
+            "type": "integer",
+            "nullable": true
+          },
+          "belt": {
+            "type": "string"
+          },
+          "degrees": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor_name": {
+            "type": "string"
+          }
+        },
+        "required": []
+      },
+      "GraduationHistory": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GraduationEvent"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "StudentProgress": {
+        "type": "object",
+        "properties": {
+          "started_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "tenure_days": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Dias de calendário desde o início informado na academia; não presume atividade contínua."
+          },
+          "joined_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tracking_started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "active_since": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "active_days": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "history": {
+            "$ref": "#/components/schemas/GraduationHistory"
+          }
+        },
+        "required": []
+      },
+      "StudentStartDateInput": {
+        "type": "object",
+        "properties": {
+          "started_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "expected_started_on": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "started_on",
+          "expected_started_on"
         ]
       }
     }
@@ -3833,7 +4415,7 @@
             }
           }
         },
-        "description": "Exclusivo de tablet autorizado da mesma academia. Uma identificação: cpf, qr_token ou student_code legado. CPF com máscara é normalizado antes do hash. Aluno arquivado retorna 410 até o gestor restaurar. membership_id legado não é aceito. Idempotency-Key UUID obrigatório; mesma chave/dados diferentes retorna 409. Resposta repetida conserva a presença já registrada."
+        "description": "Exclusivo de tablet autorizado da mesma academia. Uma identificação: cpf, qr_token ou student_code legado. CPF com máscara é normalizado antes do hash. Participação ativa de gestor/professor pode registrar sem matrícula financeira. Aluno comum arquivado retorna 410 até o gestor restaurar. Gestor ativo continua treinando mesmo com matrícula comercial arquivada. membership_id legado não é aceito. Idempotency-Key UUID obrigatório; mesma chave/dados diferentes retorna 409. Resposta repetida conserva a presença já registrada."
       }
     },
     "/v1/academies/{academy_id}/sessions/{session_id}/attendances": {
@@ -3959,7 +4541,7 @@
     "/v1/academies/{academy_id}/me/attendances": {
       "get": {
         "summary": "Histórico pessoal de presenças",
-        "description": "Usar page=1 para formato paginado. Sem filtros/page mantém array legado. Cadastro inativo conserva histórico.",
+        "description": "Usar page=1 para formato paginado. Sem filtros/page mantém array legado. Disponível a toda conta vinculada à academia, inclusive gestor sem matrícula e vínculos inativos. Parâmetros de outra pessoa são ignorados: consulta sempre a própria participação.",
         "parameters": [
           {
             "name": "academy_id",
@@ -4958,8 +5540,8 @@
         }
       },
       "post": {
-        "summary": "Cadastrar aluno sem conta de login",
-        "description": "",
+        "summary": "Cadastrar matrícula opcional de aluno",
+        "description": "E-mail é canônico e único em people. Identidade existente exige reuse_existing_identity ou use_my_account; sem confirmação retorna 409 identity_exists. Já matriculado retorna 409 already_enrolled. Não concede acesso por coincidência de e-mail.",
         "parameters": [
           {
             "name": "academy_id",
@@ -5655,8 +6237,8 @@
     },
     "/v1/invitations/{token}/accept": {
       "post": {
-        "summary": "Aceitar convite com conta pessoal autenticada",
-        "description": "Expira após sete dias, pode ser revogado e só pode ser utilizado uma vez. Repetição retorna 410.",
+        "summary": "Confirmar vínculo e opcionalmente completar CPF",
+        "description": "Expira após sete dias, pode ser revogado e só pode ser utilizado uma vez, inclusive sob concorrência. A academia e o aluno são determinados pelo token armazenado. Identidade diferente: 403 invitation_identity_mismatch. Repetição: 410. CPF inválido: 422. CPF de outro cadastro ou tentativa de mudar CPF existente: 409. Erros não consomem o convite nem fazem alterações parciais. Corpo omitido permanece compatível. Não altera plano, valores ou mensalidades.",
         "parameters": [
           {
             "name": "token",
@@ -5775,6 +6357,16 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationInput"
               }
             }
           }
@@ -7645,6 +8237,13 @@
             }
           },
           {
+            "name": "participant_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "class_id",
             "in": "query",
             "schema": {
@@ -7760,6 +8359,152 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Lançar presença manual pelo gestor",
+        "description": "Somente gestor ativo desta academia. Escolhe aluno, horário e data atual/passada da grade; aula futura e aula cancelada são recusadas. Permite completar presença de aula encerrada. Não duplica a presença já registrada pelo tablet. starts_at preserva o dia do treino; checked_in_at guarda o instante real do lançamento. Aluno inativo/arquivado continua bloqueado.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckinResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualAttendanceInput"
               }
             }
           }
@@ -8470,6 +9215,1425 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/me/participation": {
+      "get": {
+        "summary": "Consultar identidade, CPF e QR pessoais",
+        "description": "Qualquer conta com vínculo nesta academia, inclusive gestor sem aluno. Não concede acesso financeiro nem cria matrícula.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Participation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Atualizar o próprio CPF para presença",
+        "description": "Somente conta pessoal vinculada. CPF único na academia, incluindo arquivados. Credencial de tablet retorna 403.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Participation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParticipationInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/invitations/{token}": {
+      "get": {
+        "summary": "Conferir convite da própria identidade",
+        "description": "Requer conta pessoal da identidade convidada. Retorna apenas academia, nome do aluno, indicação de CPF cadastrado e validade; não expõe o CPF. Sem cache. Conta diferente ou tablet: 403. Inválido, expirado, revogado, utilizado ou aluno arquivado: 410.",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/attendance-options": {
+      "get": {
+        "summary": "Consultar aulas pela grade semanal",
+        "description": "Gestor consulta aulas do dia escolhido (YYYY-MM-DD). Tablet só consulta o horário atual, no fuso da academia: de 15 minutos antes até o fim da aula; não aceita date. Inclui aulas que atravessam meia-noite. Não cria ocorrências. Turmas pausadas/excluídas, horários removidos e aulas canceladas são omitidos.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceOptions"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/check-ins": {
+      "post": {
+        "summary": "Registrar presença no tablet sem abrir aula",
+        "description": "Somente tablet autorizado. Exige exatamente CPF, QR ou código. Se houver apenas uma aula no horário, identifica automaticamente; sobreposição sem escolha retorna 409 class_choice_required. schedule_id/date devem corresponder à janela atual. Aula, presença e resultado idempotente são gravados na mesma transação. Reenvios recuperam o resultado mesmo após o fim do horário; dispositivo revogado é recusado.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckinResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduledCheckInInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/invoices/{invoice_id}/discount": {
+      "patch": {
+        "summary": "Aplicar ou remover desconto pontual",
+        "description": "Somente gestor ativo. Não altera contrato ou próximas competências. Confere e encerra Pix pendente antes da alteração. Pagamento já confirmado bloqueia o desconto. expected_amount_cents impede confirmação de valor desatualizado. Repetição dos mesmos dados não duplica histórico.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invoice"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoiceDiscountInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/invoices/{invoice_id}/manual-payment": {
+      "post": {
+        "summary": "Registrar recebimento manual",
+        "description": "Somente gestor ativo. Registra o recebimento integral do valor atual, data do servidor, forma e observação. Não movimenta dinheiro. Confere e encerra Pix pendente antes da baixa. Repetição idêntica retorna a mensalidade paga sem duplicar lançamento. 409/503 exigem atualizar ou tentar novamente.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invoice"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualPaymentInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/invoices/{invoice_id}/history": {
+      "get": {
+        "summary": "Consultar últimos 50 ajustes da mensalidade",
+        "description": "Exclusivo do gestor da academia. Inclui autoria, valores, motivo/observação e data.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceAdjustmentList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/students/{student_id}/progress": {
+      "get": {
+        "summary": "Consultar evolução e tempo ativo do aluno",
+        "description": "Somente gestor ativo da academia. Histórico ordenado pelas alterações, com autoria, data e faixa/graus anterior/novo. Baseline e cadastro inicial não presumem data de conquista. Tempo ativo soma intervalos registrados, excluindo pausas e arquivamento; joined_at preserva a criação original.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "modality_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentProgress"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/students/{student_id}/start-date": {
+      "patch": {
+        "summary": "Corrigir início do aluno na academia",
+        "description": "Somente gestor ativo desta academia; aluno arquivado deve ser restaurado. Valida calendário, nascimento e data atual no fuso da academia. Correção isolada não altera criação da conta, períodos ativos, graduações, presenças nem contrato/mensalidades. Data atual diferente da esperada: 409; repetição do mesmo resultado: 200. O tempo desde o início informado é distinto da atividade acompanhada.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Student"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudentStartDateInput"
               }
             }
           }

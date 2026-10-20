@@ -15,6 +15,7 @@ import {
   Row,
 } from "../../components/ui";
 import { Icon } from "../../components/Icon";
+import { ManualAttendance } from "../attendance/ManualAttendance";
 import { Pagination } from "../../components/Pagination";
 import { api, academyPath } from "../../services/api";
 import { useSession } from "../../services/session";
@@ -51,21 +52,32 @@ function monthLabel(value: string) {
     year: "numeric",
   }).format(new Date(value + "-01T12:00:00Z"));
 }
-export function StudentAttendances({ studentId }: { studentId: string }) {
-  const { academy } = useSession(),
+export function StudentAttendances({
+  studentId,
+  own = false,
+  canRecord = true,
+}: {
+  studentId?: string;
+  own?: boolean;
+  canRecord?: boolean;
+}) {
+  const { academy, role } = useSession(),
     a = academy!;
   const [month, setMonth] = useState(() => localMonth(a.timezone)),
     [all, setAll] = useState(false),
     [page, setPage] = useState(1);
+  const endpoint = own
+    ? "/me/attendances?"
+    : "/attendances?student_id=" + studentId + "&";
+  const identity = own ? "own" : studentId;
   const history = useQuery({
-    queryKey: ["student-attendances", a.id, studentId, all ? "" : month, page],
+    queryKey: ["student-attendances", a.id, identity, all ? "" : month, page],
     queryFn: () =>
       api<Page<Attendance>>(
         academyPath(
           a.id,
-          "/attendances?student_id=" +
-            studentId +
-            "&month=" +
+          endpoint +
+            "month=" +
             (all ? "" : month) +
             "&page=" +
             page +
@@ -75,14 +87,9 @@ export function StudentAttendances({ studentId }: { studentId: string }) {
     refetchInterval: 15000,
   });
   const summary = useQuery({
-    queryKey: ["student-attendance-summary", a.id, studentId],
+    queryKey: ["student-attendance-summary", a.id, identity],
     queryFn: () =>
-      api<Page<Attendance>>(
-        academyPath(
-          a.id,
-          "/attendances?student_id=" + studentId + "&page=1&page_size=1",
-        ),
-      ),
+      api<Page<Attendance>>(academyPath(a.id, endpoint + "page=1&page_size=1")),
     refetchInterval: 15000,
   });
   const last = summary.data?.items[0];
@@ -100,16 +107,16 @@ export function StudentAttendances({ studentId }: { studentId: string }) {
           <Text style={s.caption}>Em todo o histórico</Text>
         </View>
         <View style={[s.stat, { borderColor: accents.mint.soft }]}>
-          <Text style={s.caption}>Último check-in</Text>
+          <Text style={s.caption}>Último treino</Text>
           <Text style={s.last}>
             {last
-              ? historyDate(last.checked_in_at, a.timezone)
+              ? historyDate(last.starts_at ?? last.checked_in_at, a.timezone)
               : summary.isPending
                 ? "Carregando…"
                 : "Sem presenças"}
           </Text>
           <Text style={s.caption}>
-            {last ? last.class_name : "Registrado pelo tablet"}
+            {last ? last.class_name : "Sem treinos registrados"}
           </Text>
         </View>
       </View>
@@ -118,10 +125,15 @@ export function StudentAttendances({ studentId }: { studentId: string }) {
         <View style={s.heading}>
           <View style={{ flex: 1, gap: 4 }}>
             <Heading>Presenças nas aulas</Heading>
-            <Label muted>Check-ins confirmados pelo tablet.</Label>
+            <Label muted>
+              Presenças confirmadas no tablet ou lançadas pelo gestor.
+            </Label>
           </View>
           <Icon name="calendar" color={accents.blue.color} />
         </View>
+        {!own && studentId && role === "admin" ? (
+          <ManualAttendance studentId={studentId} disabled={!canRecord} />
+        ) : null}
         <View style={s.month}>
           <IconButton
             icon="chevron-left"
@@ -196,9 +208,21 @@ export function StudentAttendances({ studentId }: { studentId: string }) {
                       </Text>
                     ) : null}
                     <Text style={s.caption}>
-                      {historyDate(p.checked_in_at, a.timezone)} · Check-in às{" "}
-                      {displayTime(p.checked_in_at, a.timezone)}
+                      {historyDate(p.starts_at ?? p.checked_in_at, a.timezone)}{" "}
+                      ·{" "}
+                      {p.source === "manager"
+                        ? "Lançado pelo gestor"
+                        : "Check-in no tablet"}{" "}
+                      {p.source === "manager"
+                        ? ""
+                        : displayTime(p.checked_in_at, a.timezone)}
                     </Text>
+                    {p.source === "manager" ? (
+                      <Text style={s.caption}>
+                        Registrado em {historyDate(p.checked_in_at, a.timezone)}{" "}
+                        às {displayTime(p.checked_in_at, a.timezone)}
+                      </Text>
+                    ) : null}
                   </View>
                   <Badge label="Presente" tone="mint" />
                 </View>
@@ -233,17 +257,17 @@ const s = StyleSheet.create({
     borderWidth: 1,
   },
   caption: {
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     fontSize: 13,
     lineHeight: 19,
     color: colors.muted,
   },
   number: {
-    fontFamily: "Montserrat_700Bold",
+    fontFamily: "Inter_700Bold",
     fontSize: 28,
     color: colors.text,
   },
-  last: { fontFamily: "Montserrat_700Bold", fontSize: 16, color: colors.text },
+  last: { fontFamily: "Inter_700Bold", fontSize: 16, color: colors.text },
   heading: { flexDirection: "row", gap: 12, alignItems: "center" },
   month: {
     flexDirection: "row",
@@ -255,7 +279,7 @@ const s = StyleSheet.create({
     padding: 4,
   },
   monthName: {
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     color: colors.text,
     flex: 1,
@@ -280,7 +304,7 @@ const s = StyleSheet.create({
     backgroundColor: accents.mint.soft,
   },
   className: {
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 15,
     lineHeight: 21,
     color: colors.text,

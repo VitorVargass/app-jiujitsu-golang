@@ -8,16 +8,20 @@ import (
 )
 
 type Invoice struct {
-	ID            string     `json:"id"`
-	StudentID     string     `json:"student_id"`
-	StudentName   string     `json:"student_name"`
-	Competence    string     `json:"competence"`
-	DueDate       string     `json:"due_date"`
-	AmountCents   int64      `json:"amount_cents"`
-	Status        string     `json:"status"`
-	PaidAt        *time.Time `json:"paid_at"`
-	PayerName     string     `json:"-"`
-	PayerDocument string     `json:"-"`
+	ID                  string     `json:"id"`
+	StudentID           string     `json:"student_id"`
+	StudentName         string     `json:"student_name"`
+	Competence          string     `json:"competence"`
+	DueDate             string     `json:"due_date"`
+	AmountCents         int64      `json:"amount_cents"`
+	OriginalAmountCents int64      `json:"original_amount_cents"`
+	DiscountCents       int64      `json:"discount_cents"`
+	DiscountReason      string     `json:"discount_reason"`
+	PaymentMethod       string     `json:"payment_method"`
+	Status              string     `json:"status"`
+	PaidAt              *time.Time `json:"paid_at"`
+	PayerName           string     `json:"-"`
+	PayerDocument       string     `json:"-"`
 }
 
 func DueDate(month time.Time, day int) time.Time {

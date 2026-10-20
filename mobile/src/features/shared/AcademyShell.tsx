@@ -1,7 +1,8 @@
 import React, { useCallback } from "react";
+import { Brand } from "../../components/Brand";
 import { Redirect, router, usePathname, Href } from "expo-router";
 import { View, Pressable, Text, StyleSheet, Keyboard } from "react-native";
-import { Page } from "../../components/ui";
+import { Page, Loading } from "../../components/ui";
 import { SwipeDirection } from "../../components/SwipeNavigator";
 import {
   SectionPreview,
@@ -12,6 +13,8 @@ import { Icon, IconName } from "../../components/Icon";
 import { useSession } from "../../services/session";
 import { Role } from "../../types";
 import { roleLabel, colors, accents, Accent } from "../../theme";
+import { useClassSetup } from "../classes/useClassSetup";
+import { ClassSetupNotice } from "../classes/ClassSetupNotice";
 
 type Tab = {
   label: string;
@@ -25,36 +28,43 @@ const managerTabs: Tab[] = [
     label: "Início",
     url: "/academy",
     icon: "home",
-    tone: "mint",
+    tone: "brand",
     routes: ["/academy"],
   },
   {
     label: "Alunos",
     url: "/students",
     icon: "users",
-    tone: "blue",
+    tone: "brand",
     routes: ["/students"],
   },
   {
     label: "Financeiro",
     url: "/finance",
     icon: "wallet",
-    tone: "mint",
+    tone: "brand",
     routes: ["/finance", "/invoice"],
   },
   {
     label: "Turmas",
     url: "/classes",
     icon: "calendar",
-    tone: "amber",
-    routes: ["/classes", "/attendance"],
+    tone: "brand",
+    routes: ["/classes", "/attendance", "/attendance-day"],
   },
   {
     label: "Mais",
     url: "/more",
     icon: "more",
-    tone: "lavender",
-    routes: ["/more", "/catalog", "/academy-history", "/devices"],
+    tone: "brand",
+    routes: [
+      "/more",
+      "/catalog",
+      "/academy-history",
+      "/devices",
+      "/participation",
+      "/create-academy",
+    ],
   },
 ];
 const studentTabs: Tab[] = [
@@ -62,24 +72,37 @@ const studentTabs: Tab[] = [
     label: "Mensalidades",
     url: "/student",
     icon: "wallet",
-    tone: "mint",
+    tone: "brand",
     routes: ["/student", "/invoice"],
   },
   {
     label: "Presenças",
     url: "/history",
     icon: "check-circle",
-    tone: "blue",
+    tone: "brand",
     routes: ["/history"],
   },
   {
     label: "Meu QR",
     url: "/qr",
     icon: "qr",
-    tone: "lavender",
+    tone: "brand",
     routes: ["/qr"],
   },
 ];
+
+export function PersonalGate({ children }: { children: React.ReactNode }) {
+  const { ready, session, academy, academiesLoading } = useSession();
+  if (!ready || academiesLoading)
+    return (
+      <Page>
+        <Loading />
+      </Page>
+    );
+  if (session?.kind === "device") return <Redirect href="/kiosk" />;
+  if (!session || !academy) return <Redirect href="/entry" />;
+  return <>{children}</>;
+}
 
 export function RoleGate({
   role,
@@ -88,14 +111,28 @@ export function RoleGate({
   role: Role;
   children: React.ReactNode;
 }) {
-  const { session, academy } = useSession();
+  const {
+    ready,
+    session,
+    academy,
+    role: currentRole,
+    academiesLoading,
+  } = useSession();
+  if (!ready || academiesLoading)
+    return (
+      <Page>
+        <Loading />
+      </Page>
+    );
   if (session?.kind === "device") return <Redirect href="/kiosk" />;
   if (
     !academy ||
     !academy.roles.includes(role) ||
     (role !== "student" && academy.status !== "active")
   )
-    return <Redirect href="/onboarding" />;
+    return <Redirect href="/entry" />;
+  if (currentRole !== role)
+    return <Redirect href={{ pathname: "/entry", params: { area: role } }} />;
   return <>{children}</>;
 }
 
@@ -105,12 +142,16 @@ export function AcademyShell({
   titleAction,
   children,
   swipeEnabled = true,
+  showClassSetupNotice = false,
+  wide = false,
 }: {
   title: string;
   subtitle?: string;
   titleAction?: React.ReactNode;
   children: React.ReactNode;
   swipeEnabled?: boolean;
+  showClassSetupNotice?: boolean;
+  wide?: boolean;
 }) {
   const { academy, role, session } = useSession();
   const pathname = usePathname();
@@ -119,6 +160,13 @@ export function AcademyShell({
   const currentIndex = tabs.findIndex((tab) => tab.url === pathname);
   const screens = useSectionPages();
   const preview = useSectionPreview();
+  const setup = useClassSetup(
+    academy?.id,
+    role === "admin" &&
+      academy?.status === "active" &&
+      session?.kind === "user" &&
+      !preview,
+  );
   const next =
     currentIndex >= 0
       ? screens[tabs[(currentIndex + 1) % tabs.length].url]
@@ -145,6 +193,7 @@ export function AcademyShell({
         subtitle={subtitle || academy?.name}
         titleAction={titleAction}
         contentOnly
+        wide={wide}
       >
         {children}
       </Page>
@@ -155,6 +204,7 @@ export function AcademyShell({
       title={title}
       subtitle={subtitle || academy?.name}
       titleAction={titleAction}
+      wide={wide}
       onSwipe={swipeEnabled && next && previous ? swipe : undefined}
       swipePages={
         next && previous
@@ -166,10 +216,7 @@ export function AcademyShell({
       }
       header={
         <View style={styles.header}>
-          <View style={styles.brand}>
-            <Text style={styles.mark}>◈</Text>
-            <Text style={styles.brandName}>Tatame</Text>
-          </View>
+          <Brand compact />
           <View style={styles.account}>
             <View
               style={styles.identity}
@@ -184,7 +231,7 @@ export function AcademyShell({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Trocar academia ou perfil"
-              onPress={() => router.replace("/onboarding")}
+              onPress={() => router.replace("/academies")}
               style={({ pressed }) => [
                 styles.switch,
                 pressed && { opacity: 0.6 },
@@ -200,6 +247,7 @@ export function AcademyShell({
         <View style={styles.dock}>
           {tabs.map((tab) => {
             const accent = accents[tab.tone];
+            const attention = tab.url === "/classes" && setup.needsSetup;
             const selected = tab.routes.some(
               (url) => pathname === url || pathname.startsWith(url + "/"),
             );
@@ -208,6 +256,11 @@ export function AcademyShell({
                 key={tab.url}
                 accessibilityRole="tab"
                 accessibilityLabel={tab.label}
+                accessibilityHint={
+                  attention
+                    ? "Configuração pendente. Cadastre ou ative uma turma com horários para liberar o check-in."
+                    : undefined
+                }
                 accessibilityState={{ selected }}
                 onPress={() => {
                   if (pathname !== tab.url) {
@@ -227,17 +280,37 @@ export function AcademyShell({
                       backgroundColor: accent.soft,
                       borderColor: accent.border,
                     },
+                    attention && styles.tabAttention,
                   ]}
                 >
                   <Icon
                     name={tab.icon}
                     size={22}
-                    color={selected ? accent.color : colors.muted}
+                    color={
+                      attention
+                        ? accents.coral.color
+                        : selected
+                          ? accent.color
+                          : colors.muted
+                    }
                   />
+                  {attention ? (
+                    <View
+                      style={styles.pendingBadge}
+                      pointerEvents="none"
+                      aria-hidden
+                    >
+                      <Text style={styles.pendingBadgeText}>!</Text>
+                    </View>
+                  ) : null}
                 </View>
                 <Text
                   numberOfLines={1}
-                  style={[styles.tabLabel, selected && { color: accent.color }]}
+                  style={[
+                    styles.tabLabel,
+                    selected && { color: accent.color },
+                    attention && { color: accents.coral.color },
+                  ]}
                 >
                   {tab.label}
                 </Text>
@@ -247,6 +320,9 @@ export function AcademyShell({
         </View>
       }
     >
+      {showClassSetupNotice && setup.needsSetup ? (
+        <ClassSetupNotice hasClasses={setup.hasClasses} />
+      ) : null}
       {children}
     </Page>
   );
@@ -257,14 +333,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 16,
     minHeight: 44,
-  },
-  brand: { flexDirection: "row", alignItems: "center", gap: 6 },
-  mark: { color: colors.primary, fontSize: 27 },
-  brandName: {
-    color: colors.text,
-    fontFamily: "Montserrat_700Bold",
-    fontSize: 18,
-    letterSpacing: -0.5,
   },
   account: {
     flex: 1,
@@ -281,8 +349,12 @@ const styles = StyleSheet.create({
     gap: 3,
     alignItems: "flex-end",
   },
-  name: { color: colors.text, fontFamily: "Lato_700Bold", fontSize: 12 },
-  role: { color: colors.primary, fontFamily: "Lato_400Regular", fontSize: 11 },
+  name: { color: colors.text, fontFamily: "Inter_600SemiBold", fontSize: 12 },
+  role: {
+    color: colors.primaryLight,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+  },
   switch: {
     minHeight: 44,
     paddingHorizontal: 9,
@@ -293,7 +365,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
   },
-  switchText: { color: colors.muted, fontFamily: "Lato_700Bold", fontSize: 11 },
+  switchText: {
+    color: colors.muted,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+  },
   dock: {
     flexDirection: "row",
     alignItems: "center",
@@ -321,5 +397,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "transparent",
   },
-  tabLabel: { fontFamily: "Lato_700Bold", fontSize: 10, color: colors.muted },
+  tabAttention: {
+    backgroundColor: accents.coral.soft,
+    borderColor: accents.coral.border,
+  },
+  pendingBadge: {
+    position: "absolute",
+    top: -5,
+    right: -3,
+    width: 17,
+    height: 17,
+    borderRadius: 9,
+    backgroundColor: "#D43B47",
+    borderWidth: 2,
+    borderColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pendingBadgeText: {
+    color: "#FFFFFF",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 10,
+    lineHeight: 12,
+  },
+  tabLabel: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 10,
+    color: colors.muted,
+  },
 });

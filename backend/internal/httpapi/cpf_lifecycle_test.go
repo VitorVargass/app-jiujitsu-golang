@@ -64,7 +64,7 @@ func TestCPFArchiveRestoreAndClassDeletion(t *testing.T) {
 	jj := admin.list(prefix + "/modalities")[0]["id"].(string)
 	cpf := testCPF()
 	formatted := cpf[:3] + "." + cpf[3:6] + "." + cpf[6:9] + "-" + cpf[9:]
-	body := map[string]any{"birth_date": "2012-04-12", "name": "Aluno retornando", "cpf": formatted, "status": "active", "modality_ids": []string{jj}, "billing": map[string]any{"enabled": true, "amount_cents": 18000, "due_day": 10, "first_month": time.Now().In(time.FixedZone("BR", -10800)).Format("2006-01"), "payer_name": "Responsável", "payer_document": "52998224725"}}
+	body := map[string]any{"birth_date": "2012-04-12", "name": "Aluno retornando", "email": getEmail(t, db, owner.token), "reuse_existing_identity": true, "cpf": formatted, "status": "active", "modality_ids": []string{jj}, "billing": map[string]any{"enabled": true, "amount_cents": 18000, "due_day": 10, "first_month": time.Now().In(time.FixedZone("BR", -10800)).Format("2006-01"), "payer_name": "Responsável", "payer_document": "52998224725"}}
 	invalid := map[string]any{"name": "Sem CPF"}
 	if code, _ := admin.request("POST", prefix+"/students", invalid, ""); code != 422 {
 		t.Fatal("CPF required", code)
@@ -132,7 +132,7 @@ func TestCPFArchiveRestoreAndClassDeletion(t *testing.T) {
 		}
 	}
 	var n int
-	if err = db.QueryRow(ctx, "SELECT count(*) FROM attendances WHERE academy_id=$1 AND session_id=$2 AND membership_id=$3", a, ssid, sid).Scan(&n); err != nil || n != 1 {
+	if err = db.QueryRow(ctx, "SELECT count(*) FROM attendances WHERE academy_id=$1 AND session_id=$2 AND participant_id=$3", a, ssid, student["participant_id"]).Scan(&n); err != nil || n != 1 {
 		t.Fatal("duplicate attendance", n, err)
 	}
 	if code, _ := device.request("POST", checkPath, map[string]string{"cpf": testCPF()}, key); code != 409 {

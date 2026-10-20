@@ -21,6 +21,10 @@ export type Billing = {
   payer_document: string;
 };
 export type Student = {
+  started_on: string;
+  person_id: string;
+  participant_id: string;
+  email_locked: boolean;
   id: string;
   academy_id: string;
   user_id: string;
@@ -55,10 +59,35 @@ export type Invoice = {
   competence: string;
   due_date: string;
   amount_cents: number;
+  original_amount_cents: number;
+  discount_cents: number;
+  discount_reason: string;
+  payment_method: "" | "asaas_pix" | ManualPaymentMethod;
   status: "open" | "overdue" | "paid" | "cancelled";
   paid_at: string | null;
 };
+export type ManualPaymentMethod =
+  "cash" | "pix" | "card" | "transfer" | "other";
+export const paymentMethodLabel: Record<ManualPaymentMethod, string> = {
+  cash: "Dinheiro",
+  pix: "Pix recebido fora do app",
+  card: "Cartão",
+  transfer: "Transferência",
+  other: "Outro",
+};
+export type InvoiceAdjustment = {
+  id: string;
+  kind: "discount" | "manual_payment";
+  actor_name: string;
+  previous_amount_cents: number;
+  amount_cents: number;
+  discount_cents: number;
+  payment_method: string;
+  note: string;
+  created_at: string;
+};
 export type Pix = {
+  amount_cents: number;
   status: "waiting" | "paid";
   payload?: string;
   expires_at?: string;

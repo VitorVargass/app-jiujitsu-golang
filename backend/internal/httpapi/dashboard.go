@@ -43,15 +43,15 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc)
 	mid := m.ID
 	if scope == "student" {
-		if e = s.db.QueryRow(r.Context(), "SELECT id FROM students WHERE academy_id=$1 AND user_id=$2", a, m.UserID).Scan(&mid); e != nil {
+		if e = s.db.QueryRow(r.Context(), "SELECT participant_id FROM students WHERE academy_id=$1 AND user_id=$2", a, m.UserID).Scan(&mid); e != nil {
 			core.Fail(w, e)
 			return
 		}
 	}
 	var today, totalMonth, students int
 	var received, open int64
-	query := `SELECT count(*) FILTER(WHERE p.checked_in_at>=$4),count(*) FILTER(WHERE p.checked_in_at>=$5) FROM attendances p JOIN class_sessions s ON s.id=p.session_id AND s.academy_id=p.academy_id JOIN classes c ON c.id=s.class_id AND c.academy_id=s.academy_id
- WHERE p.academy_id=$1 AND ($2='admin' OR ($2='teacher' AND c.teacher_membership_id=$3) OR ($2='student' AND p.membership_id=$3))`
+	query := `SELECT count(*) FILTER(WHERE s.starts_at>=$4 AND s.starts_at<$4+interval '1 day'),count(*) FILTER(WHERE s.starts_at>=$5 AND s.starts_at<$5+interval '1 month') FROM attendances p JOIN class_sessions s ON s.id=p.session_id AND s.academy_id=p.academy_id JOIN classes c ON c.id=s.class_id AND c.academy_id=s.academy_id
+ WHERE p.academy_id=$1 AND ($2='admin' OR ($2='teacher' AND c.teacher_membership_id=$3) OR ($2='student' AND p.participant_id=$3))`
 	if e = s.db.QueryRow(r.Context(), query, a, scope, mid, start, month).Scan(&today, &totalMonth); e != nil {
 		core.Fail(w, e)
 		return
@@ -74,7 +74,7 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	for i := 6; i >= 0; i-- {
 		d := start.AddDate(0, 0, -i)
 		var n int
-		e = s.db.QueryRow(r.Context(), `SELECT count(*) FROM attendances p JOIN class_sessions s ON s.id=p.session_id AND s.academy_id=p.academy_id JOIN classes c ON c.id=s.class_id AND c.academy_id=s.academy_id WHERE p.academy_id=$1 AND p.checked_in_at>=$4 AND p.checked_in_at<$5 AND ($2='admin' OR ($2='teacher' AND c.teacher_membership_id=$3) OR ($2='student' AND p.membership_id=$3))`, a, scope, mid, d, d.AddDate(0, 0, 1)).Scan(&n)
+		e = s.db.QueryRow(r.Context(), `SELECT count(*) FROM attendances p JOIN class_sessions s ON s.id=p.session_id AND s.academy_id=p.academy_id JOIN classes c ON c.id=s.class_id AND c.academy_id=s.academy_id WHERE p.academy_id=$1 AND s.starts_at>=$4 AND s.starts_at<$5 AND ($2='admin' OR ($2='teacher' AND c.teacher_membership_id=$3) OR ($2='student' AND p.participant_id=$3))`, a, scope, mid, d, d.AddDate(0, 0, 1)).Scan(&n)
 		if e != nil {
 			core.Fail(w, e)
 			return

@@ -13,7 +13,7 @@ import {
   Badge,
 } from "../../components/ui";
 import { Icon, IconName } from "../../components/Icon";
-import { Dashboard, Session } from "../../types";
+import { Dashboard, AttendanceOptions } from "../../types";
 import { money } from "../../types/billing";
 import { displayTime, colors, accents, Accent } from "../../theme";
 
@@ -87,14 +87,15 @@ function Content() {
     refetchInterval: 10000,
   });
   const sessions = useQuery({
-    queryKey: ["sessions", a.id],
-    queryFn: () => api<Session[]>(academyPath(a.id, "/sessions")),
+    queryKey: ["today-lessons", a.id],
+    queryFn: () =>
+      api<AttendanceOptions>(academyPath(a.id, "/attendance-options")),
     refetchInterval: 8000,
   });
   const week = dash.data?.week ?? [];
   const maximum = Math.max(1, ...week.map((d) => d.count));
   const total = week.reduce((sum, d) => sum + d.count, 0);
-  const open = sessions.data?.filter((s) => s.status === "open") ?? [];
+  const open = sessions.data?.options ?? [];
   const date = new Intl.DateTimeFormat("pt-BR", {
     timeZone: a.timezone,
     weekday: "long",
@@ -102,7 +103,7 @@ function Content() {
     month: "long",
   }).format(new Date());
   return (
-    <AcademyShell title="Minha academia">
+    <AcademyShell title="Minha academia" showClassSetupNotice>
       <Card
         onPress={() =>
           router.push({ pathname: "/students/[id]", params: { id: "new" } })
@@ -113,7 +114,7 @@ function Content() {
         <View pointerEvents="none" style={styles.heroCircle} />
         <View style={styles.heroTop}>
           <View style={{ flex: 1, gap: 6 }}>
-            <Text style={styles.eyebrow}>FAÇA SEU TATAME CRESCER</Text>
+            <Text style={styles.eyebrow}>SUA ACADEMIA EM MOVIMENTO</Text>
             <Text style={styles.heroTitle}>Novo aluno</Text>
             <Text style={styles.heroDescription}>
               Cadastro simples, passo a passo.
@@ -144,7 +145,7 @@ function Content() {
             value={dash.data?.active_students ?? 0}
             hint="Ver alunos"
             icon="users"
-            tone="blue"
+            tone="brand"
             href="/students"
           />
           <Metric
@@ -152,7 +153,7 @@ function Content() {
             value={money(dash.data?.received_month_cents ?? 0)}
             hint="Ver financeiro"
             icon="wallet"
-            tone="mint"
+            tone="slate"
             href="/finance"
           />
           <Metric
@@ -160,7 +161,7 @@ function Content() {
             value={money(dash.data?.open_cents ?? 0)}
             hint="Ver mensalidades"
             icon="wallet"
-            tone="amber"
+            tone="slate"
             href="/finance"
           />
           <Metric
@@ -168,7 +169,7 @@ function Content() {
             value={dash.data?.presences_today ?? 0}
             hint="Ver histórico"
             icon="check-circle"
-            tone="lavender"
+            tone="slate"
             href="/academy-history"
           />
         </View>
@@ -192,10 +193,10 @@ function Content() {
             <View
               style={[
                 styles.metricIcon,
-                { backgroundColor: accents.blue.soft },
+                { backgroundColor: accents.brand.soft },
               ]}
             >
-              <Icon name="calendar" size={21} color={accents.blue.color} />
+              <Icon name="calendar" size={21} color={accents.brand.color} />
             </View>
           </View>
           <View
@@ -218,7 +219,7 @@ function Content() {
                   <Text
                     style={[
                       styles.chartCount,
-                      latest && { color: colors.primary },
+                      latest && { color: colors.primaryLight },
                     ]}
                   >
                     {d.count}
@@ -231,7 +232,7 @@ function Content() {
                           height: Math.max(5, (d.count / maximum) * 80),
                           backgroundColor: latest
                             ? colors.primary
-                            : accents.blue.color,
+                            : accents.brand.color,
                           opacity: d.count ? 1 : 0.28,
                         },
                       ]}
@@ -240,7 +241,7 @@ function Content() {
                   <Text
                     style={[
                       styles.chartDay,
-                      latest && { color: colors.primary },
+                      latest && { color: colors.primaryLight },
                     ]}
                   >
                     {weekday}
@@ -254,16 +255,16 @@ function Content() {
               {total}{" "}
               {total === 1 ? "presença na semana" : "presenças na semana"}
             </Text>
-            <Icon name="chevron-right" size={17} color={accents.blue.color} />
+            <Icon name="chevron-right" size={17} color={accents.brand.color} />
           </View>
         </Card>
       ) : null}
 
       <View style={styles.sectionHeading}>
-        <Heading>Aulas abertas</Heading>
+        <Heading>Aulas de hoje</Heading>
         <Badge
           label={String(open.length) + (open.length === 1 ? " aula" : " aulas")}
-          tone="mint"
+          tone="slate"
         />
       </View>
       <Notice message={sessions.error?.message} />
@@ -272,26 +273,24 @@ function Content() {
       ) : open.length ? (
         open.map((s) => (
           <Card
-            key={s.id}
+            key={s.schedule_id + s.date}
             onPress={() =>
               router.push({
-                pathname: "/attendance/[id]",
-                params: { id: s.id },
+                pathname: "/attendance-day",
+                params: { scheduleId: s.schedule_id, date: s.date },
               })
             }
-            accessibilityLabel={
-              "Abrir aula " + s.class_name + ". Ver presenças e encerrar aula"
-            }
+            accessibilityLabel={"Aula " + s.class_name + ". Ver presenças"}
             style={styles.sessionCard}
           >
             <View style={styles.sectionHeading}>
               <View
                 style={[
                   styles.metricIcon,
-                  { backgroundColor: accents.amber.soft },
+                  { backgroundColor: accents.brand.soft },
                 ]}
               >
-                <Icon name="calendar" size={22} color={accents.amber.color} />
+                <Icon name="calendar" size={22} color={accents.brand.color} />
               </View>
               <View style={{ flex: 1, gap: 5 }}>
                 <Heading>{s.class_name}</Heading>
@@ -303,11 +302,20 @@ function Content() {
               <Icon
                 name="chevron-right"
                 size={20}
-                color={accents.amber.color}
+                color={accents.brand.color}
               />
             </View>
             <View style={styles.cardFooter}>
-              <Badge label="Aula em andamento" tone="mint" />
+              <Badge
+                label={
+                  s.phase === "ended"
+                    ? "Concluída"
+                    : s.phase === "live"
+                      ? "Check-in liberado"
+                      : "Na agenda"
+                }
+                tone="slate"
+              />
               <Text style={styles.footerText}>Ver lista</Text>
             </View>
           </Card>
@@ -315,23 +323,24 @@ function Content() {
       ) : !sessions.error ? (
         <Card
           onPress={() => router.replace("/classes")}
-          accessibilityLabel="Nenhuma aula aberta. Abrir turmas"
+          accessibilityLabel="Nenhuma aula na agenda hoje. Ver turmas"
           style={styles.emptySession}
         >
           <View
-            style={[styles.metricIcon, { backgroundColor: accents.amber.soft }]}
+            style={[styles.metricIcon, { backgroundColor: accents.brand.soft }]}
           >
-            <Icon name="calendar" size={24} color={accents.amber.color} />
+            <Icon name="calendar" size={24} color={accents.brand.color} />
           </View>
-          <Heading>Vamos para o tatame?</Heading>
+          <Heading>Sem aulas previstas para hoje</Heading>
           <Label muted>
-            Abra uma aula em Turmas para começar a receber os alunos.
+            Confira a agenda semanal em Turmas. O tablet libera o check-in nos
+            horários cadastrados.
           </Label>
           <View style={styles.cardFooter}>
-            <Text style={[styles.footerText, { color: accents.amber.color }]}>
+            <Text style={[styles.footerText, { color: accents.brand.color }]}>
               Ir para turmas
             </Text>
-            <Icon name="chevron-right" size={18} color={accents.amber.color} />
+            <Icon name="chevron-right" size={18} color={accents.brand.color} />
           </View>
         </Card>
       ) : null}
@@ -348,8 +357,8 @@ export default function AcademyScreen() {
 
 const styles = StyleSheet.create({
   hero: {
-    backgroundColor: "#15372F",
-    borderColor: "#2B5749",
+    backgroundColor: accents.brand.soft,
+    borderColor: accents.brand.border,
     borderRadius: 24,
     padding: 20,
     gap: 14,
@@ -363,7 +372,7 @@ const styles = StyleSheet.create({
     height: 190,
     borderRadius: 95,
     borderWidth: 30,
-    borderColor: "#1C4338",
+    borderColor: "#45202A",
     opacity: 0.65,
   },
   heroTop: {
@@ -373,10 +382,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   eyebrow: {
-    color: "#B3E8D6",
+    color: colors.primaryLight,
     fontSize: 9,
     letterSpacing: 1.1,
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     flexShrink: 1,
   },
   heroTitle: {
@@ -384,13 +393,13 @@ const styles = StyleSheet.create({
     fontSize: 23,
     lineHeight: 30,
     letterSpacing: -0.7,
-    fontFamily: "Montserrat_700Bold",
+    fontFamily: "Inter_700Bold",
   },
   heroDescription: {
-    color: "#BDCDC9",
+    color: colors.muted,
     fontSize: 13,
     lineHeight: 20,
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     maxWidth: 265,
   },
   heroArrow: {
@@ -411,7 +420,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12,
     lineHeight: 18,
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
   },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   metric: {
@@ -436,18 +445,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  value: { fontFamily: "Montserrat_700Bold", letterSpacing: -0.8 },
+  value: { fontFamily: "Inter_700Bold", letterSpacing: -0.8 },
   metricLabel: {
     color: colors.text,
     fontSize: 12,
     lineHeight: 18,
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
   },
   metricHint: {
     color: colors.muted,
     fontSize: 10,
     lineHeight: 16,
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
   },
   chartCard: { padding: 20, borderRadius: 22, gap: 20 },
   chart: {
@@ -457,7 +466,11 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   chartColumn: { flex: 1, alignItems: "center", gap: 8 },
-  chartCount: { color: colors.muted, fontFamily: "Lato_700Bold", fontSize: 11 },
+  chartCount: {
+    color: colors.muted,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+  },
   chartTrack: {
     height: 85,
     width: "100%",
@@ -472,7 +485,11 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 5,
     borderTopRightRadius: 5,
   },
-  chartDay: { color: colors.muted, fontSize: 10, fontFamily: "Lato_700Bold" },
+  chartDay: {
+    color: colors.muted,
+    fontSize: 10,
+    fontFamily: "Inter_600SemiBold",
+  },
   cardFooter: {
     flexDirection: "row",
     alignItems: "center",
@@ -482,7 +499,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
   },
-  footerText: { color: colors.muted, fontSize: 12, fontFamily: "Lato_700Bold" },
-  sessionCard: { borderRadius: 20, borderColor: accents.amber.border, gap: 15 },
+  footerText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  sessionCard: { borderRadius: 20, borderColor: accents.brand.border, gap: 15 },
   emptySession: { borderRadius: 22, gap: 12 },
 });

@@ -3,6 +3,7 @@ package attendance
 import (
 	"net/http"
 	"tatame/backend/internal/core"
+	"tatame/backend/internal/participation"
 	"tatame/backend/internal/students"
 	"time"
 )
@@ -37,7 +38,7 @@ func (h Handler) List(w http.ResponseWriter, r *http.Request) {
 		core.Fail(w, e)
 		return
 	}
-	h.history(w, r, id, "")
+	h.history(w, r, id, "", "")
 }
 func (h Handler) All(w http.ResponseWriter, r *http.Request) {
 	if _, e := h.Service.Access.Require(r.Context(), r.PathValue("academy"), "admin"); e != nil {
@@ -49,7 +50,7 @@ func (h Handler) All(w http.ResponseWriter, r *http.Request) {
 		core.Fail(w, core.E(422, "invalid_student", "Aluno inválido."))
 		return
 	}
-	h.history(w, r, "", sid)
+	h.history(w, r, "", sid, r.URL.Query().Get("participant_id"))
 }
 func (h Handler) Own(w http.ResponseWriter, r *http.Request) {
 	u := core.P(r.Context()).UserID
@@ -57,14 +58,18 @@ func (h Handler) Own(w http.ResponseWriter, r *http.Request) {
 		core.Fail(w, core.E(403, "forbidden", "Conta pessoal necessária."))
 		return
 	}
-	id, e := (students.Repository{DB: h.Service.Repo.DB}).OwnID(r.Context(), r.PathValue("academy"), u)
+	own, e := (participation.Repository{DB: h.Service.Repo.DB}).Own(r.Context(), r.PathValue("academy"), u)
 	if e != nil {
 		core.Fail(w, e)
 		return
 	}
-	h.history(w, r, "", id)
+	h.history(w, r, "", "", own.ID)
 }
-func (h Handler) history(w http.ResponseWriter, r *http.Request, session, student string) {
+func (h Handler) history(w http.ResponseWriter, r *http.Request, session, student, participant string) {
+	if participant != "" && !core.ValidID(participant) {
+		core.Fail(w, core.E(422, "invalid_participant", "Participante inválido."))
+		return
+	}
 	a := r.PathValue("academy")
 	month := r.URL.Query().Get("month")
 	cid := r.URL.Query().Get("class_id")
@@ -83,7 +88,10 @@ func (h Handler) history(w http.ResponseWriter, r *http.Request, session, studen
 		core.Fail(w, e)
 		return
 	}
-	v, e := h.Service.Repo.PagedHistory(r.Context(), a, session, student, month, cid, page, size)
+	if r.URL.Query().Get("page") == "" && month == "" && cid == "" && (student != "" || participant != "") {
+		size = 200
+	}
+	v, e := h.Service.Repo.PagedHistory(r.Context(), a, session, student, month, cid, participant, page, size)
 	if e != nil {
 		core.Fail(w, e)
 		return
@@ -92,13 +100,8 @@ func (h Handler) history(w http.ResponseWriter, r *http.Request, session, studen
 		core.Write(w, 200, v.Items)
 		return
 	}
-	if r.URL.Query().Get("page") == "" && month == "" && cid == "" && student != "" {
-		old, e := h.Service.Repo.History(r.Context(), a, session, student)
-		if e != nil {
-			core.Fail(w, e)
-			return
-		}
-		core.Write(w, 200, old)
+	if r.URL.Query().Get("page") == "" && month == "" && cid == "" && (student != "" || participant != "") {
+		core.Write(w, 200, v.Items)
 		return
 	}
 	core.Write(w, 200, v)

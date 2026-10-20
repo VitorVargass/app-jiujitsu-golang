@@ -39,7 +39,7 @@ export function QRScreen() {
             style={{
               color: "white",
               fontSize: credential.data.cpf ? 22 : 30,
-              fontFamily: "Montserrat_700Bold",
+              fontFamily: "Inter_700Bold",
               letterSpacing: 1,
             }}
           >

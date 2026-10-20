@@ -77,13 +77,13 @@ func resolveIdentity(ctx context.Context, tx pgx.Tx, a, id string, in *Input, ol
 	if e != nil || month.Year() < 2020 || month.Year() > 2100 || b.AmountCents < 0 || b.AmountCents > 100000000 ||
 		b.Enabled && b.AmountCents < 1 || b.DueDay < 1 || b.DueDay > 31 || len(b.PayerName) > 100 ||
 		(b.Enabled || b.PayerDocument != "") && (!billing.ValidDocument(b.PayerDocument) || len(b.PayerName) < 2) {
-		return false, core.E(422, "invalid_billing", "Confira valor mensal, vencimento, competência e os dados de quem paga.")
+		return false, core.E(422, "invalid_billing", "Confira valor mensal, vencimento, mês de início da cobrança e os dados de quem paga.")
 	}
 	if b.Enabled && in.Status == "inactive" {
 		return false, core.E(422, "inactive_billing", "Reative o aluno antes de ativar a cobrança.")
 	}
 	if b.Enabled && !oldEnabled && b.FirstMonth < now.Format("2006-01") {
-		return false, core.E(422, "past_start", "A ativação deve começar na competência atual ou futura.")
+		return false, core.E(422, "past_start", "O mês de início da cobrança deve ser o atual ou um mês futuro.")
 	}
 	return adult, nil
 }

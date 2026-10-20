@@ -79,12 +79,12 @@ func TestLegacyMigrationPreservesAttendance(t *testing.T) {
 		t.Fatal(e)
 	}
 	var code, token string
-	if e = db.QueryRow("SELECT student_code,qr_token FROM students WHERE id=$1", m).Scan(&code, &token); e != nil || code != "12345678" || token != qr {
+	if e = db.QueryRow("SELECT p.student_code,p.qr_token FROM students s JOIN academy_participants p ON p.id=s.participant_id AND p.academy_id=s.academy_id WHERE s.id=$1", m).Scan(&code, &token); e != nil || code != "12345678" || token != qr {
 		t.Fatal("credential changed", e)
 	}
 	var legacyCPF string
 	var archived bool
-	if e = db.QueryRow("SELECT cpf,archived_at IS NOT NULL FROM students WHERE id=$1", m).Scan(&legacyCPF, &archived); e != nil || legacyCPF != "" || archived {
+	if e = db.QueryRow("SELECT p.cpf,s.archived_at IS NOT NULL FROM students s JOIN academy_participants p ON p.id=s.participant_id AND p.academy_id=s.academy_id WHERE s.id=$1", m).Scan(&legacyCPF, &archived); e != nil || legacyCPF != "" || archived {
 		t.Fatal("legacy student CPF/lifecycle changed", e)
 	}
 	var birth *string
@@ -92,7 +92,7 @@ func TestLegacyMigrationPreservesAttendance(t *testing.T) {
 		t.Fatal("migration guessed birth date", e)
 	}
 	var n int
-	if e = db.QueryRow("SELECT count(*) FROM attendances WHERE id=$1 AND membership_id=$2", p, m).Scan(&n); e != nil || n != 1 {
+	if e = db.QueryRow("SELECT count(*) FROM attendances WHERE id=$1 AND participant_id=$2", p, m).Scan(&n); e != nil || n != 1 {
 		t.Fatal("attendance lost", e)
 	}
 	if e = db.QueryRow("SELECT count(*) FROM invoices WHERE academy_id=$1", a).Scan(&n); e != nil || n != 1 {

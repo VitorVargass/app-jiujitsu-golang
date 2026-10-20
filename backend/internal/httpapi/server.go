@@ -17,6 +17,7 @@ import (
 	"tatame/backend/internal/core"
 	"tatame/backend/internal/devices"
 	"tatame/backend/internal/memberships"
+	"tatame/backend/internal/participation"
 	"tatame/backend/internal/payments"
 	"tatame/backend/internal/students"
 	"time"
@@ -109,8 +110,14 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("POST "+base+"/classes/{class}/sessions", c.Open)
 	protected("PATCH "+base+"/sessions/{session}", c.Close)
 	protected("POST "+base+"/sessions/{session}/check-ins", p.CheckIn)
+	protected("GET "+base+"/attendance-options", p.Options)
+	protected("POST "+base+"/check-ins", p.ScheduledCheckIn)
+	protected("POST "+base+"/attendances", p.Manual)
 	protected("GET "+base+"/sessions/{session}/attendances", p.List)
 	protected("GET "+base+"/me/attendances", p.Own)
+	part := participation.Handler{Repo: participation.Repository{DB: db}}
+	protected("GET "+base+"/me/participation", part.Own)
+	protected("PATCH "+base+"/me/participation", part.Own)
 	protected("GET "+base+"/me/student-credential", p.Credential)
 	protected("POST "+base+"/devices", d.Create)
 	protected("GET "+base+"/devices", d.List)
@@ -122,10 +129,13 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("GET "+base+"/students/{student}", st.Get)
 	protected("PATCH "+base+"/students/{student}", st.Save)
 	protected("PATCH "+base+"/students/{student}/graduations/{modality}", st.Graduation)
+	protected("GET "+base+"/students/{student}/progress", st.Progress)
+	protected("PATCH "+base+"/students/{student}/start-date", st.StartDate)
 	protected("POST "+base+"/students/{student}/archive", st.Archive)
 	protected("POST "+base+"/students/{student}/restore", st.Restore)
 	protected("POST "+base+"/students/{student}/invitations", st.Invitation)
 	protected("DELETE "+base+"/students/{student}/invitations", st.Invitation)
+	protected("GET /v1/invitations/{token}", st.PreviewInvitation)
 	protected("POST /v1/invitations/{token}/accept", st.Accept)
 	protected("GET "+base+"/me/student", st.Own)
 	for _, catalog := range []string{"modalities", "plans"} {
@@ -139,6 +149,9 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("GET "+base+"/invoices/{invoice}", bankHandler.Get)
 	protected("POST "+base+"/invoices/{invoice}/pix", bankHandler.Pix)
 	protected("PATCH "+base+"/invoices/{invoice}/cancel", bankHandler.Cancel)
+	protected("PATCH "+base+"/invoices/{invoice}/discount", bankHandler.Discount)
+	protected("POST "+base+"/invoices/{invoice}/manual-payment", bankHandler.ManualPayment)
+	protected("GET "+base+"/invoices/{invoice}/history", bankHandler.History)
 	protected("GET "+base+"/payment-integration", bankHandler.Status)
 	protected("GET "+base+"/attendances", p.All)
 	mux.HandleFunc("POST /v1/webhooks/asaas/{connection}/pix", bankHandler.Webhook)

@@ -27,7 +27,7 @@ function Content() {
     sessions.data?.filter((s) => s.teacher_membership_id === a.membership_id) ||
     [];
   return (
-    <AcademyShell title="Olá, Professor!" subtitle="Sua equipe. Seu tatame.">
+    <AcademyShell title="Olá, Professor!" subtitle="Sua equipe. Sua evolução.">
       <Card>
         <Heading>Próximo passo: abrir a aula</Heading>
         <Label muted>

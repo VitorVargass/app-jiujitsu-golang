@@ -1,5 +1,24 @@
+export type { AttendanceOptions, LessonOption } from "./attendance";
 export type Role = "student" | "teacher" | "admin";
-export type User = { id: string; name: string; email: string };
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  person_id?: string;
+};
+export type Participation = {
+  participant_id: string;
+  person_id: string;
+  academy_id: string;
+  student_id?: string;
+  name: string;
+  email: string;
+  cpf: string;
+  student_code: string;
+  qr_token: string;
+  can_check_in: boolean;
+  has_student_registration: boolean;
+};
 export type Academy = {
   id: string;
   name: string;
@@ -54,6 +73,10 @@ export type Session = {
   attendance_count: number;
 };
 export type Attendance = {
+  source?: "tablet" | "manager";
+  participant_id: string;
+  person_id: string;
+  student_id?: string;
   id: string;
   session_id: string;
   class_name: string;
@@ -64,13 +87,16 @@ export type Attendance = {
   starts_at?: string;
 };
 export type CheckinResult = {
+  session_id?: string;
+  class_name?: string;
+  starts_at?: string;
+  source?: "tablet" | "manager";
   id: string;
   membership_id: string;
   student_name: string;
   belt: string;
   checked_in_at: string;
   modality_name?: string;
-  starts_at?: string;
   duplicate: boolean;
 };
 export type Dashboard = {

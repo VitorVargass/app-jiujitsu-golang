@@ -202,12 +202,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   hint: {
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     color: colors.muted,
     fontSize: 10,
     letterSpacing: 1,
   },
-  label: { color: colors.text, fontFamily: "Lato_700Bold", fontSize: 14 },
+  label: { color: colors.text, fontFamily: "Inter_600SemiBold", fontSize: 14 },
   arrow: { color: colors.text, fontSize: 28 },
   swatch: {
     width: 68,
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     color: colors.text,
-    fontFamily: "Montserrat_600SemiBold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 18,
   },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingBottom: 8 },
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 10,
   },
-  selected: { borderColor: colors.primary, backgroundColor: accents.mint.soft },
+  selected: { borderColor: colors.primary, backgroundColor: accents.brand.soft },
   degreeOptions: { flexDirection: "row", gap: 6 },
   degreeOption: {
     flex: 1,
@@ -287,21 +287,21 @@ const styles = StyleSheet.create({
   },
   degreeSelected: {
     borderColor: colors.primary,
-    backgroundColor: accents.mint.soft,
+    backgroundColor: accents.brand.soft,
   },
   degreeNumber: {
     color: colors.muted,
     fontSize: 16,
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
   },
   degreeCaption: {
     color: colors.primary,
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 11,
   },
   degreeHelp: {
     color: colors.muted,
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     fontSize: 11,
     lineHeight: 17,
   },
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   degreeTick: { width: 2, height: 6, backgroundColor: "#FFFFFF" },
   optionLabel: {
     color: colors.text,
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     fontSize: 11,
     textAlign: "center",
   },

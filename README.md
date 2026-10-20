@@ -1,6 +1,6 @@
-# Tatame — gestão da academia
+# TatameMix — gestão de academias de luta
 
-API Go, PostgreSQL e aplicativo React Native/Expo com portal web do aluno. Esta versão inclui alunos independentes de contas, modalidades, planos opcionais, geração mensal, Pix Asaas e presenças exclusivamente pelo tablet. A interface usa fundo escuro, verde-menta como cor principal e acentos em azul, âmbar e lavanda, com fontes Montserrat e Lato.
+API Go, PostgreSQL e aplicativo React Native/Expo com portal web do aluno. Esta versão inclui alunos independentes de contas, modalidades, planos opcionais, geração mensal, Pix Asaas e presenças pelo tablet ou lançadas pelo gestor. A identidade TatameMix usa preto, branco e vermelho, com tipografia Inter. Os fluxos da academia, do aluno e do tablet são compartilhados entre o aplicativo e a versão web.
 
 ## Começar com seu PostgreSQL local
 
@@ -18,6 +18,12 @@ go run compila e executa o pacote indicado. ./cmd/api contém main.go. Você exe
 A API e o seed carregam backend/.env quando iniciados na pasta backend. Variáveis já definidas no terminal têm prioridade sobre o arquivo. DATABASE_URL usa localhost:5432 para o PostgreSQL instalado no mesmo computador; HTTP_ADDR=:8080 permite acesso pela rede local. ALLOWED_ORIGINS=auto identifica as origens web locais do Expo ao iniciar a API. Em produção, configure as origens explicitamente. Deixe o terminal aberto enquanto a API estiver rodando; após atualizar o backend, pare e execute novamente.
 
 Antes da primeira execução desta versão em uma base existente, conserve o backup e siga [MIGRATION.md](docs/MIGRATION.md). A nova migração conserva históricos e não ativa cobranças para alunos antigos.
+
+## Controlar o PostgreSQL no Windows
+
+Neste computador, o PostgreSQL esta configurado com inicializacao Manual. Para controlar pelo proprio Windows, abra Servicos, encontre postgresql-x64-18 e use Iniciar ou Parar. A coluna Status mostra se o servico esta em execucao. Abrir ou fechar o pgAdmin nao liga nem desliga o banco.
+
+Antes de rodar o backend, inicie o PostgreSQL em Servicos. Ao terminar de usar o TatameMix, pare o servico se desejar. Os dados continuam salvos. Nao ha script adicional nem inicio automatico do servico pelo projeto.
 
 ## Rodar o frontend
 
@@ -37,6 +43,56 @@ Para iniciar com menos etapas no Windows, abra a pasta scripts e dê dois clique
 
 Para testar no navegador, use npx expo start --web. Após mudar uma configuração do frontend, faça um Reload completo no Expo Go; se o processo mantiver uma variável antiga, reinicie o Expo. Abra o projeto pelo QR/endereço atual, com celular e computador na mesma rede. A API e o Expo devem rodar ao mesmo tempo. npx expo run:android compila um aplicativo Android local; expo start é o comando para usar Expo Go.
 
+## Identidade única e participação nos treinos
+
+O e-mail fica somente em people, com unicidade e normalização de maiúsculas/espaços. users representa o login, academy_participants representa a participação na academia e students representa a matrícula opcional com modalidades e cobrança. Uma mesma pessoa pode ser gestor e aluno sem outro e-mail, CPF/QR ou histórico duplicado.
+
+Em Mais → Minha participação, o gestor informa o próprio CPF e consulta seu QR e presenças sem criar matrícula ou mensalidade. Se também quiser uma matrícula, Novo aluno → Usar minha própria conta reaproveita sua identidade. A participação sem matrícula não gera cobranças. No formulário de nova matrícula, a cobrança mensal começa marcada: revise valor e mês de início ou desmarque antes de concluir.
+
+Ao cadastrar outro aluno com e-mail já existente, confirme que é a mesma pessoa para reutilizar a identidade. Isso não libera acesso à academia: o titular precisa aceitar seu convite. Conta de e-mail diferente não aceita o convite. E-mail associado a login ou a mais de uma academia fica protegido contra edição pelo cadastro do aluno.
+
+A migração 008 exige revisão de coincidências antigas de e-mail antes de unir identidades. Ela recusa alterações ambíguas e reverte toda a transação. Consulte [MIGRATION.md](docs/MIGRATION.md) antes de iniciar esta versão sobre uma base antiga.
+
+## Baixa manual e desconto da mensalidade
+
+Em Financeiro, abra uma mensalidade e use Marcar como paga para registrar um recebimento em dinheiro, Pix recebido fora do app, cartão, transferência ou outro meio. Confira o valor e confirme; a observação é opcional. A baixa registra a data atual e o gestor, aparece para o aluno e atualiza o total recebido no painel. Não movimenta dinheiro.
+
+Aplicar desconto informa um abatimento em reais e o motivo somente para a cobrança aberta escolhida. O detalhe apresenta valor original, desconto e total a pagar. Editar desconto permite alterar ou remover o abatimento com valor 0. O desconto deve deixar um total positivo; não altera o plano, o contrato ou as próximas mensalidades.
+
+Somente gestores ativos da própria academia podem usar essas ações ou consultar o histórico de ajustes. Cobranças pagas/canceladas não aceitam alterações. Confirmações repetidas não duplicam o lançamento; uma tela com valor antigo exige atualização.
+
+Se houver Pix emitido, a API primeiro confere o Asaas e confirma o encerramento da cobrança pendente. Pagamento já confirmado impede a alteração manual. Falha ou emissão incerta mantém o valor e a situação locais; tente novamente após a conferência. Depois de um desconto, Pagar com Pix gera uma nova cobrança pelo total atualizado.
+
+A migração 009 é aplicada ao reiniciar a API e preserva as mensalidades anteriores. Conserve um backup da base antes de atualizar. A validação foi feita em bancos isolados; o banco principal deste computador não foi atualizado durante a implementação.
+
+## Marca e tela de acesso
+
+TatameMix é o nome adotado, seguindo a referência visual escolhida: símbolo T em branco e vermelho, assinatura TatameMix e tipografia Inter. A mudança preserva os cadastros e os fluxos existentes.
+
+O login e o cadastro mantêm formulário direto no celular e apresentação em duas colunas no computador. A identidade usa vermelho #E11D2E nos botões principais, fundo #0F0F10, painéis #18181B e texto #F8FAFC. Cores discretas identificam estados e modalidades; as faixas conservam suas cores. Os campos têm ícones, destaque de foco e mostrar/ocultar senha dentro do campo. Entrar é a ação principal; criar conta tem contorno e menor destaque. O formulário permite avançar pelo teclado e apresenta validação, carregamento e falhas sem descartar os campos.
+
+mobile/src/theme/brand.ts concentra nome e cores; mark.ts define o símbolo vetorial e Brand.tsx compartilha a assinatura nos cabeçalhos. As variações SVG ficam em mobile/assets/brand; o ícone, favicon e camadas do ícone adaptativo Android ficam em mobile/assets. O nome de exibição do Expo foi atualizado. Identificadores técnicos, esquema dos links, sessões salvas e QR Codes existentes continuam compatíveis.
+
+Recarregue o projeto no Expo Go para visualizar. A versão web pode ser exportada pelo comando já documentado; um APK anteriormente instalado precisa de uma nova compilação para receber as alterações.
+
+## Evolução, datas e mensalidades futuras
+
+A ficha do aluno separa Matrícula, Presenças, Evolução e Dados. Evolução mostra faixa/graus por modalidade, alterações com dia e gestor responsável, data do cadastro e dias ativos registrados. Inativar ou arquivar pausa a contagem; restaurar inicia outro período, conservando o acumulado. Alterações feitas pelo cadastro completo também entram no histórico, sem duplicar edições que mantêm a graduação.
+
+Cadastros anteriores à migração 010 conservam a graduação atual como ponto inicial, sem presumir a data da conquista. Sua data original de cadastro permanece visível; os períodos ativos passam a ser registrados a partir da atualização. O aplicativo não decide promoções automaticamente.
+
+A primeira mensalidade aparece imediatamente ao ativar a cobrança, mesmo que vença no dia 10 do mês seguinte. O vencimento escolhido é conservado. As seguintes são emitidas no início de cada mês; execuções repetidas não antecipam mais meses nem duplicam cobranças. O gerador também recupera cadastros antigos com primeira cobrança futura ainda não emitida.
+
+Cadastro e edição financeira usam seleção visual de mês e dia, com prévia do primeiro vencimento. O filtro do Financeiro oferece Todos, Este mês e Próximo mês, além do seletor de mês/ano. Na mensalidade, recebimento e link ficam numa barra compacta; o menu reúne desconto, Pix, histórico e cancelamento.
+
+## Entrada direta e academias
+
+O login é único, com e-mail e senha. A API informa os acessos da conta: com uma única opção, o gestor entra no painel e o aluno nas mensalidades. Quando houver dois perfis ou várias academias e nenhuma escolha anterior válida, a seleção acontece depois da autenticação.
+
+Quando houver mais de um acesso, a primeira entrada mostra uma seleção compacta. A última academia/perfil fica lembrada por conta neste aparelho (na web, por aba/sessão do navegador) e é conferida novamente com a API antes de restaurar. Recarregar uma seção conserva a academia; uma preferência antiga, bloqueada ou sem permissão não concede acesso.
+
+Trocar, no cabeçalho, abre Academias e perfis apenas quando solicitado. Outras unidades são cadastradas em Mais → Nova academia. Contas sem academia recebem orientação para abrir o convite de aluno e podem escolher cadastrar sua primeira academia. Os links de convite e pagamento mantêm seu destino após o login. /onboarding permanece como redirecionamento de compatibilidade, sem formulário ou etapa adicional.
+
 ## Navegação
 
 As seções principais formam uma navegação circular. Arraste para a direita para avançar: Início → Alunos → Financeiro → Turmas → Mais → Início. Arraste para a esquerda para percorrer o sentido contrário, inclusive de Início para Mais. O portal do aluno segue Mensalidades → Presenças → Meu código → Mensalidades.
@@ -47,29 +103,39 @@ Campos de texto e rolagem vertical não trocam a seção. Cadastros e mensalidad
 
 ## Visual e atalhos
 
-Os cards do início são clicáveis por toda a sua área: alunos ativos abrem Alunos; valores recebidos e em aberto abrem Financeiro; presenças e gráfico abrem o histórico da academia; aulas abertas levam à lista da aula. O card Novo aluno inicia o cadastro por etapas.
+Os cards do início são clicáveis por toda a sua área: alunos ativos abrem Alunos; valores recebidos e em aberto abrem Financeiro; presenças e gráfico abrem o histórico da academia; as aulas da agenda de hoje levam à lista de presenças. O card Novo aluno inicia o cadastro por etapas.
 
-A navegação inferior acompanha a cor de cada seção. Situações financeiras e de dispositivos usam texto e cores; os filtros de competência/aluno ficam no botão de filtros do Financeiro. A versão web permite ativar os cards pelo teclado; as páginas vizinhas do carrossel ficam fora da ordem de Tab.
+A navegação inferior acompanha a cor de cada seção. Situações financeiras e de dispositivos usam texto e cores; os filtros de mês/aluno ficam no botão de filtros do Financeiro. A versão web permite ativar os cards pelo teclado; as páginas vizinhas do carrossel ficam fora da ordem de Tab.
 
 ## Fluxo do gestor e do aluno
 
-1. Crie uma conta e uma academia, ou entre na academia já cadastrada.
+1. Entre com e-mail e senha. Seu acesso é identificado automaticamente; havendo vários, escolha após o login ou retome a última seleção válida. Contas novas podem abrir o convite da academia ou escolher Cadastrar minha academia. Outras unidades ficam em Mais → Nova academia.
 2. Em Alunos → Novo aluno, avance por Identificação, Modalidades, Mensalidade e Revisão. Nome, CPF do próprio aluno, data de nascimento, e-mail, celular e telefone alternativo ficam na primeira etapa; a faixa e seus graus são escolhidos visualmente para cada modalidade. Para menores de 18 anos, há uma etapa adicional de Responsável financeiro antes da revisão. Adultos usam o próprio nome e CPF para pagar.
-3. Escolha cobrança por modalidades ou por plano. Por modalidades, os valores individuais são somados em uma mensalidade; por plano, o pacote preenche as modalidades incluídas e o valor combinado. Configure vencimento e competência; para menores, informe também o responsável financeiro. A gravação ocorre somente na confirmação da revisão. A primeira cobrança é gerada ao ativar e as seguintes no início de cada mês, enquanto a API estiver funcionando.
+3. Escolha cobrança por modalidades ou por plano. Por modalidades, os valores individuais são somados em uma mensalidade; por plano, o pacote preenche as modalidades incluídas e o valor combinado. A cobrança mensal já vem marcada no novo cadastro e pode ser desmarcada. Escolha o dia do vencimento e o mês de início da cobrança nos seletores; para menores, informe também o responsável financeiro. A gravação ocorre somente na confirmação da revisão. A primeira cobrança é gerada ao ativar e as seguintes no início de cada mês, enquanto a API estiver funcionando.
 4. Gere o convite e envie o link ao aluno pelo canal de sua escolha. O convite dura sete dias e é aceito uma única vez.
-5. O aluno abre o link no navegador, cria uma conta ou faz login e aceita. Seu portal mostra somente suas mensalidades, presenças e CPF/QR de identificação.
+5. O aluno abre o link no navegador, cria uma conta ou faz login com o e-mail convidado, confere seu nome e a academia e confirma o vínculo. O token determina a academia e o aluno; nem o navegador nem outra conta podem escolher outro cadastro. Se o CPF estiver ausente, poderá preenchê-lo nessa confirmação. Um CPF já cadastrado só pode ser corrigido pelo gestor. Seu portal mostra somente suas mensalidades, presenças e CPF/QR de identificação.
 6. Após configurar o Asaas, o aluno abre a mensalidade e usa Pix. A confirmação depende de consulta ao provedor, webhook e reconciliação.
-7. Em Turmas → Nova turma, escolha a modalidade, marque vários dias e informe todos os horários separados por vírgula. Professor vinculado é opcional. O gestor abre o horário correspondente ao dia e encerra a aula.
-8. No aparelho da recepção, entre como gestor e abra Mais → Check-in da academia → Preparar este aparelho. Confira o nome e confirme a ativação; este aparelho troca a gestão pela tela de check-in. Selecione a aula aberta e leia o QR ou digite o CPF do aluno. O código anterior continua disponível para cadastros legados.
+7. Em Turmas → Nova turma, escolha a modalidade, marque vários dias e informe todos os horários separados por vírgula. Professor vinculado é opcional. A grade semanal libera automaticamente o check-in: não é necessário abrir ou encerrar aulas.
+8. No aparelho da recepção, entre como gestor e abra Mais → Check-in da academia → Preparar este aparelho. Confira o nome e confirme a ativação; este aparelho troca a gestão pela tela de check-in. O tablet identifica a aula pelo horário. Se houver mais de uma opção, o aluno escolhe; depois, lê o QR ou digita o CPF. O código anterior continua disponível para cadastros legados.
 9. Confira a presença no tablet, na lista da aula e no histórico do aluno. Débito financeiro não bloqueia treino automaticamente.
 
-Inativar um aluno interrompe futuras mensalidades e check-ins. Históricos e débitos permanecem. Para retomar a cobrança, indique a competência atual ou futura. Dias 29, 30 e 31 são limitados ao último dia disponível do mês.
+Inativar um aluno interrompe futuras mensalidades e check-ins. Históricos e débitos permanecem. Para retomar a cobrança, indique o mês atual ou um mês futuro como início da cobrança. Dias 29, 30 e 31 são limitados ao último dia disponível do mês.
+
+## Presença por horário e lançamento pelo gestor
+
+O tablet usa o dia e horário do servidor no fuso da academia. O check-in fica disponível de 15 minutos antes do início até o fim da aula. Uma aula na janela é identificada automaticamente; se houver sobreposição, a tela pede a escolha e a API recusa selecionar arbitrariamente. Fora da janela, a tela orienta conferir a grade em Turmas. Aulas que atravessam meia-noite são reconhecidas.
+
+A ocorrência da aula é criada junto com a primeira presença, na mesma transação; nenhum processo de abertura manual é necessário. Turmas pausadas/excluídas, horários removidos, aulas canceladas e dispositivos revogados são recusados. Reenvios usam a mesma chave e duas tentativas para a mesma pessoa/aula retornam a presença já existente.
+
+O gestor pode usar Alunos → aluno → Presenças → Lançar presença, Presenças da academia ou a lista da aula. Escolhe a data em que o aluno treinou e o horário da grade. O lançamento aceita a data atual ou passada e permite completar uma aula encerrada; aula futura, cancelada e aluno inativo/arquivado são recusados. Uma presença já registrada pelo tablet não é duplicada nem troca de origem.
+
+O histórico mostra a origem (gestor/tablet), a data da aula e o momento real do registro. Filtros mensais e dashboard usam o dia do treino, para um lançamento retroativo não aumentar a frequência de hoje. A versão 2.9 não adiciona migração ao banco; clientes antigos mantêm o endpoint legado de aula explícita, enquanto o aplicativo atual usa check-in por horário.
 
 ## CPF, arquivamento e exclusão de turmas
 
-O CPF do próprio aluno é obrigatório para novos cadastros, validado e único dentro de cada academia, inclusive entre arquivados. Ele não é copiado do CPF/CNPJ do pagador. Alunos antigos ficam com CPF pendente até o gestor preencher na edição; seus QR Codes e códigos anteriores permanecem válidos. No tablet, a opção principal é CPF, com QR disponível. A confirmação depende da resposta da API.
+O CPF do próprio aluno é obrigatório para novos cadastros, validado e único dentro de cada academia, inclusive entre arquivados. Ele não é copiado do CPF/CNPJ do pagador. Alunos antigos ficam com CPF pendente até o gestor preencher na edição ou o próprio aluno completar ao aceitar seu convite; seus QR Codes e códigos anteriores permanecem válidos. No tablet, a opção principal é CPF, com QR disponível. A confirmação depende da resposta da API.
 
-Em Alunos, use Arquivar aluno para retirar o cadastro da lista principal, interromper novas cobranças e bloquear check-ins. CPF, QR, graduações, presenças e débitos permanecem. A aba Arquivados permite restaurar o mesmo cadastro. A busca por CPF completo sem filtro de situação também encontra arquivados. O tablet pede que o gestor restaure o aluno; ele não restaura automaticamente. Restaurar libera presença e mantém cobrança desativada até o gestor revisar a competência e ativá-la.
+Em Alunos, use Arquivar aluno para retirar o cadastro da lista principal, interromper novas cobranças e bloquear check-ins. CPF, QR, graduações, presenças e débitos permanecem. A aba Arquivados permite restaurar o mesmo cadastro. A busca por CPF completo sem filtro de situação também encontra arquivados. O tablet pede que o gestor restaure o aluno; ele não restaura automaticamente. Restaurar libera presença e mantém cobrança desativada até o gestor revisar o mês de início e ativá-la.
 
 Em Turmas, Excluir turma pede confirmação, retira a turma da operação e cancela suas aulas abertas. A exclusão é lógica: histórico e presenças antigos continuam consultáveis. A turma não aceita novos horários, aulas ou check-ins.
 
@@ -107,9 +173,9 @@ Alterar modalidades ou plano abre o cadastro na etapa correspondente, com revis�
 
 Mais → Check-in da academia explica o funcionamento e lista os acessos autorizados e encerrados, com nome e data de ativação. Autorizado significa permissão para registrar presença; não indica conexão em tempo real.
 
-Para preparar a recepção, faça login como gestor no próprio aparelho que ficará para os alunos. Escolha Preparar este aparelho, dê um nome e confirme. Esse aplicativo ou aba passa a exibir somente check-in por CPF/QR; o aluno não precisa entrar na conta do gestor. Para voltar à gestão, use Encerrar check-in e sair e faça login novamente.
+Para preparar a recepção, faça login como gestor no próprio aparelho que ficará para os alunos. Escolha Preparar este aparelho, dê um nome e confirme. Esse aplicativo ou aba passa a exibir somente check-in por CPF/QR; o aluno não precisa entrar na conta do gestor. A tela concentra CPF e QR Code em um painel; a aula é identificada automaticamente quando há apenas uma opção. Opções do check-in (ícone de três pontos) reúne atualização dos horários, uso do código antigo e encerramento. Para voltar à gestão, abra esse menu, escolha Encerrar check-in, confirme Encerrar e sair e faça login novamente.
 
-Encerrar check-in e sair desautoriza somente esse acesso no servidor e apaga a sessão local. Se o servidor estiver indisponível, a tela permite tentar novamente sem afirmar que encerrou. O gestor também pode encerrar um acesso remotamente pela lista, com confirmação. Presenças registradas são mantidas.
+Encerrar e sair desautoriza somente esse acesso no servidor e apaga a sessão local. Se o servidor estiver indisponível, a tela permite tentar novamente sem afirmar que encerrou. O gestor também pode encerrar um acesso remotamente pela lista, com confirmação. Presenças registradas são mantidas.
 
 No navegador, use uma aba dedicada: fechar a aba pode exigir nova ativação e deixar um acesso anterior na lista. Encerre os acessos antigos que não serão mais usados. A autorização é do acesso do aplicativo/aba; ela não identifica o equipamento físico.
 
@@ -164,6 +230,20 @@ Alternativa com conta Expo: npx eas-cli build --platform android --profile previ
 
 No backend, go test ./... e go vet ./.... TEST_DATABASE_URL habilita os testes com um banco PostgreSQL exclusivo de testes. MIGRATION_DATABASE_URL deve apontar para uma base nova e vazia para testar a conversão desde a versão 001. Nunca use seu banco principal para esses testes.
 
-No mobile, npm run typecheck, npm run lint e npm run export:web. O laboratório offline permanece separado em tools/offline-lab.
+No mobile, npm run typecheck, npm run lint, npm run test:access e npm run export:web. Os testes de acesso verificam seleção automática, perfil escolhido, múltiplas academias e preferências sem permissão. O laboratório offline permanece separado em tools/offline-lab.
 
 Cartão, boleto, débito automático, contratos, WhatsApp automático, área de professor, offline, iOS e publicação nas lojas continuam fora desta versão.
+
+## Início do aluno na academia
+
+O cadastro de aluno inclui Data de início na academia, preenchida com hoje por padrão e ajustável para uma data anterior. Em Evolução, o ícone de edição em Tempo na academia permite corrigir essa data. O período desde a entrada aparece em anos, meses ou dias; a criação do cadastro no aplicativo continua identificada separadamente.
+
+A atividade acompanhada continua somando somente períodos registrados, excluindo pausas. Informar uma data antiga não reconstitui presenças, conquistas de graduação nem mensalidades. Datas inválidas, futuras e anteriores ao nascimento são recusadas. A edição é exclusiva do gestor; cadastros arquivados precisam ser restaurados.
+
+Reinicie a API para aplicar a migração 011 e recarregue o aplicativo. O esquema e os dados foram validados em bases isoladas; o banco principal não foi alterado durante a implementação.
+
+## Exemplos na academia existente
+
+backend/cmd/demo é uma ferramenta local que consulta as academias e, com -apply, cria um conjunto fictício na academia indicada por -academy. Exige um novo arquivo -backup e o caminho do pg_dump quando ele não estiver no PATH. O backup é salvo antes da transação. O comando sem -apply apenas consulta dados; não migra o banco, cria outra academia nem chama serviços bancários.
+
+O conjunto inclui 18 alunos identificados com Demo •, contatos em example.test, documentos sintéticos, responsáveis de menores, planos Essencial/Combinado, mensalidades locais de quatro meses, descontos e recebimentos manuais fictícios, evolução e presenças nos horários existentes. Conserva as turmas e preços do catálogo. Repetições preservam os exemplos já encontrados e não duplicam registros; confira sempre a academia e utilize somente bancos de demonstração.

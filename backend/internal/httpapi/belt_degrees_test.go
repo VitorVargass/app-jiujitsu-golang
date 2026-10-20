@@ -38,9 +38,10 @@ func TestBeltDegreesPersistValidateAndAppearInAttendance(t *testing.T) {
 		ids[m["name"].(string)] = m["id"].(string)
 	}
 	jj, ng := ids["Jiu-Jitsu"], ids["No-Gi"]
+	studentEmail := core.ID() + "@degrees.test"
 	body := func(j, n any) map[string]any {
 		return map[string]any{
-			"birth_date": "2012-04-12", "cpf": testCPF(), "name": "Aluno com graus", "status": "active", "charge_mode": "modalities", "modality_ids": []string{jj, ng},
+			"birth_date": "2012-04-12", "cpf": testCPF(), "name": "Aluno com graus", "email": studentEmail, "status": "active", "charge_mode": "modalities", "modality_ids": []string{jj, ng},
 			"modality_details": []any{
 				map[string]any{"modality_id": jj, "belt": "Faixa Branca", "degrees": j, "amount_cents": 0},
 				map[string]any{"modality_id": ng, "belt": "Faixa Azul", "degrees": n, "amount_cents": 0},
@@ -65,7 +66,7 @@ func TestBeltDegreesPersistValidateAndAppearInAttendance(t *testing.T) {
 		t.Fatal("reload lost degrees", got)
 	}
 
-	studentLogin := base.ok("POST", "/v1/auth/register", map[string]string{"name": "Aluno Graus", "email": core.ID() + "@degrees.test", "password": "Tatame123!"})
+	studentLogin := base.ok("POST", "/v1/auth/register", map[string]string{"name": "Aluno Graus", "email": s["email"].(string), "password": "Tatame123!"})
 	student := client{t: t, url: server.URL, token: studentLogin["token"].(string)}
 	invite := admin.ok("POST", prefix+"/students/"+sid+"/invitations", nil)
 	student.ok("POST", "/v1/invitations/"+invite["token"].(string)+"/accept", nil)

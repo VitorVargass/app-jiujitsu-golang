@@ -35,19 +35,30 @@ func (r Repository) Principal(ctx context.Context, token string) (core.Principal
 	return p, nil
 }
 
-func (r Repository) CreateUser(ctx context.Context, u User, hash string) error {
-	_, err := r.DB.Exec(ctx, "INSERT INTO users(id,name,email,password_hash) VALUES($1,$2,$3,$4)", u.ID, u.Name, u.Email, hash)
-	return err
+func (r Repository) CreateUser(ctx context.Context, u *User, hash string) error {
+	tx, err := r.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	err = tx.QueryRow(ctx, "INSERT INTO people(id,email) VALUES($1,$2) ON CONFLICT(email) DO UPDATE SET email=EXCLUDED.email RETURNING id", core.ID(), u.Email).Scan(&u.PersonID)
+	if err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, "INSERT INTO users(id,person_id,name,password_hash) VALUES($1,$2,$3,$4)", u.ID, u.PersonID, u.Name, hash); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 func (r Repository) UserByEmail(ctx context.Context, email string) (User, string, error) {
 	var u User
 	var hash string
-	err := r.DB.QueryRow(ctx, "SELECT id,name,email,password_hash FROM users WHERE email=$1", email).Scan(&u.ID, &u.Name, &u.Email, &hash)
+	err := r.DB.QueryRow(ctx, "SELECT u.id,u.name,p.email,u.password_hash,u.person_id FROM users u JOIN people p ON p.id=u.person_id WHERE p.email=$1", email).Scan(&u.ID, &u.Name, &u.Email, &hash, &u.PersonID)
 	return u, hash, err
 }
 func (r Repository) User(ctx context.Context, id string) (User, error) {
 	var u User
-	err := r.DB.QueryRow(ctx, "SELECT id,name,email FROM users WHERE id=$1", id).Scan(&u.ID, &u.Name, &u.Email)
+	err := r.DB.QueryRow(ctx, "SELECT u.id,u.name,p.email,u.person_id FROM users u JOIN people p ON p.id=u.person_id WHERE u.id=$1", id).Scan(&u.ID, &u.Name, &u.Email, &u.PersonID)
 	return u, err
 }
 func (r Repository) Logout(ctx context.Context, token string) error {

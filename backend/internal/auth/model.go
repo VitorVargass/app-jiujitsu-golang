@@ -1,9 +1,10 @@
 package auth
 
 type User struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	PersonID string `json:"person_id"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
 }
 type Credentials struct {
 	Name     string `json:"name"`

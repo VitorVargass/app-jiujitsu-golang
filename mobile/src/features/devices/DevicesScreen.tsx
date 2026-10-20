@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { brand } from "../../theme/brand";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -92,8 +93,8 @@ function Content() {
           </View>
         </View>
         <Label>
-          O modo check-in mostra as aulas abertas e confirma a presença dos
-          alunos. O aparelho fica sem acesso à gestão e ao financeiro.
+          O modo check-in identifica as aulas pela agenda e confirma a presença
+          dos alunos. O aparelho fica sem acesso à gestão e ao financeiro.
         </Label>
         <Pressable
           accessibilityRole="button"
@@ -108,7 +109,7 @@ function Content() {
         >
           <Text
             style={{
-              fontFamily: "Lato_700Bold",
+              fontFamily: "Inter_600SemiBold",
               fontSize: 13,
               color: accents.amber.color,
             }}
@@ -120,9 +121,11 @@ function Content() {
         {help ? (
           <View style={s.steps}>
             {[
-              "No aparelho da recepção, abra o Tatame e entre como gestor.",
+              "No aparelho da recepção, abra o " +
+                brand.name +
+                " e entre como gestor.",
               "Nesta tela, toque em Preparar este aparelho e dê um nome a ele.",
-              "Ative o check-in e selecione a aula. Os alunos já podem registrar presença.",
+              "Ative o check-in. A aula será identificada pelo horário; se houver mais de uma, o aluno escolhe.",
             ].map((text, i) => (
               <View key={text} style={s.step}>
                 <Text style={s.number}>{i + 1}</Text>
@@ -329,13 +332,13 @@ const s = StyleSheet.create({
     borderRadius: 13,
     backgroundColor: accents.amber.soft,
     color: accents.amber.color,
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 12,
   },
   stepText: {
     flex: 1,
     color: colors.text,
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     fontSize: 13,
     lineHeight: 21,
   },
@@ -352,7 +355,11 @@ const s = StyleSheet.create({
     borderBottomColor: "transparent",
   },
   selected: { borderBottomColor: accents.amber.color },
-  tabText: { fontFamily: "Lato_700Bold", fontSize: 13, color: colors.muted },
+  tabText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    color: colors.muted,
+  },
   list: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -362,9 +369,13 @@ const s = StyleSheet.create({
   },
   device: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16 },
   divider: { borderTopWidth: 1, borderTopColor: colors.borderSubtle },
-  deviceName: { fontFamily: "Lato_700Bold", fontSize: 14, color: colors.text },
+  deviceName: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: colors.text,
+  },
   date: {
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     fontSize: 11,
     color: colors.muted,
     lineHeight: 17,

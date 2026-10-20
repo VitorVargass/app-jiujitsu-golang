@@ -23,8 +23,8 @@ func (s Service) Register(ctx context.Context, c Credentials) (LoginResult, erro
 	if e != nil {
 		return LoginResult{}, e
 	}
-	u := User{core.ID(), c.Name, c.Email}
-	e = s.Repo.CreateUser(ctx, u, string(hash))
+	u := User{ID: core.ID(), Name: c.Name, Email: c.Email}
+	e = s.Repo.CreateUser(ctx, &u, string(hash))
 	if e != nil {
 		var pe *pgconn.PgError
 		if errors.As(e, &pe) && pe.Code == "23505" {

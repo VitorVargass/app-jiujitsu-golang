@@ -1,4 +1,7 @@
+import { MonthPicker, DueDayPicker } from "../../components/BillingDatePicker";
+import { dueDateLabel } from "../../types/month";
 import { useState } from "react";
+import { BillingToggle } from "./BillingToggle";
 import { View } from "react-native";
 import { useMutation } from "@tanstack/react-query";
 import { EditorDialog } from "../../components/EditorDialog";
@@ -212,7 +215,7 @@ export function StudentSectionEditor({
           if (!/^\d+$/.test(day) || Number(day) < 1 || Number(day) > 31)
             throw new Error("O vencimento deve ser um dia de 1 a 31.");
           if (!/^(20[2-9]\d|2100)-(0[1-9]|1[0-2])$/.test(month))
-            throw new Error("Informe a competência no formato YYYY-MM.");
+            throw new Error("Informe o mês no formato AAAA-MM (ex.: 2026-11).");
           if (enabled && !student.billing?.enabled && month < monthNow())
             throw new Error("A cobrança deve começar no mês atual ou futuro.");
           if (enabled && latest.status !== "active")
@@ -364,8 +367,13 @@ export function StudentSectionEditor({
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
-            editable={!save.isPending}
+            editable={!save.isPending && !student.email_locked}
           />
+          {student.email_locked ? (
+            <Label muted>
+              E-mail da identidade: sua alteração não é feita pela matrícula.
+            </Label>
+          ) : null}
           <Field
             label="Celular"
             value={phone}
@@ -452,49 +460,41 @@ export function StudentSectionEditor({
             />
           )}
           <Heading>{totalLabel} por mês</Heading>
-          <Row>
-            <Chip
-              selected={enabled}
-              onPress={
-                save.isPending || student.status !== "active"
-                  ? undefined
-                  : () => {
-                      setEnabled(!enabled);
-                      if (
-                        !enabled &&
-                        !student.billing?.enabled &&
-                        month < monthNow()
-                      )
-                        setMonth(monthNow());
-                    }
-              }
-            >
-              {enabled
-                ? "Cobrança automática ativa"
-                : "Ativar cobrança automática"}
-            </Chip>
-          </Row>
+          <BillingToggle
+            enabled={enabled}
+            disabled={save.isPending || student.status !== "active"}
+            onChange={(next) => {
+              setEnabled(next);
+              if (next && !student.billing?.enabled && month < monthNow())
+                setMonth(monthNow());
+            }}
+          />
           {student.status !== "active" ? (
             <Label muted>Reative o aluno para habilitar a cobrança.</Label>
           ) : null}
           <View style={{ gap: 16 }}>
-            <Field
-              label="Dia do vencimento (1 a 31)"
+            <DueDayPicker
               value={day}
-              onChangeText={setDay}
-              keyboardType="number-pad"
-              editable={!save.isPending}
+              onChange={setDay}
+              disabled={save.isPending}
             />
-            <Field
+            <MonthPicker
               label={
-                student.billing?.enabled
-                  ? "Próxima competência (YYYY-MM)"
-                  : "Primeira competência (YYYY-MM)"
+                student?.billing?.enabled
+                  ? "Próxima emissão"
+                  : "Começar a cobrança em"
               }
               value={month}
-              onChangeText={setMonth}
-              editable={!save.isPending && !student.billing?.enabled}
+              onChange={setMonth}
+              disabled={save.isPending || !!student?.billing?.enabled}
+              min={!student?.billing?.enabled ? monthNow() : ""}
             />
+            <Label muted>
+              {student?.billing?.enabled
+                ? "Próxima emissão prevista: "
+                : "Primeiro vencimento: "}
+              {dueDateLabel(month, Number(day))}
+            </Label>
           </View>
           <Label muted>
             Mensalidades já emitidas mantêm seus valores e vencimentos.

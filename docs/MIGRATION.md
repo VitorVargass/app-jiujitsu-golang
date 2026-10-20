@@ -1,5 +1,25 @@
 # Migração para gestão e mensalidades
 
+## 008 — Identidade única e participação sem matrícula
+
+A 008 cria people, a única tabela com e-mail, e academy_participants para a relação pessoa/academia. users passa a referenciar person_id e continua representando autenticação. students conserva matrícula/modalidades/financeiro e aponta para a participação. CPF, código e QR saem de students e ficam na participação; os valores e o ID usado pelas presenças antigas são preservados.
+
+attendances.membership_id passa a se chamar participant_id e referencia academy_participants. IDs de usuários, hashes de senha, sessões de autenticação, matrículas, aulas, presenças, contratos e mensalidades emitidas são mantidos. Resultados idempotentes antigos não são reescritos. Novos participantes de gestores não criam matrícula, plano, configuração de cobrança ou dívidas.
+
+Contas e matrículas já explicitamente vinculadas compartilham a pessoa. A migração interrompe e reverte integralmente se houver e-mail conflitante na conta vinculada, logins com e-mails equivalentes ou matrícula não vinculada com e-mail já existente. Não se presume que duas pessoas sejam a mesma por coincidência de e-mail.
+
+Para um conflito realmente confirmado, IDENTITY_MERGE_APPROVALS aceita um objeto JSON de student_id para user_id, somente durante aquela execução de migração. Cada associação exige o mesmo e-mail normalizado dos registros. Use apenas IDs revisados e retire a variável após a atualização; não mantenha aprovações no arquivo de configuração ou no Git. Pessoas distintas precisam ter o e-mail próprio corrigido ou removido do contato antes de migrar; nunca vincule contas por suposição.
+
+Backup inicial: artifacts/backups/tatame-before-identity-20261019-134853.dump. A migração foi testada desde um banco vazio, desde o esquema 001, no cenário de conflito que deve reverter para 007 e em cópia restaurada no PostgreSQL 18. A primeira simulação reuniu os dois casos para conferir a estrutura; a validação final restaurou um novo backup e aplicou somente o vínculo próprio já revisado, deixando o contato conflitante do outro aluno sem e-mail.
+
+Ativada no banco local em 19 de outubro de 2026, após o usuário esclarecer que os registros conflitantes eram exemplos e reforçar a unicidade global do e-mail. O e-mail permaneceu na conta “Vitor Secundario”; o contato do aluno “Vitinho” foi deixado vazio, sem associar as duas pessoas. Cadastro, CPF/QR, histórico e cobranças foram preservados. A conta do próprio gestor reutilizou sua identidade conforme o vínculo previamente revisado.
+
+Novo backup imediatamente anterior: artifacts/backups/tatame-before-identity-activation-20261019-144606.dump. A correção pontual e a migração passaram primeiro na cópia restaurada. No banco principal, 19 projeções dos dados foram comparadas antes/depois: todas iguais, considerando a correção explícita daquele contato e a reorganização dos campos. Verificadas versão 008, uma única coluna email e nenhuma duplicação em people. API 2.7.0 e portal responderam HTTP 200; uma nova comparação após a inicialização conservou as 19 projeções. O executável anterior está preservado em artifacts/backups/tatame-api-before-identity-activation.exe.
+
+Antes de ativar, refaça o backup, valide as associações na cópia e só então inicie a nova API com as aprovações revisadas. A migração é progressiva; Down recusa separar identidades e presenças. Para voltar, restaure o backup em outro banco com o executável antigo.
+
+## Histórico das migrações anteriores
+
 A migração 002 conserva usuários, academias, turmas, aulas, presenças e eventos idempotentes. Cria students a partir dos vínculos de aluno existentes, usando o mesmo ID, código numérico, QR e situação. A coluna legada attendances.membership_id passa a referenciar students; o nome da coluna é mantido para preservar registros e clientes anteriores.
 
 Alunos migrados não recebem configuração financeira. Portanto, não são geradas cobranças retroativas. O gestor deve revisar valor, dia, data de nascimento, responsável quando menor e competência inicial antes de ativar cobranças. Cadastros novos não exigem uma conta de usuário; o vínculo pessoal vem pelo convite individual.
@@ -58,3 +78,21 @@ A idade usa a data local da academia. Antes dos 18 anos, cobrança ativa exige n
 O backup artifacts/backups/tatame-before-enrollment-20261015-182849.dump foi restaurado num PostgreSQL 18 isolado. A migração passou na cópia, comparando os dados anteriores de 13 tabelas e as datas existentes, além do teste desde a versão 001.
 
 Ativada em 15 de outubro de 2026 após novo backup em artifacts/backups/tatame-before-enrollment-activation-20261015-183138.dump. Todos os dados anteriores de 15 tabelas permaneceram iguais; somente birth_date foi excluída da assinatura de students. API 2.6.0 saudável em localhost e na rede. O Down exige restauração de backup para preservar as datas cadastradas.
+
+## 009 — Desconto pontual e recebimento manual
+
+Acrescenta discount_cents, discount_reason e payment_method às mensalidades, mantendo valor, situação, vencimento e data de pagamento anteriores. Cobranças bancárias já recebidas ficam identificadas como asaas_pix; outros pagamentos legados não recebem uma origem presumida. pix_charges recebe uma cópia do valor originalmente emitido. invoice_adjustments armazena autoria e histórico apenas para novas ações; a migração não inventa lançamentos nem ativa cobranças.
+
+Testada desde uma base vazia, desde a versão 001 com dados legados e desde a 008 com mensalidades abertas/pagas e Pix emitidos. O teste específico compara todos os campos anteriores das mensalidades e os valores preservados das cobranças. Uma cópia isolada da interface também foi atualizada de 008 para 009. O banco principal não foi alterado nesta entrega. Antes de iniciar a nova API sobre sua base, conserve um backup; a migração é automática no início. Down exige restaurar backup para conservar a auditoria.
+## 010 — Evolução e períodos ativos
+
+Cria histórico de faixa/graus por aluno/modalidade e intervalos de atividade, sem alterar graduações atuais, contratos, mensalidades, contas ou presenças. Cadastros existentes recebem uma graduação de referência (baseline), com data da conquista desconhecida. Sua data original de criação é conservada. Os períodos ativos começam na atualização: não são presumidas pausas nem atividades passadas.
+
+Novos cadastros e alterações são capturados por triggers transacionais. Edições repetidas não geram conquistas falsas; arquivamento e inativação encerram o período ativo, e retorno abre um novo período. Exclusão de modalidade conserva o histórico. Down exige restauração de backup para preservar a trilha.
+
+A migração passou desde a 001 e numa cópia isolada da versão 009. O teste de atualização desde 008 conserva todos os campos anteriores das mensalidades e seus Pix, mantém faixa/graus atuais e a data original de cadastro, e verifica que não foram inventadas datas de conquista ou períodos ativos antigos. O banco principal permanece sem alteração durante a implementação; a API aplica 010 ao reiniciar. Conserve o backup antes de atualizar a base.
+## Migração 011 — início informado do aluno
+
+Adiciona started_on em students sem alterar created_at. Os cadastros existentes recebem a data de criação convertida para o fuso da academia; o gestor pode corrigi-la em Evolução. Dados financeiros, graduações, períodos ativos e presenças são preservados. Importações que omitem started_on usam a data local de created_at. Nenhuma cobrança é retroagida a partir dessa data.
+
+Foi criado backup da base de validação e uma cópia do esquema 010 foi migrada isoladamente. Testes cobrem virada de dia no fuso da academia, preservação dos dados e execuções repetidas. A alteração é aplicada pelo Goose ao reiniciar a API atualizada; conserve um backup do banco antes de atualizar sua instalação.

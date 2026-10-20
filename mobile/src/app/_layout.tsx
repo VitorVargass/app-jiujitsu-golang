@@ -1,4 +1,6 @@
 import { Stack } from "expo-router";
+import Head from "expo-router/head";
+import { brand } from "../theme/brand";
 import { StatusBar } from "expo-status-bar";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -6,15 +8,17 @@ import { useFonts } from "expo-font";
 import { SessionProvider, queryClient } from "../services/session";
 import { Page, Loading } from "../components/ui";
 const fonts = {
-  Montserrat_600SemiBold: require("@expo-google-fonts/montserrat/600SemiBold/Montserrat_600SemiBold.ttf"),
-  Montserrat_700Bold: require("@expo-google-fonts/montserrat/700Bold/Montserrat_700Bold.ttf"),
-  Lato_400Regular: require("@expo-google-fonts/lato/400Regular/Lato_400Regular.ttf"),
-  Lato_700Bold: require("@expo-google-fonts/lato/700Bold/Lato_700Bold.ttf"),
+  Inter_400Regular: require("@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf"),
+  Inter_600SemiBold: require("@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf"),
+  Inter_700Bold: require("@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf"),
 };
 export default function Layout() {
   const [loaded, error] = useFonts(fonts);
   return (
     <SafeAreaProvider>
+      <Head>
+        <title>{brand.name}</title>
+      </Head>
       {!loaded && !error ? (
         <Page>
           <Loading />
@@ -28,7 +32,7 @@ export default function Layout() {
                 headerShown: false,
                 gestureEnabled: false,
                 animation: "none",
-                contentStyle: { backgroundColor: "#080808" },
+                contentStyle: { backgroundColor: "#0F0F10" },
               }}
             />
           </SessionProvider>

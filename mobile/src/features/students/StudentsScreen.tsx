@@ -287,8 +287,12 @@ const listStyles = StyleSheet.create({
     borderBottomColor: "transparent",
   },
   statusSelected: { borderBottomColor: colors.primary },
-  statusText: { fontFamily: "Lato_700Bold", fontSize: 14, color: colors.muted },
-  count: { fontFamily: "Lato_400Regular", fontSize: 12, color: colors.muted },
+  statusText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: colors.muted,
+  },
+  count: { fontFamily: "Inter_400Regular", fontSize: 12, color: colors.muted },
   list: {
     borderRadius: 18,
     borderWidth: 1,
@@ -306,10 +310,14 @@ const listStyles = StyleSheet.create({
   },
   rowDivider: { borderTopWidth: 1, borderTopColor: colors.borderSubtle },
   studentInfo: { flex: 1, minWidth: 0, gap: 4 },
-  studentName: { color: colors.text, fontFamily: "Lato_700Bold", fontSize: 15 },
+  studentName: {
+    color: colors.text,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+  },
   studentMeta: {
     color: colors.muted,
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     fontSize: 11,
     lineHeight: 15,
   },
@@ -321,7 +329,11 @@ const listStyles = StyleSheet.create({
     backgroundColor: colors.success,
   },
   amount: { alignItems: "flex-end", gap: 3, maxWidth: 90 },
-  amountText: { fontFamily: "Lato_700Bold", color: colors.text, fontSize: 12 },
+  amountText: {
+    fontFamily: "Inter_600SemiBold",
+    color: colors.text,
+    fontSize: 12,
+  },
   filterSummary: {
     flexDirection: "row",
     alignItems: "center",
@@ -333,7 +345,7 @@ const listStyles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   filterText: {
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     color: colors.muted,
     fontSize: 12,
   },

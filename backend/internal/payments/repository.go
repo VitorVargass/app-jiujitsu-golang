@@ -13,14 +13,15 @@ import (
 type Repository struct{ DB *pgxpool.Pool }
 type Charge struct {
 	ID, AcademyID, InvoiceID, Reference, ProviderID, CustomerID, State, ProviderStatus, Payload string
+	AmountCents                                                                                 int64
 	ExpiresAt                                                                                   *time.Time
 }
 
-const chargeColumns = "id,academy_id,invoice_id,reference,COALESCE(provider_id,''),COALESCE(customer_id,''),state,provider_status,payload,expires_at"
+const chargeColumns = "id,academy_id,invoice_id,reference,COALESCE(provider_id,''),COALESCE(customer_id,''),state,provider_status,payload,expires_at,amount_cents"
 
 func scanCharge(row pgx.Row) (Charge, error) {
 	var c Charge
-	e := row.Scan(&c.ID, &c.AcademyID, &c.InvoiceID, &c.Reference, &c.ProviderID, &c.CustomerID, &c.State, &c.ProviderStatus, &c.Payload, &c.ExpiresAt)
+	e := row.Scan(&c.ID, &c.AcademyID, &c.InvoiceID, &c.Reference, &c.ProviderID, &c.CustomerID, &c.State, &c.ProviderStatus, &c.Payload, &c.ExpiresAt, &c.AmountCents)
 	return c, e
 }
 func (r Repository) Reserve(ctx context.Context, a, id string) (Charge, bool, error) {
@@ -40,7 +41,7 @@ func (r Repository) Reserve(ctx context.Context, a, id string) (Charge, bool, er
 	c, e := scanCharge(tx.QueryRow(ctx, "SELECT "+chargeColumns+" FROM pix_charges WHERE academy_id=$1 AND invoice_id=$2 AND state<>'retired'", a, id))
 	if errors.Is(e, pgx.ErrNoRows) {
 		c = Charge{ID: core.ID(), AcademyID: a, InvoiceID: id, Reference: core.Token(), State: "new"}
-		_, e = tx.Exec(ctx, "INSERT INTO pix_charges(id,academy_id,invoice_id,reference) VALUES($1,$2,$3,$4)", c.ID, a, id, c.Reference)
+		_, e = tx.Exec(ctx, "INSERT INTO pix_charges(id,academy_id,invoice_id,reference,amount_cents) SELECT $1,$2,$3,$4,amount_cents FROM invoices WHERE academy_id=$2 AND id=$3", c.ID, a, id, c.Reference)
 	}
 	if e != nil {
 		return c, false, e
@@ -49,6 +50,7 @@ func (r Repository) Reserve(ctx context.Context, a, id string) (Charge, bool, er
 	if owner {
 		_, e = tx.Exec(ctx, "UPDATE pix_charges SET state='creating',updated_at=now() WHERE id=$1", c.ID)
 		c.State = "creating"
+		e = tx.QueryRow(ctx, "SELECT amount_cents FROM invoices WHERE academy_id=$1 AND id=$2", a, id).Scan(&c.AmountCents)
 	}
 	if e != nil {
 		return c, false, e
@@ -73,13 +75,28 @@ func (r Repository) Apply(ctx context.Context, c Charge, p Payment) error {
 		return e
 	}
 	defer tx.Rollback(ctx)
-	var expected int64
-	e = tx.QueryRow(ctx, "SELECT amount_cents FROM invoices WHERE academy_id=$1 AND id=$2 FOR UPDATE", c.AcademyID, c.InvoiceID).Scan(&expected)
+	var invoiceAmount int64
+	var invoiceStatus, method, state string
+	e = tx.QueryRow(ctx, "SELECT amount_cents,status,payment_method FROM invoices WHERE academy_id=$1 AND id=$2 FOR UPDATE", c.AcademyID, c.InvoiceID).Scan(&invoiceAmount, &invoiceStatus, &method)
 	if e != nil {
 		return e
 	}
-	if p.ExternalReference != c.Reference || p.BillingType != "PIX" || amount != expected || p.ID == "" || (c.ProviderID != "" && c.ProviderID != p.ID) {
+	if p.ExternalReference != c.Reference || p.BillingType != "PIX" || amount != c.AmountCents || p.ID == "" || (c.ProviderID != "" && c.ProviderID != p.ID) {
 		return core.E(409, "payment_mismatch", "Pagamento divergente; a academia deve conferir a cobrança.")
+	}
+	e = tx.QueryRow(ctx, "SELECT state FROM pix_charges WHERE academy_id=$1 AND id=$2", c.AcademyID, c.ID).Scan(&state)
+	if e != nil {
+		return e
+	}
+	settled := p.Status == "RECEIVED" || p.Status == "CONFIRMED"
+	if state == "retired" {
+		if settled {
+			return core.E(409, "payment_review", "Pagamento recebido em um Pix substituído. A academia deve conferir o recebimento no Asaas.")
+		}
+		return nil
+	}
+	if settled && (invoiceAmount != amount || invoiceStatus == "cancelled" || (invoiceStatus == "paid" && method != "" && method != "asaas_pix")) {
+		return core.E(409, "payment_review", "Pagamento divergente do fechamento desta mensalidade. A academia deve conferir o recebimento.")
 	}
 	_, e = tx.Exec(ctx, "UPDATE pix_charges SET provider_id=$2,customer_id=$3,provider_status=$4,updated_at=now() WHERE id=$1", c.ID, p.ID, p.Customer, p.Status)
 	if e != nil {
@@ -93,7 +110,7 @@ func (r Repository) Apply(ctx context.Context, c Charge, p Payment) error {
 		_, e = tx.Exec(ctx, `INSERT INTO payment_receipts(academy_id,provider_id,invoice_id,amount_cents,paid_at,status) VALUES($1,$2,$3,$4,$5,'received')
   ON CONFLICT(academy_id,provider_id) DO UPDATE SET status='received'`, c.AcademyID, p.ID, c.InvoiceID, amount, at)
 		if e == nil {
-			_, e = tx.Exec(ctx, "UPDATE invoices SET status='paid',paid_at=COALESCE(paid_at,$3) WHERE academy_id=$1 AND id=$2", c.AcademyID, c.InvoiceID, at)
+			_, e = tx.Exec(ctx, "UPDATE invoices SET status='paid',payment_method='asaas_pix',paid_at=COALESCE(paid_at,$3) WHERE academy_id=$1 AND id=$2", c.AcademyID, c.InvoiceID, at)
 		}
 	} else if p.Status == "REFUNDED" {
 		_, e = tx.Exec(ctx, "UPDATE payment_receipts SET status='refunded' WHERE academy_id=$1 AND provider_id=$2", c.AcademyID, p.ID)

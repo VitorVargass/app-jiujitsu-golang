@@ -248,7 +248,7 @@ func TestMVP(t *testing.T) {
 func getEmail(t *testing.T, db *pgxpool.Pool, token string) string {
 	t.Helper()
 	var email string
-	if e := db.QueryRow(context.Background(), "SELECT u.email FROM users u JOIN auth_sessions s ON s.user_id=u.id WHERE s.token_hash=$1", core.Hash(token)).Scan(&email); e != nil {
+	if e := db.QueryRow(context.Background(), "SELECT p.email FROM users u JOIN people p ON p.id=u.person_id JOIN auth_sessions s ON s.user_id=u.id WHERE s.token_hash=$1", core.Hash(token)).Scan(&email); e != nil {
 		t.Fatal(e)
 	}
 	return email

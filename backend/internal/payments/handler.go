@@ -132,6 +132,17 @@ func (h Handler) Webhook(w http.ResponseWriter, r *http.Request) {
 		core.Fail(w, e)
 		return
 	}
+	release, e := h.Manager.lockOperation(r.Context(), conn.AcademyID, c.InvoiceID)
+	if e != nil {
+		core.Fail(w, e)
+		return
+	}
+	defer release()
+	c, e = h.Manager.Repo.Find(r.Context(), conn.AcademyID, event.Payment.ID, event.Payment.ExternalReference)
+	if e != nil {
+		core.Fail(w, e)
+		return
+	}
 	p, e := h.Manager.Clients[conn.AcademyID].get(r.Context(), event.Payment.ID)
 	if e != nil {
 		core.Fail(w, bankUnavailable())

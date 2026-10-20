@@ -1,276 +1,372 @@
-import { useEffect, useRef, useState } from "react";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { Redirect } from "expo-router";
-import { Text, View } from "react-native";
-import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Crypto from "expo-crypto";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { Brand } from "../../components/Brand";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { EditorDialog } from "../../components/EditorDialog";
+import { Icon } from "../../components/Icon";
+import {
+  Button,
+  Card,
+  Field,
+  IconButton,
+  Label,
+  Loading,
+  Notice,
+  Page,
+} from "../../components/ui";
 import { api, academyPath, APIError } from "../../services/api";
 import { useSession } from "../../services/session";
-import { Session, CheckinResult } from "../../types";
-import {
-  Page,
-  Card,
-  Heading,
-  Label,
-  Button,
-  Notice,
-  Loading,
-  Field,
-  Row,
-  Chip,
-  Avatar,
-  Empty,
-} from "../../components/ui";
+import { AttendanceOptions, CheckinResult } from "../../types";
 import { cpfDigits, formatCPF, validCPF } from "../../types/cpf";
-import { colors, displayTime } from "../../theme";
+import { colors, accents, displayTime } from "../../theme";
+import { KioskCamera } from "./KioskCamera";
+import { KioskLessonPicker, KioskSuccess } from "./KioskPanels";
+
 function Content() {
   const { session, logout } = useSession();
   const device = session! as Extract<
     NonNullable<typeof session>,
     { kind: "device" }
   >;
+  const { width } = useWindowDimensions();
   const [code, setCode] = useState(""),
-    [selected, setSelected] = useState(""),
-    [scanning, setScanning] = useState(false),
-    [scanError, setScanError] = useState(""),
-    [clock, setClock] = useState(new Date());
+    [selected, setSelected] = useState("");
+  const [scanning, setScanning] = useState(false),
+    [settings, setSettings] = useState(false);
+  const [clock, setClock] = useState(() => new Date());
   const [exit, setExit] = useState(false),
     [exiting, setExiting] = useState(false),
     [exitError, setExitError] = useState("");
   const [legacyCode, setLegacyCode] = useState(false);
-  const [permission, requestPermission] = useCameraPermissions();
   const submitting = useRef(false);
   const event = useRef<{
-    sessionId: string;
-    body: { qr_token?: string; student_code?: string; cpf?: string };
+    body: {
+      qr_token?: string;
+      student_code?: string;
+      cpf?: string;
+      schedule_id: string;
+      date: string;
+    };
     key: string;
   } | null>(null);
   const sessions = useQuery({
-    queryKey: ["kiosk-sessions", device.academy_id],
-    queryFn: () => api<Session[]>(academyPath(device.academy_id, "/sessions")),
+    queryKey: ["kiosk-lessons", device.academy_id],
+    queryFn: () =>
+      api<AttendanceOptions>(
+        academyPath(device.academy_id, "/attendance-options"),
+      ),
     refetchInterval: 5000,
   });
+  const options = sessions.data?.options ?? [];
+  const zone = sessions.data?.timezone ?? "America/Sao_Paulo";
   const active =
-    sessions.data?.find((s) => s.id === selected) || sessions.data?.[0];
+    options.length === 1
+      ? options[0]
+      : options.find((lesson) => lesson.schedule_id + lesson.date === selected);
   const checkin = useMutation({
     mutationFn: () => {
-      const e = event.current!;
-      return api<CheckinResult>(
-        academyPath(
-          device.academy_id,
-          "/sessions/" + e.sessionId + "/check-ins",
-        ),
-        { method: "POST", body: e.body, key: e.key },
-      );
+      const attempt = event.current!;
+      return api<CheckinResult>(academyPath(device.academy_id, "/check-ins"), {
+        method: "POST",
+        body: attempt.body,
+        key: attempt.key,
+      });
     },
   });
+  const { isSuccess, reset: resetCheckin } = checkin;
+  const clearCheckin = useCallback(() => {
+    resetCheckin();
+    event.current = null;
+    setCode("");
+    setLegacyCode(false);
+  }, [resetCheckin]);
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-  const { isSuccess, reset: resetCheckin } = checkin;
   useEffect(() => {
     if (!isSuccess) return;
-    const timer = setTimeout(() => {
-      resetCheckin();
-      event.current = null;
-      setCode("");
-    }, 3500);
+    const timer = setTimeout(clearCheckin, 3500);
     return () => clearTimeout(timer);
-  }, [isSuccess, resetCheckin]);
+  }, [isSuccess, clearCheckin]);
   async function submit(
     body: { qr_token?: string; student_code?: string; cpf?: string },
     retry = false,
   ) {
-    if (!active || submitting.current) return;
+    if ((!retry && !active) || submitting.current) return;
     submitting.current = true;
-    setScanError("");
     setScanning(false);
-    if (
-      !retry &&
-      (!event.current ||
-        event.current.sessionId !== active.id ||
-        JSON.stringify(event.current.body) !== JSON.stringify(body))
-    )
-      event.current = { sessionId: active.id, body, key: Crypto.randomUUID() };
+    if (!retry && active) {
+      const payload = {
+        ...body,
+        schedule_id: active.schedule_id,
+        date: active.date,
+      };
+      if (
+        !event.current ||
+        JSON.stringify(event.current.body) !== JSON.stringify(payload)
+      )
+        event.current = { body: payload, key: Crypto.randomUUID() };
+    }
+    if (!event.current) {
+      submitting.current = false;
+      return;
+    }
     try {
       await checkin.mutateAsync();
     } catch {
-      /* The error is rendered below, without confirming attendance. */
+      /* Only a successful API response confirms attendance. */
     } finally {
       submitting.current = false;
     }
   }
+  const retry = checkin.error instanceof APIError && checkin.error.status === 0;
+  const valid = legacyCode ? code.length === 8 : validCPF(code);
+  const canSubmit = retry || (!!active && valid);
+  function confirm() {
+    if (!canSubmit || checkin.isPending) return;
+    if (retry && event.current) void submit(event.current.body, true);
+    else
+      void submit(
+        legacyCode ? { student_code: code } : { cpf: cpfDigits(code) },
+      );
+  }
   return (
     <Page
-      title="CHECK-IN"
-      subtitle={device.academy_name}
-      action={<Chip>{displayTime(clock.toISOString())}</Chip>}
-    >
-      <Label muted>Registre sua presença e prepare-se para treinar.</Label>
-      {sessions.isPending ? (
-        <Loading />
-      ) : sessions.error ? (
-        <Notice message={sessions.error.message} />
-      ) : !active ? (
-        <Empty>Nenhuma aula aberta. Peça ao gestor para abrir a aula.</Empty>
-      ) : (
-        <Row>
-          {sessions.data?.map((s) => (
-            <Chip
-              key={s.id}
-              selected={s.id === active.id}
-              onPress={() => {
-                if (submitting.current) return;
-                setSelected(s.id);
-                checkin.reset();
-                event.current = null;
-              }}
-            >
-              {s.class_name} • {displayTime(s.starts_at)}
-            </Chip>
-          ))}
-        </Row>
-      )}
-      {checkin.isSuccess && checkin.data ? (
-        <Card
-          style={{
-            alignItems: "center",
-            paddingVertical: 40,
-            borderColor: colors.success,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: colors.success,
-              width: 68,
-              height: 68,
-              borderRadius: 34,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Text style={{ fontSize: 40, color: colors.background }}>✓</Text>
+      wide
+      header={
+        <View style={s.header}>
+          <Brand compact />
+          <View style={s.headerActions}>
+            <View style={s.clock}>
+              <Text style={s.time}>
+                {displayTime(clock.toISOString(), zone)}
+              </Text>
+              <Text style={s.date}>
+                {new Intl.DateTimeFormat("pt-BR", {
+                  timeZone: zone,
+                  day: "2-digit",
+                  month: "short",
+                }).format(clock)}
+              </Text>
+            </View>
+            <IconButton
+              icon="more"
+              label="Opções do check-in"
+              disabled={checkin.isPending}
+              expanded={settings}
+              onPress={() => setSettings(true)}
+            />
           </View>
-          <Heading>
-            {checkin.data.duplicate
-              ? "Você já está na lista!"
-              : "Presença registrada!"}
-          </Heading>
-          <Avatar name={checkin.data.student_name} />
-          <Heading>{checkin.data.student_name}</Heading>
-          <Label muted>{checkin.data.belt}</Label>
-          <Label>{displayTime(checkin.data.checked_in_at)}</Label>
-        </Card>
-      ) : (
-        <Card>
-          <Field
-            label={legacyCode ? "Código anterior do aluno" : "CPF do aluno"}
-            editable={!checkin.isPending}
-            value={code}
-            onChangeText={(v) => {
-              setCode(legacyCode ? v.replace(/[^0-9]/g, "") : formatCPF(v));
-              checkin.reset();
-            }}
-            keyboardType="number-pad"
-            maxLength={legacyCode ? 8 : 14}
-            placeholder={legacyCode ? "Digite os 8 números" : "000.000.000-00"}
-          />
-          <Button
-            disabled={
-              !active || (legacyCode ? code.length !== 8 : !validCPF(code))
-            }
-            loading={checkin.isPending}
-            onPress={() =>
-              void submit(
-                legacyCode ? { student_code: code } : { cpf: cpfDigits(code) },
-              )
-            }
-          >
-            Confirmar presença
-          </Button>
-          <Button
-            compact
-            secondary
-            disabled={checkin.isPending}
-            onPress={() => {
-              setLegacyCode(!legacyCode);
-              setCode("");
-              checkin.reset();
-              event.current = null;
-            }}
-          >
-            {legacyCode ? "Usar CPF" : "Cadastro antigo? Usar código anterior"}
-          </Button>
-          <Label muted>ou apresente seu QR Code</Label>
-          <Button
-            secondary
-            disabled={!active || checkin.isPending}
-            onPress={() => {
-              setScanning(!scanning);
-              checkin.reset();
-            }}
-          >
-            Escanear QR Code
-          </Button>
-        </Card>
-      )}
-      <Notice message={checkin.error?.message || scanError} />
-      {checkin.error instanceof APIError && checkin.error.status === 0 && (
-        <Button
-          secondary
-          loading={checkin.isPending}
-          onPress={() => void submit(event.current!.body, true)}
+        </View>
+      }
+    >
+      <View style={s.container}>
+        <View style={s.intro}>
+          <Text style={s.academy}>{device.academy_name}</Text>
+          <Text accessibilityRole="header" style={s.title}>
+            Check-in
+          </Text>
+          <Text style={s.description}>Sua presença, em poucos segundos.</Text>
+        </View>
+        <Card
+          style={[
+            s.card,
+            width < 480 && s.smallCard,
+            checkin.isSuccess && s.successCard,
+          ]}
         >
-          Tentar novamente
-        </Button>
-      )}
-      {scanning && (
-        <Card>
-          {permission?.granted ? (
-            <CameraView
-              style={{ height: 260, borderRadius: 12, overflow: "hidden" }}
-              barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-              onBarcodeScanned={({ data }) => {
-                if (!data.startsWith("tatame:")) {
-                  setScanError("Este QR Code não pertence ao Tatame.");
-                  return;
-                }
-                void submit({ qr_token: data });
-              }}
+          {checkin.isSuccess && checkin.data ? (
+            <KioskSuccess
+              result={checkin.data}
+              timezone={zone}
+              onNext={clearCheckin}
             />
           ) : (
             <>
-              <Label muted>
-                A câmera será usada somente para ler o QR Code.
-              </Label>
-              <Button onPress={() => void requestPermission()}>
-                Permitir câmera
-              </Button>
+              {sessions.isPending ? (
+                <View style={s.state}>
+                  <Loading />
+                  <Text style={s.hint}>Buscando os horários da academia…</Text>
+                </View>
+              ) : sessions.error ? (
+                <View style={s.state}>
+                  <View style={s.stateIcon}>
+                    <Icon name="calendar" color={colors.muted} size={24} />
+                  </View>
+                  <Text style={s.stateTitle}>
+                    Não foi possível consultar as aulas
+                  </Text>
+                  <Notice message={sessions.error.message} />
+                  <Button
+                    compact
+                    secondary
+                    loading={sessions.isFetching}
+                    onPress={() => void sessions.refetch()}
+                  >
+                    Tentar carregar horários
+                  </Button>
+                </View>
+              ) : !options.length ? (
+                <View style={s.state}>
+                  <View style={s.stateIcon}>
+                    <Icon name="calendar" color={colors.muted} size={24} />
+                  </View>
+                  <Text style={s.stateTitle}>Nenhuma aula neste horário</Text>
+                  <Text style={s.description}>
+                    Os horários são identificados pela grade da academia.
+                    Confira sua aula com a recepção.
+                  </Text>
+                  <Button
+                    compact
+                    secondary
+                    loading={sessions.isFetching}
+                    onPress={() => void sessions.refetch()}
+                  >
+                    Atualizar horários
+                  </Button>
+                </View>
+              ) : (
+                <KioskLessonPicker
+                  options={options}
+                  active={active}
+                  timezone={zone}
+                  disabled={checkin.isPending}
+                  onSelect={(lesson) => {
+                    if (submitting.current) return;
+                    setSelected(lesson.schedule_id + lesson.date);
+                    checkin.reset();
+                    event.current = null;
+                  }}
+                />
+              )}
+              {options.length > 0 || retry ? (
+                <>
+                  <View style={s.identification}>
+                    <Field
+                      label={legacyCode ? "Código anterior" : "Seu CPF"}
+                      editable={!checkin.isPending}
+                      value={code}
+                      onChangeText={(value) => {
+                        setCode(
+                          legacyCode
+                            ? value.replace(/[^0-9]/g, "")
+                            : formatCPF(value),
+                        );
+                        checkin.reset();
+                      }}
+                      keyboardType="number-pad"
+                      maxLength={legacyCode ? 8 : 14}
+                      placeholder={legacyCode ? "8 números" : "000.000.000-00"}
+                      style={[
+                        s.input,
+                        width < 380 && { fontSize: 22, letterSpacing: 0.5 },
+                      ]}
+                      returnKeyType="done"
+                      onSubmitEditing={confirm}
+                    />
+                    {!legacyCode && cpfDigits(code).length === 11 && !valid ? (
+                      <Text style={s.invalid}>Confira os números do CPF.</Text>
+                    ) : null}
+                    <Button
+                      icon="check-circle"
+                      disabled={!canSubmit}
+                      loading={checkin.isPending}
+                      onPress={confirm}
+                    >
+                      {retry ? "Tentar novamente" : "Confirmar presença"}
+                    </Button>
+                    <Notice message={checkin.error?.message} />
+                  </View>
+                  <View style={s.divider}>
+                    <View style={s.line} />
+                    <Text style={s.or}>ou</Text>
+                    <View style={s.line} />
+                  </View>
+                  <Button
+                    secondary
+                    icon="qr"
+                    disabled={!active || checkin.isPending}
+                    onPress={() => {
+                      checkin.reset();
+                      setScanning(true);
+                    }}
+                  >
+                    Escanear QR Code
+                  </Button>
+                </>
+              ) : null}
             </>
           )}
-          <Button secondary onPress={() => setScanning(false)}>
-            Fechar câmera
-          </Button>
         </Card>
-      )}
-      <Label muted>
-        Aguarde a confirmação na tela antes de entrar no tatame.
-      </Label>
-      <Label muted>
-        Para voltar à gestão, encerre este acesso e entre novamente na sua
-        conta.
-      </Label>
-      <Button
-        secondary
-        onPress={() => {
-          setExitError("");
-          setExit(true);
-        }}
-      >
-        Encerrar check-in e sair
-      </Button>
+        {!checkin.isSuccess ? (
+          <Text style={s.footerNote}>
+            Aguarde a confirmação na tela antes de iniciar o treino.
+          </Text>
+        ) : null}
+      </View>
+      {scanning ? (
+        <KioskCamera
+          disabled={!active || checkin.isPending}
+          onRead={(data) => void submit({ qr_token: data })}
+          onClose={() => setScanning(false)}
+        />
+      ) : null}
+      {settings ? (
+        <EditorDialog
+          title="Opções do check-in"
+          onClose={() => setSettings(false)}
+        >
+          <Label>{device.academy_name}</Label>
+          <View style={s.menu}>
+            <MenuItem
+              icon="calendar"
+              title="Atualizar horários"
+              detail="Consultar a grade da academia"
+              onPress={() => {
+                setSettings(false);
+                void sessions.refetch();
+              }}
+            />
+            <MenuItem
+              icon="qr"
+              title={legacyCode ? "Usar CPF" : "Usar código anterior"}
+              detail={
+                legacyCode
+                  ? "Voltar à identificação por CPF"
+                  : "Para cadastros que ainda usam 8 números"
+              }
+              onPress={() => {
+                setLegacyCode(!legacyCode);
+                setCode("");
+                checkin.reset();
+                event.current = null;
+                setSettings(false);
+              }}
+            />
+            <MenuItem
+              icon="lock"
+              title="Encerrar check-in"
+              detail="Sair deste acesso e voltar ao login"
+              danger
+              onPress={() => {
+                setExitError("");
+                setSettings(false);
+                setExit(true);
+              }}
+            />
+          </View>
+        </EditorDialog>
+      ) : null}
       <ConfirmDialog
         visible={exit}
         title="Encerrar este check-in?"
@@ -289,8 +385,149 @@ function Content() {
     </Page>
   );
 }
+function MenuItem({
+  icon,
+  title,
+  detail,
+  onPress,
+  danger = false,
+}: {
+  icon: "calendar" | "qr" | "lock";
+  title: string;
+  detail: string;
+  onPress: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      style={({ pressed }) => [s.menuItem, pressed && { opacity: 0.65 }]}
+    >
+      <Icon
+        name={icon}
+        size={20}
+        color={danger ? colors.danger : colors.muted}
+      />
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <Text style={[s.menuTitle, danger && { color: colors.danger }]}>
+          {title}
+        </Text>
+        <Text style={s.hint}>{detail}</Text>
+      </View>
+      <Icon name="chevron-right" size={15} color={colors.muted} />
+    </Pressable>
+  );
+}
 export default function KioskScreen() {
   const { session } = useSession();
-  if (session?.kind !== "device") return <Redirect href="/onboarding" />;
+  if (session?.kind !== "device") return <Redirect href="/entry" />;
   return <Content />;
 }
+const s = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  clock: { alignItems: "flex-end", gap: 3 },
+  time: { color: colors.text, fontFamily: "Inter_600SemiBold", fontSize: 18 },
+  date: { color: colors.muted, fontFamily: "Inter_400Regular", fontSize: 10 },
+  container: {
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
+    gap: 22,
+    paddingTop: 12,
+  },
+  intro: { alignItems: "center", gap: 10, paddingBottom: 2 },
+  academy: {
+    fontFamily: "Inter_600SemiBold",
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  title: {
+    fontFamily: "Inter_700Bold",
+    color: colors.text,
+    fontSize: 36,
+    lineHeight: 44,
+    letterSpacing: -1,
+  },
+  description: {
+    fontFamily: "Inter_400Regular",
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: "center",
+  },
+  card: { padding: 28, gap: 24, borderRadius: 22 },
+  smallCard: { padding: 20, gap: 22 },
+  successCard: { borderColor: accents.mint.border },
+  identification: { gap: 16 },
+  input: {
+    fontSize: 30,
+    fontFamily: "Inter_600SemiBold",
+    textAlign: "center",
+    letterSpacing: 1,
+    minHeight: 68,
+    backgroundColor: colors.background,
+  },
+  invalid: {
+    fontFamily: "Inter_400Regular",
+    color: colors.danger,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  divider: { flexDirection: "row", alignItems: "center", gap: 12 },
+  line: { height: 1, flex: 1, backgroundColor: colors.borderSubtle },
+  or: { fontFamily: "Inter_400Regular", color: colors.muted, fontSize: 12 },
+  footerNote: {
+    fontFamily: "Inter_400Regular",
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 20,
+    textAlign: "center",
+    paddingHorizontal: 18,
+  },
+  state: { alignItems: "center", gap: 16, paddingVertical: 18 },
+  stateIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceRaised,
+  },
+  stateTitle: {
+    fontFamily: "Inter_600SemiBold",
+    color: colors.text,
+    fontSize: 18,
+    lineHeight: 25,
+    textAlign: "center",
+  },
+  hint: {
+    fontFamily: "Inter_400Regular",
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 19,
+  },
+  menu: { gap: 8 },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 72,
+    paddingVertical: 10,
+  },
+  menuTitle: {
+    fontFamily: "Inter_600SemiBold",
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+});

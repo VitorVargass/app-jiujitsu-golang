@@ -18,7 +18,12 @@ export type IconName =
   | "chevron-left"
   | "close"
   | "edit"
-  | "tablet";
+  | "tablet"
+  | "arrow-right"
+  | "mail"
+  | "lock"
+  | "eye"
+  | "eye-off";
 
 const glyphs: Record<IconName, ReactNode> = {
   home: (
@@ -97,6 +102,30 @@ const glyphs: Record<IconName, ReactNode> = {
     <>
       <Rect x="5" y="2" width="14" height="20" rx="2" />
       <Path d="M11 18h2" />
+    </>
+  ),
+  "arrow-right": <Path d="M4 12h16m-6-6 6 6-6 6" />,
+  mail: (
+    <>
+      <Rect x="3" y="5" width="18" height="14" rx="2" />
+      <Path d="m3 6 9 7 9-7" />
+    </>
+  ),
+  lock: (
+    <>
+      <Rect x="4" y="10" width="16" height="11" rx="2" />
+      <Path d="M8 10V6a4 4 0 0 1 8 0v4M12 14v3" />
+    </>
+  ),
+  eye: (
+    <>
+      <Path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+      <Circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  "eye-off": (
+    <>
+      <Path d="M3 3 21 21M10 5a12 12 0 0 1 2 0c6.5 0 10 7 10 7a18 18 0 0 1-3 4M6 6a21 21 0 0 0-4 6s3.5 7 10 7a13 13 0 0 0 5-1M10 10a3 3 0 0 0 4 4" />
     </>
   ),
   close: <Path d="m6 6 12 12M6 18 18 6" />,

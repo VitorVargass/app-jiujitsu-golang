@@ -1,27 +1,44 @@
 import { useState } from "react";
-import { router, useLocalSearchParams } from "expo-router";
-import { View, Text } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from "expo-clipboard";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AcademyShell } from "../shared/AcademyShell";
+import { AcademyShell, PersonalGate } from "../shared/AcademyShell";
+import { InvoiceActions } from "./InvoiceActions";
 import {
+  Badge,
   Button,
   Card,
-  Heading,
+  IconButton,
   Label,
   Loading,
   Notice,
 } from "../../components/ui";
+import { EditorDialog } from "../../components/EditorDialog";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { Icon } from "../../components/Icon";
+import { colors } from "../../theme";
 import { api, academyPath } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
 import { portalLink } from "../../services/links";
-import { Invoice, Pix, money, statusLabel } from "../../types/billing";
+import {
+  Invoice,
+  Pix,
+  money,
+  statusLabel,
+  paymentMethodLabel,
+  ManualPaymentMethod,
+} from "../../types/billing";
+import { formatMonth } from "../../types/month";
+
 export function InvoiceContent({ id }: { id: string }) {
-  const { academy, role } = useSession();
-  const a = academy!;
-  const [message, setMessage] = useState("");
-  const [confirmCancel, setConfirmCancel] = useState(false);
+  const { academy, role } = useSession(),
+    a = academy!,
+    { width } = useWindowDimensions();
+  const [message, setMessage] = useState(""),
+    [confirmCancel, setConfirmCancel] = useState(false),
+    [showPix, setShowPix] = useState(false);
   const invoice = useQuery({
     queryKey: ["invoice", a.id, id],
     queryFn: () => api<Invoice>(academyPath(a.id, "/invoices/" + id)),
@@ -43,158 +60,266 @@ export function InvoiceContent({ id }: { id: string }) {
     onSuccess: () => {
       void queryClient.invalidateQueries();
       setConfirmCancel(false);
+      setMessage("Mensalidade cancelada.");
+      pix.reset();
     },
   });
   const copy = useMutation({
     mutationFn: async (value: string) => {
       if (!(await Clipboard.setStringAsync(value)))
-        throw new Error(
-          "Não foi possível copiar. Selecione o código ou link abaixo.",
-        );
+        throw new Error("Não foi possível copiar. Tente novamente.");
       setMessage("Copiado.");
     },
   });
-  const i = invoice.data;
-  const paid = i?.status === "paid" || pix.data?.status === "paid";
-  const closed = i?.status === "cancelled";
+  const i = invoice.data,
+    paid = i?.status === "paid",
+    closed = i?.status === "cancelled",
+    currentPix =
+      pix.data?.amount_cents === i?.amount_cents ? pix.data : undefined;
+  function openPix() {
+    setShowPix(true);
+    pix.mutate();
+  }
   return (
-    <AcademyShell title="Mensalidade">
+    <AcademyShell
+      title="Mensalidade"
+      swipeEnabled={false}
+      titleAction={
+        <IconButton
+          icon="swap"
+          label="Atualizar pagamento"
+          disabled={invoice.isFetching}
+          onPress={() => {
+            setMessage("");
+            void invoice.refetch();
+          }}
+        />
+      }
+    >
       {invoice.isPending ? (
         <Loading />
       ) : invoice.error ? (
         <Notice message={invoice.error.message} />
       ) : i ? (
-        <Card>
-          <Heading>{money(i.amount_cents)}</Heading>
-          <Label>
-            {i.student_name} • {i.competence}
-          </Label>
-          <Label muted>
-            Vencimento: {i.due_date.split("-").reverse().join("/")}
-          </Label>
-          <Label>{paid ? "✓ Paga" : statusLabel[i.status]}</Label>
-          {i.paid_at ? (
-            <Label muted>
-              Confirmado em {new Date(i.paid_at).toLocaleDateString("pt-BR")}
-            </Label>
-          ) : null}
-        </Card>
-      ) : null}
-      <Notice
-        message={
-          pix.error?.message || cancel.error?.message || copy.error?.message
-        }
-      />
-      <Notice success message={message} />
-      {role === "admin" && copy.variables?.startsWith("http") ? (
-        <Text
-          selectable
-          style={{ color: "#ADADAD", fontFamily: "Lato_400Regular" }}
-        >
-          {copy.variables}
-        </Text>
-      ) : null}
-      {paid ? (
-        <Notice success message="Pagamento confirmado pela academia." />
-      ) : i && !closed ? (
         <>
-          <Button loading={pix.isPending} onPress={() => pix.mutate()}>
-            {pix.data?.payload ? "Consultar / atualizar Pix" : "Pagar com Pix"}
-          </Button>
-          {pix.data?.status === "waiting" && pix.data.payload ? (
-            <Card>
-              <Heading>Aguardando pagamento</Heading>
-              {pix.data.environment === "sandbox" ? (
+          <Card>
+            <View style={s.top}>
+              <Label muted>{formatMonth(i.competence)}</Label>
+              <Badge
+                label={statusLabel[i.status]}
+                tone={
+                  paid
+                    ? "mint"
+                    : closed
+                      ? "slate"
+                      : i.status === "overdue"
+                        ? "coral"
+                        : "blue"
+                }
+              />
+            </View>
+            <Text style={s.amount}>{money(i.amount_cents)}</Text>
+            <Text style={s.student}>{i.student_name}</Text>
+            <View style={s.due}>
+              <Icon name="calendar" color={colors.muted} size={16} />
+              <Label muted>
+                Vencimento em {i.due_date.split("-").reverse().join("/")}
+              </Label>
+            </View>
+            {i.discount_cents > 0 ? (
+              <View style={s.breakdown}>
+                <View style={s.line}>
+                  <Label muted>Valor original</Label>
+                  <Label>{money(i.original_amount_cents)}</Label>
+                </View>
+                <View style={s.line}>
+                  <Label muted>Desconto</Label>
+                  <Text style={s.discount}>−{money(i.discount_cents)}</Text>
+                </View>
+                <Label muted>{i.discount_reason}</Label>
+              </View>
+            ) : null}
+            {paid ? (
+              <View style={s.breakdown}>
+                <View style={s.due}>
+                  <Icon name="check-circle" size={20} color={colors.success} />
+                  <Label>Pagamento confirmado</Label>
+                </View>
+                {i.payment_method ? (
+                  <Label muted>
+                    {i.payment_method === "asaas_pix"
+                      ? "Pix confirmado pelo Asaas"
+                      : "Registrado pela academia • " +
+                        paymentMethodLabel[
+                          i.payment_method as ManualPaymentMethod
+                        ]}
+                  </Label>
+                ) : null}
+                {i.paid_at ? (
+                  <Label muted>
+                    Recebido em{" "}
+                    {new Date(i.paid_at).toLocaleDateString("pt-BR")}
+                  </Label>
+                ) : null}
+              </View>
+            ) : null}
+          </Card>
+          {role === "admin" ? (
+            <InvoiceActions
+              key={id}
+              academyId={a.id}
+              invoice={i}
+              onCopy={() => copy.mutate(portalLink("/pay/" + a.id + "/" + id))}
+              onPix={openPix}
+              onCancel={() => {
+                cancel.reset();
+                setConfirmCancel(true);
+              }}
+              onSaved={(updated) => {
+                pix.reset();
+                setMessage(
+                  updated.status === "paid"
+                    ? "Pagamento registrado."
+                    : "Desconto atualizado.",
+                );
+                queryClient.setQueryData(["invoice", a.id, id], updated);
+                void queryClient.invalidateQueries();
+              }}
+            />
+          ) : !paid && !closed ? (
+            <Button icon="qr" loading={pix.isPending} onPress={openPix}>
+              Pagar com Pix
+            </Button>
+          ) : null}
+        </>
+      ) : null}
+      <Notice success message={message} />
+      <Notice message={copy.error?.message} />
+      {showPix ? (
+        <EditorDialog
+          title={paid ? "Pagamento confirmado" : "Pagamento Pix"}
+          pending={pix.isPending}
+          onClose={() => setShowPix(false)}
+        >
+          {paid ? (
+            <Notice success message="Esta mensalidade já está paga." />
+          ) : pix.isPending ? (
+            <Loading />
+          ) : pix.error ? (
+            <>
+              <Notice message={pix.error.message} />
+              <Button onPress={() => pix.mutate()}>Tentar novamente</Button>
+            </>
+          ) : currentPix?.payload ? (
+            <>
+              <Label muted>
+                {i?.student_name} • {money(i?.amount_cents ?? 0)}
+              </Label>
+              {currentPix.environment === "sandbox" ? (
                 <Notice message="Ambiente de teste. Este Pix não recebe pagamentos reais." />
               ) : null}
-              <View
-                style={{
-                  backgroundColor: "white",
-                  padding: 20,
-                  alignSelf: "center",
-                }}
-              >
+              <View style={s.qr}>
                 <QRCode
-                  value={pix.data.payload}
-                  size={230}
+                  value={currentPix.payload}
+                  size={Math.max(150, Math.min(230, width - 112))}
                   color="black"
                   backgroundColor="white"
                 />
               </View>
               <Label muted>
-                Use o QR Code ou cole o código no aplicativo do seu banco. A
-                confirmação aparece após a consulta ao Asaas.
+                Aguardando pagamento. A confirmação aparece após a consulta ao
+                Asaas.
               </Label>
-              <Text
-                selectable
-                style={{
-                  color: "#ADADAD",
-                  fontFamily: "Lato_400Regular",
-                  fontSize: 12,
-                }}
+              <Button
+                icon="qr"
+                onPress={() => copy.mutate(currentPix.payload!)}
               >
-                {pix.data.payload}
-              </Text>
-              <Button onPress={() => copy.mutate(pix.data!.payload!)}>
                 Copiar Pix Copia e Cola
               </Button>
-              {pix.data.expires_at ? (
+              <Text selectable style={s.code}>
+                {currentPix.payload}
+              </Text>
+              {currentPix.expires_at ? (
                 <Label muted>
                   Válido até{" "}
-                  {new Date(pix.data.expires_at).toLocaleString("pt-BR")}
+                  {new Date(currentPix.expires_at).toLocaleString("pt-BR")}
                 </Label>
               ) : null}
-            </Card>
-          ) : null}
-        </>
-      ) : null}
-      {role === "admin" ? (
-        <>
-          <Button
-            secondary
-            onPress={() => copy.mutate(portalLink("/pay/" + a.id + "/" + id))}
-          >
-            Copiar link para o aluno
-          </Button>
-          {i && !paid && !closed ? (
-            <Card>
-              <Button
-                secondary
-                onPress={() => setConfirmCancel(!confirmCancel)}
-              >
-                Cancelar mensalidade
+              <Button secondary compact onPress={() => pix.mutate()}>
+                Consultar pagamento
               </Button>
-              {confirmCancel ? (
-                <>
-                  <Label>Cancelar esta mensalidade e seu Pix pendente?</Label>
-                  <Button
-                    loading={cancel.isPending}
-                    onPress={() => cancel.mutate()}
-                  >
-                    Confirmar cancelamento
-                  </Button>
-                </>
-              ) : null}
-            </Card>
-          ) : null}
-        </>
+            </>
+          ) : (
+            <Button onPress={() => pix.mutate()}>Gerar Pix atualizado</Button>
+          )}
+          <Notice message={copy.error?.message} />
+          <Notice success message={message === "Copiado." ? message : ""} />
+        </EditorDialog>
       ) : null}
-      <Button secondary onPress={() => void invoice.refetch()}>
-        Atualizar pagamento
-      </Button>
+      <ConfirmDialog
+        visible={confirmCancel}
+        title="Cancelar mensalidade?"
+        message="A mensalidade será cancelada após conferir e encerrar seu Pix pendente. O histórico será preservado."
+        confirmLabel="Confirmar cancelamento"
+        pending={cancel.isPending}
+        error={cancel.error?.message}
+        danger
+        onCancel={() => setConfirmCancel(false)}
+        onConfirm={() => cancel.mutate()}
+      />
     </AcademyShell>
   );
 }
 export default function InvoiceScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { academy } = useSession();
-  if (!academy)
-    return (
-      <AcademyShell title="Mensalidade">
-        <Button onPress={() => router.replace("/onboarding")}>
-          Escolher academia
-        </Button>
-      </AcademyShell>
-    );
-  return <InvoiceContent id={id} />;
+  return (
+    <PersonalGate>
+      <InvoiceContent key={id} id={id} />
+    </PersonalGate>
+  );
 }
+const s = StyleSheet.create({
+  top: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  amount: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 34,
+    color: colors.text,
+    letterSpacing: -1,
+  },
+  student: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 17,
+    color: colors.text,
+  },
+  due: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  breakdown: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 16,
+    gap: 10,
+  },
+  line: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  discount: {
+    fontFamily: "Inter_600SemiBold",
+    color: colors.primaryLight,
+    fontSize: 14,
+  },
+  qr: {
+    backgroundColor: "white",
+    padding: 16,
+    alignSelf: "center",
+    borderRadius: 12,
+  },
+  code: {
+    color: colors.muted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    lineHeight: 17,
+  },
+});

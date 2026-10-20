@@ -1,0 +1,17 @@
+export const brand = {
+  name: "TatameMix",
+  wordmark: "Tatame",
+  suffix: "Mix",
+  description: "Gestão completa para a sua academia",
+  accent: "#E11D2E",
+  accentLight: "#FF6975",
+  onAccent: "#FFFFFF",
+  accentSoft: "#2D171B",
+  accentBorder: "#633039",
+  background: "#0F0F10",
+  surface: "#18181B",
+  surfaceRaised: "#232326",
+  border: "#333337",
+  muted: "#A4A4AD",
+  text: "#F8FAFC",
+} as const;

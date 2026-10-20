@@ -1,3 +1,5 @@
+import { MonthPicker } from "../../components/BillingDatePicker";
+import { shiftMonth, formatMonth } from "../../types/month";
 import { useState } from "react";
 import { Text, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
@@ -26,6 +28,7 @@ import {
   Student,
   money,
   statusLabel,
+  monthNow,
 } from "../../types/billing";
 import { colors, accents, Accent } from "../../theme";
 
@@ -82,20 +85,60 @@ export function InvoiceList({ student = false }: { student?: boolean }) {
               : "Acompanhe cada pagamento"}
           </Label>
         </View>
-        <IconButton
-          icon="sliders"
-          label="Filtros do financeiro"
-          expanded={showFilters}
-          selected={showFilters || !!month || !!sid}
-          onPress={() => setShowFilters((v) => !v)}
-        />
+        {!student ? (
+          <IconButton
+            icon="sliders"
+            label="Filtros do financeiro"
+            expanded={showFilters}
+            selected={showFilters || !!sid}
+            onPress={() => setShowFilters((v) => !v)}
+          />
+        ) : null}
       </View>
+      <MonthPicker
+        label="Mês das mensalidades"
+        value={month}
+        allowClear
+        onChange={(v) => {
+          setMonth(v);
+          setPage(1);
+        }}
+      />
+      <Row>
+        <Chip
+          selected={!month}
+          onPress={() => {
+            setMonth("");
+            setPage(1);
+          }}
+        >
+          Todos
+        </Chip>
+        <Chip
+          selected={month === monthNow()}
+          onPress={() => {
+            setMonth(monthNow());
+            setPage(1);
+          }}
+        >
+          Este mês
+        </Chip>
+        <Chip
+          selected={month === shiftMonth(monthNow(), 1)}
+          onPress={() => {
+            setMonth(shiftMonth(monthNow(), 1));
+            setPage(1);
+          }}
+        >
+          Próximo mês
+        </Chip>
+      </Row>
       <Row>
         {(["", "open", "paid", "overdue", "cancelled"] as const).map((s) => (
           <Chip
             key={s}
             selected={status === s}
-            tone={s ? statusTone[s] : "mint"}
+            tone={s ? statusTone[s] : "brand"}
             onPress={() => {
               setStatus(s);
               setPage(1);
@@ -107,15 +150,6 @@ export function InvoiceList({ student = false }: { student?: boolean }) {
       </Row>
       {showFilters ? (
         <Card>
-          <Field
-            label="Competência (YYYY-MM)"
-            placeholder="Todas as competências"
-            value={month}
-            onChangeText={(v) => {
-              setMonth(v);
-              setPage(1);
-            }}
-          />
           {!student ? (
             <>
               <Field
@@ -155,11 +189,9 @@ export function InvoiceList({ student = false }: { student?: boolean }) {
           ) : null}
           <Notice message={students.error?.message} />
         </Card>
-      ) : month || sid ? (
+      ) : sid ? (
         <View style={styles.activeFilters}>
-          <Label muted>
-            Filtros adicionais aplicados{month ? " • " + month : ""}
-          </Label>
+          <Label muted>Aluno selecionado</Label>
           <Chip
             onPress={() => {
               setMonth("");
@@ -220,10 +252,12 @@ export function InvoiceList({ student = false }: { student?: boolean }) {
               {money(i.amount_cents)}
             </Text>
             <Text style={styles.student}>
-              {student ? "Competência " + i.competence : i.student_name}
+              {student
+                ? "Mensalidade de " + formatMonth(i.competence)
+                : i.student_name}
             </Text>
             <Label muted>
-              {!student ? i.competence + " • " : ""}Vence em{" "}
+              {!student ? formatMonth(i.competence) + " • " : ""}Vence em{" "}
               {i.due_date.split("-").reverse().join("/")}
             </Label>
             <View style={styles.footer}>
@@ -270,7 +304,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: colors.text,
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     lineHeight: 21,
   },
@@ -292,7 +326,7 @@ const styles = StyleSheet.create({
   },
   amount: {
     color: colors.text,
-    fontFamily: "Montserrat_700Bold",
+    fontFamily: "Inter_700Bold",
     fontSize: 28,
     letterSpacing: -0.7,
   },
@@ -300,7 +334,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     lineHeight: 22,
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
   },
   footer: {
     flexDirection: "row",
@@ -312,5 +346,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 14,
   },
-  link: { color: colors.primary, fontFamily: "Lato_700Bold", fontSize: 12 },
+  link: {
+    color: colors.primary,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+  },
 });

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Tatame",
+    "name": "TatameMix",
     "slug": "tatame-jiujitsu",
     "scheme": "tatame",
     "version": "1.1.0",
@@ -8,7 +8,13 @@
     "userInterfaceStyle": "dark",
     "android": {
       "package": "com.tatame.jiujitsu",
-      "permissions": ["CAMERA"]
+      "permissions": ["CAMERA"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "backgroundColor": "#0F0F10"
+      }
     },
     "plugins": [
       "expo-router",
@@ -16,7 +22,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Permitir que o Tatame leia o QR Code do aluno.",
+          "cameraPermission": "Permitir que o TatameMix leia o QR Code do aluno.",
           "recordAudioAndroid": false
         }
       ],
@@ -33,10 +39,13 @@
     ],
     "web": {
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "favicon": "./assets/favicon.png"
     },
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#0F0F10"
   }
 }

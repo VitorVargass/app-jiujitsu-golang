@@ -96,7 +96,7 @@ const s = StyleSheet.create({
   title: {
     flex: 1,
     color: colors.text,
-    fontFamily: "Montserrat_700Bold",
+    fontFamily: "Inter_700Bold",
     fontSize: 18,
   },
   close: {

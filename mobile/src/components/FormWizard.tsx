@@ -124,13 +124,13 @@ const styles = StyleSheet.create({
   bar: { height: 4, flex: 1, borderRadius: 4, backgroundColor: colors.border },
   reached: { backgroundColor: colors.primary },
   counter: {
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     color: colors.muted,
     fontSize: 11,
     letterSpacing: 1.2,
   },
   title: {
-    fontFamily: "Montserrat_600SemiBold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 22,
     color: colors.text,
   },

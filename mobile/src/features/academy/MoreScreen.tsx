@@ -66,6 +66,14 @@ function Content() {
   return (
     <AcademyShell title="Mais">
       <Shortcut
+        title="Minha participação"
+        description="Meu CPF, QR e histórico de presenças"
+        label="Minha participação. Meu CPF e minhas presenças"
+        icon="users"
+        tone="mint"
+        onPress={() => router.push("/participation")}
+      />
+      <Shortcut
         title="Modalidades e planos"
         description="Valores, pacotes e graduações"
         label="Modalidades e planos. Configurar valores e graduações"
@@ -88,6 +96,14 @@ function Content() {
         icon="tablet"
         tone="amber"
         onPress={() => router.push("/devices")}
+      />
+      <Shortcut
+        title="Nova academia"
+        description="Cadastre outra unidade com alunos e financeiro próprios"
+        label="Nova academia. Cadastrar outra unidade"
+        icon="plus"
+        tone="blue"
+        onPress={() => router.push("/create-academy")}
       />
       <Card>
         <Heading>Pagamentos Pix · Asaas</Heading>

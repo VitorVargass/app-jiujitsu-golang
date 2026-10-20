@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"os"
 )
 
 //go:embed migrations/*.sql
@@ -29,6 +30,13 @@ func Migrate(url string) error {
 		return e
 	}
 	defer db.Close()
+	// A single migration connection carries explicit, reviewed legacy identity links.
+	db.SetMaxOpenConns(1)
+	if approvals := os.Getenv("IDENTITY_MERGE_APPROVALS"); approvals != "" {
+		if _, e = db.Exec("SELECT set_config('tatame.identity_merge_approvals',$1,false)", approvals); e != nil {
+			return e
+		}
+	}
 	goose.SetBaseFS(migrations)
 	if e = goose.SetDialect("postgres"); e != nil {
 		return e

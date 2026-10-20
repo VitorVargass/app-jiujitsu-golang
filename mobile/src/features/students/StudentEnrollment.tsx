@@ -1,10 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../../components/Icon";
 import { Badge, Button, Card, Heading, Label } from "../../components/ui";
-import { BeltSwatch } from "../../components/BeltPicker";
 import { Catalog, Student, money } from "../../types/billing";
 import { ageOn } from "../../types/age";
-import { rankLabel } from "../../types/graduation";
 import { colors, accents } from "../../theme";
 import { StudentSection } from "./StudentSectionEditor";
 
@@ -34,7 +32,7 @@ export function StudentEnrollment({
       <Card>
         <View style={s.heading}>
           <View style={s.title}>
-            <Icon name="wallet" size={20} color={accents.mint.color} />
+            <Icon name="wallet" size={20} color={accents.brand.color} />
             <Heading>Matrícula e mensalidade</Heading>
           </View>
         </View>
@@ -93,7 +91,7 @@ export function StudentEnrollment({
           </View>
           <View style={s.term}>
             <Text style={s.caption}>
-              {b?.enabled ? "Próxima competência" : "Competência inicial"}
+              {b?.enabled ? "Próxima mensalidade" : "Mês de início da cobrança"}
             </Text>
             <Text style={s.value}>
               {b?.first_month?.split("-").reverse().join("/") ?? "A definir"}
@@ -148,48 +146,6 @@ export function StudentEnrollment({
           no Financeiro.
         </Label>
       </Card>
-      <Card>
-        <View style={s.title}>
-          <Icon name="users" size={20} color={accents.lavender.color} />
-          <Heading>Graduação</Heading>
-        </View>
-        <Label muted>Faixa e graus de cada modalidade.</Label>
-        {student.modality_details.map((d) => {
-          const m = modalities.find((item) => item.id === d.modality_id);
-          return (
-            <View key={d.modality_id} style={s.rank}>
-              <View style={{ flex: 1, gap: 8, minWidth: 0 }}>
-                <Text style={s.value}>{m?.name ?? "Modalidade"}</Text>
-                {d.belt ? (
-                  <BeltSwatch
-                    degrees={d.degrees}
-                    colors={
-                      m?.belt_options?.find((o) => o.label === d.belt)
-                        ?.colors ?? ["#929292"]
-                    }
-                  />
-                ) : null}
-                <Text style={s.caption}>{rankLabel(d.belt, d.degrees)}</Text>
-              </View>
-              {!archived && (d.belt || m?.belt_options?.length) ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    "Editar faixa de " + (m?.name ?? "modalidade")
-                  }
-                  onPress={() => onEdit({ rank: d.modality_id })}
-                  style={s.edit}
-                >
-                  <Icon name="edit" size={16} color={accents.blue.color} />
-                </Pressable>
-              ) : null}
-            </View>
-          );
-        })}
-        {!student.modality_details.length ? (
-          <Label muted>Nenhuma modalidade vinculada.</Label>
-        ) : null}
-      </Card>
     </>
   );
 }
@@ -217,13 +173,13 @@ const s = StyleSheet.create({
     flexWrap: "wrap",
   },
   caption: {
-    fontFamily: "Lato_400Regular",
+    fontFamily: "Inter_400Regular",
     fontSize: 13,
     color: colors.muted,
     lineHeight: 19,
   },
   value: {
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Inter_600SemiBold",
     fontSize: 15,
     color: colors.text,
     lineHeight: 22,
@@ -235,11 +191,11 @@ const s = StyleSheet.create({
     gap: 6,
   },
   amount: {
-    fontFamily: "Montserrat_700Bold",
+    fontFamily: "Inter_700Bold",
     fontSize: 27,
     color: colors.text,
   },
-  suffix: { fontFamily: "Lato_400Regular", fontSize: 14, color: colors.muted },
+  suffix: { fontFamily: "Inter_400Regular", fontSize: 14, color: colors.muted },
   terms: { flexDirection: "row", gap: 20, flexWrap: "wrap" },
   term: { flex: 1, minWidth: 120, gap: 5 },
   payer: {

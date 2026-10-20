@@ -115,6 +115,7 @@ func (h Handler) Invitation(w http.ResponseWriter, r *http.Request) {
 	core.Write(w, 201, map[string]any{"token": token, "expires_in_days": 7})
 }
 func (h Handler) Accept(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	u := core.P(r.Context()).UserID
 	t := r.PathValue("token")
 	if u == "" {
@@ -125,7 +126,14 @@ func (h Handler) Accept(w http.ResponseWriter, r *http.Request) {
 		core.Fail(w, core.E(410, "invalid_invitation", "Convite inválido."))
 		return
 	}
-	v, e := h.Service.Repo.Accept(r.Context(), t, u)
+	var in AcceptInvitationInput
+	if r.ContentLength != 0 {
+		if e := core.Decode(w, r, &in); e != nil {
+			core.Fail(w, e)
+			return
+		}
+	}
+	v, e := h.Service.Repo.Accept(r.Context(), t, u, in)
 	if e != nil {
 		core.Fail(w, e)
 		return

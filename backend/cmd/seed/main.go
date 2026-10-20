@@ -29,7 +29,7 @@ func main() {
 	users := map[string]string{}
 	for _, item := range []struct{ Name, Email string }{{"Gestor Demo", "gestor@tatame.demo"}, {"Professor Carlos", "professor@tatame.demo"}, {"João Silva", "aluno@tatame.demo"}, {"Ana Souza", "ana@tatame.demo"}} {
 		var id string
-		e = db.QueryRow(ctx, "SELECT id FROM users WHERE email=$1", item.Email).Scan(&id)
+		e = db.QueryRow(ctx, "SELECT u.id FROM users u JOIN people p ON p.id=u.person_id WHERE p.email=$1", item.Email).Scan(&id)
 		if e != nil {
 			v, err := as.Register(ctx, auth.Credentials{Name: item.Name, Email: item.Email, Password: "Tatame123!"})
 			must(err)
@@ -48,6 +48,9 @@ func main() {
 			a, e = ac.Create(admin, academies.CreateInput{Name: name})
 			must(e)
 		}
+		// The demo manager can train without a student enrollment or billing.
+		_, e = db.Exec(ctx, "UPDATE academy_participants p SET cpf='12345678909' FROM users u WHERE p.person_id=u.person_id AND p.academy_id=$1 AND u.id=$2 AND p.cpf=''", a.ID, users["gestor@tatame.demo"])
+		must(e)
 		for _, item := range []struct{ Email, Role string }{{"professor@tatame.demo", "teacher"}, {"aluno@tatame.demo", "student"}, {"ana@tatame.demo", "student"}} {
 			var exists bool
 			must(db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM memberships m JOIN membership_roles r ON r.membership_id=m.id WHERE academy_id=$1 AND user_id=$2 AND role=$3)`, a.ID, users[item.Email], item.Role).Scan(&exists))
@@ -81,7 +84,7 @@ func main() {
 				if email == "ana@tatame.demo" {
 					cpf = "11144477735"
 				}
-				_, err = db.Exec(ctx, "UPDATE students SET cpf=$1 WHERE academy_id=$2 AND id=$3 AND cpf=''", cpf, a.ID, studentID)
+				_, err = db.Exec(ctx, "UPDATE academy_participants p SET cpf=$1 FROM students s WHERE p.academy_id=s.academy_id AND p.id=s.participant_id AND s.academy_id=$2 AND s.id=$3 AND p.cpf=''", cpf, a.ID, studentID)
 				must(err)
 			}
 			// Demo dates are explicit and do not replace a saved birth date.

@@ -82,6 +82,7 @@ func (m *Manager) Authorize(ctx context.Context, a, id string) (billing.Invoice,
 }
 
 type PixResult struct {
+	AmountCents int64      `json:"amount_cents"`
 	Status      string     `json:"status"`
 	Payload     string     `json:"payload,omitempty"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
@@ -194,7 +195,7 @@ func (m *Manager) pix(ctx context.Context, a, id string, reissue bool) (PixResul
 	if e = m.Repo.Ready(ctx, c, p, q, at); e != nil {
 		return PixResult{}, e
 	}
-	return PixResult{Status: "waiting", Payload: q.Payload, ExpiresAt: &at, Environment: client.Connection.Environment}, nil
+	return PixResult{Status: "waiting", AmountCents: invoice.AmountCents, Payload: q.Payload, ExpiresAt: &at, Environment: client.Connection.Environment}, nil
 }
 func (m *Manager) Cancel(ctx context.Context, a, id string) error {
 	if _, e := m.Access.Require(ctx, a, "admin"); e != nil {
@@ -275,6 +276,16 @@ func (m *Manager) Reconcile(ctx context.Context) error {
 			return e
 		}
 		for _, c := range charges {
+			release, err := m.lockOperation(ctx, a, c.InvoiceID)
+			if err != nil {
+				continue
+			}
+			current, err := scanCharge(m.Repo.DB.QueryRow(ctx, "SELECT "+chargeColumns+" FROM pix_charges WHERE academy_id=$1 AND id=$2", a, c.ID))
+			if err != nil || current.State == "retired" {
+				release()
+				continue
+			}
+			c = current
 			var p Payment
 			if c.ProviderID != "" {
 				p, e = client.get(ctx, c.ProviderID)
@@ -289,6 +300,7 @@ func (m *Manager) Reconcile(ctx context.Context) error {
 				e = m.Repo.Apply(ctx, c, p)
 			}
 			_, _ = m.Repo.DB.Exec(ctx, "UPDATE pix_charges SET updated_at=now() WHERE id=$1", c.ID)
+			release()
 			if e != nil {
 				slog.Warn("payment reconciliation deferred", "charge_id", c.ID)
 			}

@@ -40,5 +40,5 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  text: { fontFamily: "Lato_400Regular", color: colors.muted, fontSize: 13 },
+  text: { fontFamily: "Inter_400Regular", color: colors.muted, fontSize: 13 },
 });
