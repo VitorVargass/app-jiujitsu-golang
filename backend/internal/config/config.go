@@ -19,7 +19,7 @@ func Load() (Config, error) {
 	}
 	cfg := Config{
 		DatabaseURL:    get("DATABASE_URL", "postgres://tatame:tatame_dev@localhost:5432/tatame?sslmode=disable"),
-		Addr:           get("HTTP_ADDR", ":8080"),
+		Addr:           get("HTTP_ADDR", ":"+get("PORT", "8080")),
 		AllowedOrigins: get("ALLOWED_ORIGINS", "http://localhost:8081,http://localhost:19006"),
 	}
 	if cfg.AllowedOrigins == "auto" {

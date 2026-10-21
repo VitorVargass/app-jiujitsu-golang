@@ -4,6 +4,9 @@ backend/.env
 mobile/.env
 node_modules/
 .expo/
+.vercel/
+.env.local
+.env.*.local
 dist/
 android/
 ios/

@@ -9,7 +9,7 @@ import (
 
 func cleanEnvironment(t *testing.T) {
 	t.Helper()
-	for _, key := range []string{"DATABASE_URL", "HTTP_ADDR", "ALLOWED_ORIGINS", "ASAAS_CONNECTIONS_FILE", "WEB_DIST_DIR"} {
+	for _, key := range []string{"DATABASE_URL", "HTTP_ADDR", "PORT", "ALLOWED_ORIGINS", "ASAAS_CONNECTIONS_FILE", "WEB_DIST_DIR"} {
 		t.Setenv(key, "")
 		if err := os.Unsetenv(key); err != nil {
 			t.Fatal(err)
@@ -63,6 +63,20 @@ func TestMissingFileIsOptional(t *testing.T) {
 	}
 	if cfg.Addr != ":8080" || !strings.Contains(cfg.DatabaseURL, "@localhost:5432/tatame") {
 		t.Fatal("defaults indisponíveis sem arquivo")
+	}
+}
+
+func TestHostingPortAndExplicitAddress(t *testing.T) {
+	cleanEnvironment(t)
+	t.Setenv("PORT", "9217")
+	cfg, err := Load()
+	if err != nil || cfg.Addr != ":9217" {
+		t.Fatalf("expected hosting PORT, got %q, error %v", cfg.Addr, err)
+	}
+	t.Setenv("HTTP_ADDR", ":8089")
+	cfg, err = Load()
+	if err != nil || cfg.Addr != ":8089" {
+		t.Fatalf("HTTP_ADDR must take priority, got %q, error %v", cfg.Addr, err)
 	}
 }
 

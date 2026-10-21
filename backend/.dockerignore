@@ -1,0 +1,12 @@
+.env
+.env.*
+asaas-connections*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.dump
+*.backup
+*.log
+*.exe
+.git

@@ -46,6 +46,7 @@
     "test:access": "node --experimental-strip-types --test tests/access.test.mjs",
     "test:weekly": "node --experimental-strip-types --test tests/weekly.test.mjs",
     "export:web": "expo export --platform web",
+    "build:web": "node scripts/check-web-env.mjs && expo export --platform web --clear",
     "lint": "expo lint"
   },
   "private": true

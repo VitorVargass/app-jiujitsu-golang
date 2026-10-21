@@ -2,6 +2,10 @@
 
 API Go, PostgreSQL e aplicativo React Native/Expo com portal web do aluno. Esta versão inclui alunos independentes de contas, modalidades, planos opcionais, geração mensal, Pix Asaas e presenças pelo tablet ou lançadas pelo gestor. A identidade TatameMix usa preto, branco e vermelho, com tipografia Inter. Os fluxos da academia, do aluno e do tablet são compartilhados entre o aplicativo e a versão web.
 
+## Hospedar a demonstração
+
+O Dockerfile da raiz compila site Expo web e API Go em uma única imagem. O Go serve os dois no mesmo endereço; o PostgreSQL fica separado no Neon. O render.yaml prepara um único serviço Free no Render, sem precisar de Vercel. Consulte o [passo a passo de deploy](docs/DEPLOY.md), incluindo importação dos dados de exemplo e limites do plano gratuito. Publicar e importar a base são etapas separadas.
+
 ## Começar com seu PostgreSQL local
 
 O backend precisa de Go, PostgreSQL funcionando e um banco criado. Neste computador você já criou o banco tatame e o usuário tatame. O pgAdmin administra esse servidor; a API conecta diretamente ao PostgreSQL.

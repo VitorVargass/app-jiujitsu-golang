@@ -6,7 +6,7 @@ type APIAddress = {
   browserHost?: string;
 };
 
-/** Explicit URLs always win. "auto" discovers only the local Expo development host. */
+/** "same-origin" serves web/API together; "auto" discovers the local Expo host. */
 export function resolveAPIURL({
   configured,
   platform,
@@ -15,6 +15,12 @@ export function resolveAPIURL({
   browserHost,
 }: APIAddress) {
   const explicit = configured?.trim();
+  if (explicit === "same-origin") {
+    if (platform === "web") return "";
+    throw new Error(
+      "No aplicativo nativo, configure a URL completa da API; same-origin é exclusivo do portal web.",
+    );
+  }
   if (explicit && explicit !== "auto") return explicit.replace(/\/$/, "");
   if (development && (explicit === "auto" || !explicit)) {
     const host = platform === "web" ? browserHost : expoHost;
