@@ -22,7 +22,7 @@ func TestRandomIdentifiers(t *testing.T) {
 	if !ValidID(a) || a == b {
 		t.Fatal("invalid identifiers")
 	}
-	if len(Token()) != 64 || len(Digits()) != 8 {
+	if len(Token()) != 64 || !ValidStudentCode(Digits()) {
 		t.Fatal("invalid credential length")
 	}
 }

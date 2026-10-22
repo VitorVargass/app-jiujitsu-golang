@@ -1,35 +1,24 @@
-import { MonthPicker } from "../../components/BillingDatePicker";
-import { shiftMonth, formatMonth } from "../../types/month";
+import { formatMonth } from "../../types/month";
+import { FinanceFilters, defaultFinanceFilters } from "./FinanceFilters";
 import { useState } from "react";
-import { Text, View, StyleSheet } from "react-native";
+import { Pressable, Text, View, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
 import {
   Button,
   Card,
-  Chip,
   Empty,
-  Field,
   Label,
   Loading,
   Notice,
-  Row,
   Badge,
-  IconButton,
 } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 import { Pagination } from "../../components/Pagination";
 import { api, academyPath } from "../../services/api";
 import { useSession } from "../../services/session";
-import {
-  Invoice,
-  Page,
-  Student,
-  money,
-  statusLabel,
-  monthNow,
-} from "../../types/billing";
+import { Invoice, Page, money, statusLabel } from "../../types/billing";
 import { colors, accents, Accent } from "../../theme";
 
 const statusTone: Record<Invoice["status"], Accent> = {
@@ -40,11 +29,19 @@ const statusTone: Record<Invoice["status"], Accent> = {
 };
 export function InvoiceList({ student = false }: { student?: boolean }) {
   const { academy } = useSession();
+  return <InvoiceResults key={academy!.id + student} student={student} />;
+}
+function InvoiceResults({ student }: { student: boolean }) {
+  const { academy } = useSession();
   const a = academy!;
-  const [status, setStatus] = useState("");
-  const [month, setMonth] = useState("");
-  const [sid, setSid] = useState("");
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState(() =>
+    defaultFinanceFilters(a.timezone),
+  );
+  const { month, status } = filters;
+  const sid = filters.student?.id ?? "";
+  const currentMonth = defaultFinanceFilters(a.timezone).month;
+  const filterCount =
+    Number(month !== currentMonth) + Number(!!status) + Number(!!sid);
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const invoices = useQuery({
@@ -65,144 +62,78 @@ export function InvoiceList({ student = false }: { student?: boolean }) {
         ),
       ),
   });
-  const students = useQuery({
-    queryKey: ["students-filter", a.id, search],
-    queryFn: () =>
-      api<Page<Student>>(
-        academyPath(a.id, "/students?search=" + encodeURIComponent(search)),
-      ),
-    enabled: !student && search.length >= 2,
-  });
   return (
     <AcademyShell title={student ? "Minhas mensalidades" : "Financeiro"}>
-      <View style={styles.toolbar}>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={styles.sectionTitle}>Suas cobranças, organizadas</Text>
-          <Label muted>
-            {invoices.data
-              ? invoices.data.total +
-                (invoices.data.total === 1 ? " mensalidade" : " mensalidades")
-              : "Acompanhe cada pagamento"}
-          </Label>
-        </View>
-        {!student ? (
-          <IconButton
+      <Card style={styles.filterCard}>
+        <View style={[styles.toolbar, { flexWrap: "wrap" }]}>
+          <View style={styles.period}>
+            <Icon name="calendar" size={22} color={colors.primaryLight} />
+            <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+              <Text style={styles.sectionTitle}>
+                {month === currentMonth ? "Este mês" : formatMonth(month)}
+              </Text>
+              <Text style={styles.caption}>
+                {month === currentMonth
+                  ? formatMonth(month)
+                  : "Mês das mensalidades"}
+              </Text>
+            </View>
+          </View>
+          <Button
+            secondary
+            compact
             icon="sliders"
-            label="Filtros do financeiro"
-            expanded={showFilters}
-            selected={showFilters || !!sid}
-            onPress={() => setShowFilters((v) => !v)}
-          />
-        ) : null}
-      </View>
-      <MonthPicker
-        label="Mês das mensalidades"
-        value={month}
-        allowClear
-        onChange={(v) => {
-          setMonth(v);
-          setPage(1);
-        }}
-      />
-      <Row>
-        <Chip
-          selected={!month}
-          onPress={() => {
-            setMonth("");
-            setPage(1);
-          }}
-        >
-          Todos
-        </Chip>
-        <Chip
-          selected={month === monthNow()}
-          onPress={() => {
-            setMonth(monthNow());
-            setPage(1);
-          }}
-        >
-          Este mês
-        </Chip>
-        <Chip
-          selected={month === shiftMonth(monthNow(), 1)}
-          onPress={() => {
-            setMonth(shiftMonth(monthNow(), 1));
-            setPage(1);
-          }}
-        >
-          Próximo mês
-        </Chip>
-      </Row>
-      <Row>
-        {(["", "open", "paid", "overdue", "cancelled"] as const).map((s) => (
-          <Chip
-            key={s}
-            selected={status === s}
-            tone={s ? statusTone[s] : "brand"}
-            onPress={() => {
-              setStatus(s);
-              setPage(1);
-            }}
+            onPress={() => setShowFilters(true)}
           >
-            {s ? statusLabel[s] : "Todas"}
-          </Chip>
-        ))}
-      </Row>
-      {showFilters ? (
-        <Card>
-          {!student ? (
-            <>
-              <Field
-                label="Filtrar aluno pelo nome"
-                value={search}
-                onChangeText={(v) => {
-                  setSearch(v);
-                  setSid("");
-                  setPage(1);
-                }}
-              />
-              <Row>
-                {students.data?.items.map((s) => (
-                  <Chip
-                    key={s.id}
-                    selected={sid === s.id}
-                    onPress={() => {
-                      setSid(s.id);
-                      setPage(1);
-                    }}
-                  >
-                    {s.name}
-                  </Chip>
-                ))}
-                {sid ? (
-                  <Chip
-                    onPress={() => {
-                      setSid("");
-                      setPage(1);
-                    }}
-                  >
-                    Limpar aluno
-                  </Chip>
-                ) : null}
-              </Row>
-            </>
-          ) : null}
-          <Notice message={students.error?.message} />
-        </Card>
-      ) : sid ? (
-        <View style={styles.activeFilters}>
-          <Label muted>Aluno selecionado</Label>
-          <Chip
-            onPress={() => {
-              setMonth("");
-              setSid("");
-              setSearch("");
-              setPage(1);
-            }}
-          >
-            Limpar
-          </Chip>
+            {filterCount ? "Filtros (" + filterCount + ")" : "Filtros"}
+          </Button>
         </View>
+        <Text style={styles.caption}>
+          {status ? statusLabel[status] : "Todas as situações"}
+          {!student ? " · " + (filters.student?.name ?? "Todos os alunos") : ""}
+        </Text>
+      </Card>
+      <View style={styles.toolbar}>
+        <Label muted>
+          {invoices.data
+            ? invoices.data.total +
+              (invoices.data.total === 1 ? " mensalidade" : " mensalidades")
+            : "Carregando mensalidades"}
+        </Label>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Atualizar mensalidades"
+          accessibilityState={{
+            disabled: invoices.isFetching,
+            busy: invoices.isFetching,
+          }}
+          disabled={invoices.isFetching}
+          onPress={() => void invoices.refetch()}
+          style={styles.refresh}
+        >
+          <Text
+            style={[
+              styles.link,
+              invoices.isFetching && { color: colors.muted },
+            ]}
+          >
+            {invoices.isFetching ? "Atualizando…" : "Atualizar"}
+          </Text>
+        </Pressable>
+      </View>
+      {showFilters ? (
+        <FinanceFilters
+          academyId={a.id}
+          timezone={a.timezone}
+          value={filters}
+          student={student}
+          onClose={() => setShowFilters(false)}
+          onApply={(value) => {
+            setFilters(value);
+            setPage(1);
+            setShowFilters(false);
+          }}
+        />
       ) : null}
       {invoices.isPending ? (
         <Loading />
@@ -270,9 +201,11 @@ export function InvoiceList({ student = false }: { student?: boolean }) {
         ))
       ) : (
         <Empty>
-          {student
-            ? "Nenhuma mensalidade emitida pela academia."
-            : "As mensalidades aparecem após ativar a cobrança no cadastro do aluno."}
+          Nenhuma mensalidade encontrada para{" "}
+          {month ? formatMonth(month).toLowerCase() : "o período selecionado"}.
+          {filterCount
+            ? " Abra os filtros para ajustar a consulta."
+            : " Você pode consultar outros meses em Filtros."}
         </Empty>
       )}
       {invoices.data ? (
@@ -282,9 +215,6 @@ export function InvoiceList({ student = false }: { student?: boolean }) {
           onChange={setPage}
         />
       ) : null}
-      <Button secondary onPress={() => void invoices.refetch()}>
-        Atualizar
-      </Button>
     </AcademyShell>
   );
 }
@@ -308,13 +238,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
   },
-  activeFilters: {
+  filterCard: { padding: 16, gap: 12 },
+  period: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 10,
-    flexWrap: "wrap",
+    flex: 1,
+    minWidth: 160,
   },
+  caption: {
+    color: colors.muted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 19,
+  },
+  refresh: { minHeight: 44, paddingHorizontal: 10, justifyContent: "center" },
   invoice: { borderRadius: 20, gap: 9 },
   icon: {
     width: 40,

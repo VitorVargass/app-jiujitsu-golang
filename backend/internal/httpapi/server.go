@@ -127,6 +127,7 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("GET "+base+"/students", st.List)
 	protected("POST "+base+"/students", st.Save)
 	protected("GET "+base+"/students/{student}", st.Get)
+	protected("GET "+base+"/students/{student}/credential", p.Credential)
 	protected("PATCH "+base+"/students/{student}", st.Save)
 	protected("PATCH "+base+"/students/{student}/graduations/{modality}", st.Graduation)
 	protected("GET "+base+"/students/{student}/progress", st.Progress)

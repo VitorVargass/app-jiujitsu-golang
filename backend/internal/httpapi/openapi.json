@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Tatame API",
-    "version": "2.12.0",
+    "version": "2.13.0",
     "description": "Gestão multiacademia, alunos independentes, mensalidades, Pix Asaas, check-in por horário no tablet e lançamento de presença pelo gestor."
   },
   "servers": [
@@ -517,11 +517,15 @@
           },
           "student_code": {
             "type": "string",
-            "pattern": "^[0-9]{8}$"
+            "pattern": "^[0-9]{5}$",
+            "minLength": 5,
+            "maxLength": 5,
+            "readOnly": false,
+            "description": "Número automático e permanente do aluno nesta academia. Não deriva do CPF. Arquivamento não libera nem altera o número."
           },
           "cpf": {
             "type": "string",
-            "description": "CPF válido do próprio aluno, com ou sem máscara."
+            "description": "Compatibilidade com clientes anteriores. O tablet atual utiliza o número de 5 dígitos ou QR."
           }
         },
         "required": [],
@@ -543,7 +547,7 @@
             ]
           }
         ],
-        "description": "Exatamente uma identificação: cpf, qr_token ou student_code legado. Apenas dispositivos autorizados podem enviar check-in."
+        "description": "Exatamente uma identificação: student_code de 5 dígitos ou qr_token. CPF aceito somente para compatibilidade com clientes anteriores. Tablet autorizado obrigatório."
       },
       "CheckinResult": {
         "type": "object",
@@ -655,7 +659,12 @@
         "type": "object",
         "properties": {
           "student_code": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^[0-9]{5}$",
+            "minLength": 5,
+            "maxLength": 5,
+            "readOnly": true,
+            "description": "Número automático e permanente do aluno nesta academia. Não deriva do CPF. Arquivamento não libera nem altera o número."
           },
           "qr_token": {
             "type": "string"
@@ -946,7 +955,12 @@
                 "description": "Vazio até o aluno aceitar o convite, exceto vínculo explícito com a própria conta."
               },
               "student_code": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[0-9]{5}$",
+                "minLength": 5,
+                "maxLength": 5,
+                "readOnly": true,
+                "description": "Número automático e permanente do aluno nesta academia. Não deriva do CPF. Arquivamento não libera nem altera o número."
               },
               "archived_at": {
                 "type": "string",
@@ -1415,7 +1429,12 @@
             "type": "string"
           },
           "student_code": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^[0-9]{5}$",
+            "minLength": 5,
+            "maxLength": 5,
+            "readOnly": true,
+            "description": "Número automático e permanente do aluno nesta academia. Não deriva do CPF. Arquivamento não libera nem altera o número."
           },
           "qr_token": {
             "type": "string"
@@ -1580,7 +1599,12 @@
             "type": "string"
           },
           "student_code": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^[0-9]{5}$",
+            "minLength": 5,
+            "maxLength": 5,
+            "readOnly": false,
+            "description": "Número automático e permanente do aluno nesta academia. Não deriva do CPF. Arquivamento não libera nem altera o número."
           },
           "schedule_id": {
             "type": "string",
@@ -1592,7 +1616,24 @@
           }
         },
         "required": [],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "required": [
+              "student_code"
+            ]
+          },
+          {
+            "required": [
+              "qr_token"
+            ]
+          },
+          {
+            "required": [
+              "cpf"
+            ]
+          }
+        ]
       },
       "ManualAttendanceInput": {
         "type": "object",
@@ -4415,7 +4456,7 @@
             }
           }
         },
-        "description": "Exclusivo de tablet autorizado da mesma academia. Uma identificação: cpf, qr_token ou student_code legado. CPF com máscara é normalizado antes do hash. Participação ativa de gestor/professor pode registrar sem matrícula financeira. Aluno comum arquivado retorna 410 até o gestor restaurar. Gestor ativo continua treinando mesmo com matrícula comercial arquivada. membership_id legado não é aceito. Idempotency-Key UUID obrigatório; mesma chave/dados diferentes retorna 409. Resposta repetida conserva a presença já registrada."
+        "description": "Exclusivo de tablet autorizado da mesma academia. Uma identificação: student_code de 5 dígitos ou qr_token (CPF aceito para clientes anteriores). CPF com máscara é normalizado antes do hash. Participação ativa de gestor/professor pode registrar sem matrícula financeira. Aluno comum arquivado retorna 410 até o gestor restaurar. Gestor ativo continua treinando mesmo com matrícula comercial arquivada. membership_id legado não é aceito. Idempotency-Key UUID obrigatório; mesma chave/dados diferentes retorna 409. Resposta repetida conserva a presença já registrada."
       }
     },
     "/v1/academies/{academy_id}/sessions/{session_id}/attendances": {
@@ -4707,7 +4748,7 @@
     },
     "/v1/academies/{academy_id}/me/student-credential": {
       "get": {
-        "summary": "QR e código do aluno ativo",
+        "summary": "Consultar meu número de 5 dígitos e QR",
         "parameters": [
           {
             "name": "academy_id",
@@ -5379,7 +5420,7 @@
     "/v1/academies/{academy_id}/students": {
       "get": {
         "summary": "Consultar alunos",
-        "description": "Somente gestor. status=active|inactive|archived. Sem status, oculta arquivados. Busca por nome ou CPF completo válido; a busca exata por CPF sem status inclui arquivados. CPF é único na academia, incluindo arquivados.",
+        "description": "Somente gestor. status=active|inactive|archived. Sem status, oculta arquivados. Busca por nome ou CPF completo válido; a busca exata por CPF sem status inclui arquivados. CPF é único na academia, incluindo arquivados. Busca exata pelo número de 5 dígitos também encontra alunos arquivados quando status é omitido.",
         "parameters": [
           {
             "name": "academy_id",
@@ -9223,7 +9264,7 @@
     },
     "/v1/academies/{academy_id}/me/participation": {
       "get": {
-        "summary": "Consultar identidade, CPF e QR pessoais",
+        "summary": "Consultar número, QR e identidade pessoais",
         "description": "Qualquer conta com vínculo nesta academia, inclusive gestor sem aluno. Não concede acesso financeiro nem cria matrícula.",
         "parameters": [
           {
@@ -9350,7 +9391,7 @@
         }
       },
       "patch": {
-        "summary": "Atualizar o próprio CPF para presença",
+        "summary": "Atualizar o CPF cadastral",
         "description": "Somente conta pessoal vinculada. CPF único na academia, incluindo arquivados. Credencial de tablet retorna 403.",
         "parameters": [
           {
@@ -9754,7 +9795,7 @@
     "/v1/academies/{academy_id}/check-ins": {
       "post": {
         "summary": "Registrar presença no tablet sem abrir aula",
-        "description": "Somente tablet autorizado. Exige exatamente CPF, QR ou código. Se houver apenas uma aula no horário, identifica automaticamente; sobreposição sem escolha retorna 409 class_choice_required. schedule_id/date devem corresponder à janela atual. Aula, presença e resultado idempotente são gravados na mesma transação. Reenvios recuperam o resultado mesmo após o fim do horário; dispositivo revogado é recusado.",
+        "description": "Somente tablet autorizado. Exige exatamente número do aluno de 5 dígitos ou QR (CPF aceito para clientes anteriores). Se houver apenas uma aula no horário, identifica automaticamente; sobreposição sem escolha retorna 409 class_choice_required. schedule_id/date devem corresponder à janela atual. Aula, presença e resultado idempotente são gravados na mesma transação. Reenvios recuperam o resultado mesmo após o fim do horário; dispositivo revogado é recusado.",
         "parameters": [
           {
             "name": "academy_id",
@@ -10634,6 +10675,144 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/StudentStartDateInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/students/{student_id}/credential": {
+      "get": {
+        "summary": "Consultar cartão de presença do aluno",
+        "description": "Somente gestor da mesma academia. Retorna número de 5 dígitos e QR, inclusive de cadastro arquivado para consulta. Não concede acesso ao portal. Tablet e outro aluno não podem consultar.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Credential"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Erro: consulte error.code e error.message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
               }
             }
           }

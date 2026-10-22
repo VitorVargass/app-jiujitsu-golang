@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { StudentAttendanceOverview } from "./StudentAttendanceOverview";
 import { StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -53,6 +54,27 @@ function monthLabel(value: string) {
   }).format(new Date(value + "-01T12:00:00Z"));
 }
 export function StudentAttendances({
+  studentId,
+  own = false,
+  canRecord = true,
+}: {
+  studentId?: string;
+  own?: boolean;
+  canRecord?: boolean;
+}) {
+  if (!own && studentId)
+    return (
+      <StudentAttendanceOverview studentId={studentId} canRecord={canRecord} />
+    );
+  return (
+    <PersonalAttendances
+      studentId={studentId}
+      own={own}
+      canRecord={canRecord}
+    />
+  );
+}
+function PersonalAttendances({
   studentId,
   own = false,
   canRecord = true,

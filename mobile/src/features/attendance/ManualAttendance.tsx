@@ -54,7 +54,7 @@ export function ManualAttendance({
       </Button>
       <Notice success message={message} />
       {open ? (
-        <ManualForm
+        <ManualAttendanceDialog
           studentId={studentId}
           scheduleId={scheduleId}
           initialDate={date}
@@ -69,7 +69,7 @@ export function ManualAttendance({
     </>
   );
 }
-function ManualForm({
+export function ManualAttendanceDialog({
   studentId,
   scheduleId,
   initialDate,

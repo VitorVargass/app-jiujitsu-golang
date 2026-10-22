@@ -79,7 +79,7 @@ func TestLegacyMigrationPreservesAttendance(t *testing.T) {
 		t.Fatal(e)
 	}
 	var code, token string
-	if e = db.QueryRow("SELECT p.student_code,p.qr_token FROM students s JOIN academy_participants p ON p.id=s.participant_id AND p.academy_id=s.academy_id WHERE s.id=$1", m).Scan(&code, &token); e != nil || code != "12345678" || token != qr {
+	if e = db.QueryRow("SELECT p.student_code,p.qr_token FROM students s JOIN academy_participants p ON p.id=s.participant_id AND p.academy_id=s.academy_id WHERE s.id=$1", m).Scan(&code, &token); e != nil || !core.ValidStudentCode(code) || token != qr {
 		t.Fatal("credential changed", e)
 	}
 	var legacyCPF string

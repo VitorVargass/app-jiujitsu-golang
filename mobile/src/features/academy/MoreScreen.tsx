@@ -67,8 +67,8 @@ function Content() {
     <AcademyShell title="Mais">
       <Shortcut
         title="Minha participação"
-        description="Meu CPF, QR e histórico de presenças"
-        label="Minha participação. Meu CPF e minhas presenças"
+        description="Meu número, QR e histórico de presenças"
+        label="Minha participação. Meu número e minhas presenças"
         icon="users"
         tone="mint"
         onPress={() => router.push("/participation")}

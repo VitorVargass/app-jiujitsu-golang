@@ -12,22 +12,28 @@ function PickerField({
   value,
   onPress,
   disabled = false,
+  compact = false,
 }: {
   label: string;
   value: string;
   onPress: () => void;
   disabled?: boolean;
+  compact?: boolean;
 }) {
   return (
     <View style={{ gap: 8 }}>
-      <Label>{label}</Label>
+      {!compact ? <Label>{label}</Label> : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label + ": " + value}
         accessibilityState={{ disabled }}
         disabled={disabled}
         onPress={onPress}
-        style={[s.field, disabled && { opacity: 0.6 }]}
+        style={[
+          s.field,
+          compact && { minHeight: 44, padding: 10, gap: 8 },
+          disabled && { opacity: 0.6 },
+        ]}
       >
         <Icon name="calendar" size={20} color={colors.primaryLight} />
         <Text style={s.value}>{value}</Text>
@@ -44,6 +50,7 @@ export function MonthPicker({
   onChange,
   disabled = false,
   allowClear = false,
+  compact = false,
   min = "",
 }: {
   label: string;
@@ -51,6 +58,7 @@ export function MonthPicker({
   onChange: (value: string) => void;
   disabled?: boolean;
   allowClear?: boolean;
+  compact?: boolean;
   min?: string;
 }) {
   const [open, setOpen] = useState(false),
@@ -63,6 +71,7 @@ export function MonthPicker({
     <>
       <PickerField
         label={label}
+        compact={compact}
         value={
           value
             ? formatMonth(value)

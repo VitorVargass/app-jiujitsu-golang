@@ -27,7 +27,7 @@ export function KioskCamera({
       await requestPermission();
     } catch {
       setError(
-        "Não foi possível acessar a câmera. Você pode confirmar pelo CPF.",
+        "Não foi possível acessar a câmera. Você pode confirmar pelos 5 números do aluno.",
       );
     } finally {
       setRequesting(false);
@@ -61,7 +61,7 @@ export function KioskCamera({
               barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
               onMountError={() =>
                 setError(
-                  "Não foi possível iniciar esta câmera. Tente trocar de câmera ou use o CPF.",
+                  "Não foi possível iniciar esta câmera. Tente trocar de câmera ou use o número do aluno.",
                 )
               }
               onBarcodeScanned={({ data }) => {
@@ -104,7 +104,7 @@ export function KioskCamera({
           <Text style={s.instruction}>
             {permission.canAskAgain
               ? "Ela será usada para ler o QR Code do aluno."
-              : "O acesso à câmera está bloqueado. Libere a permissão nas configurações do navegador ou do aparelho, ou use o CPF."}
+              : "O acesso à câmera está bloqueado. Libere a permissão nas configurações do navegador ou do aparelho, ou use o número do aluno."}
           </Text>
           {permission.canAskAgain ? (
             <Button

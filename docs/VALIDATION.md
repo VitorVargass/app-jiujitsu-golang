@@ -389,3 +389,49 @@ Não houve aparelho Android conectado nem credenciais reais do Asaas disponívei
 - Quatro testes do resolvedor passaram: chamadas relativas na web, recusa do modo relativo no nativo, URL HTTPS explícita e descoberta local do Expo preservadas. TypeScript e lint passaram; export de produção same-origin concluído em pasta isolada. Teste Go do limite entre portal/API passou; caminhos do Dockerfile, Render e Compose conferidos.
 - Servidor Go real com export same-origin e PostgreSQL isolado: /healthz, login, dados do painel, chamadas /v1 no mesmo endereço, reload de rota protegida, histórico, arquivo ausente e rota de API ausente passaram. Nenhum erro CORS/JavaScript. Somente o servidor e PostgreSQL de teste foram iniciados e encerrados; banco principal preservado. Export local restabelecido com configuração local após a verificação.
 - Docker indisponível neste computador: a imagem completa não foi construída nem executada aqui. A compilação Linux da imagem e o fluxo HTTPS hospedado precisam ser verificados no Render ou em ambiente com Docker. Nenhum serviço de nuvem criado, credencial importada ou plano contratado. Guia principal agora cobre um container + Neon, sem exigir Vercel; suspensão do Render Free permanece documentada.
+## Backup preparado para a migração local → Neon — 20 de outubro de 2026
+
+- Origem confirmada: PostgreSQL local 18.6, database tatame, esquema Goose 11. Backup Custom atualizado salvo em .tools/backups/tatame-neon-migration-20261020-213529.dump (133356 bytes), com manifesto SHA-256 privado. Leitura por pg_restore verificada, incluindo tabelas e dados essenciais. Arquivo está ignorado pelo Git. Nenhuma criação de database ou alteração dos dados locais.
+- Metadados da origem: 1 academia, 20 alunos, 67 mensalidades e 556 presenças. O arquivo foi criado após os exemplos e inclui os registros atuais. Conferido que o esquema exportado não tenta criar o database original ou recriar o schema public. Restauração deve excluir comandos de proprietário/privilégios e usar conexão direta Neon com SSL, em destino vazio e versão compatível.
+- Usuário informou projeto Neon criado e ainda sem conexão com o Render. Nenhuma credencial remota recebida, nenhuma conexão externa realizada e nenhum dado restaurado na nuvem nesta etapa; verificação dos dados no destino e reconexão do Render permanecem pendentes.
+## Importação somente de dados no Neon existente — 20/10/2026
+
+Preparado arquivo SQL privado em .tools/backups/tatamemix-dados-para-neon.sql para execução integral pelo Query Tool do pgAdmin, no neondb já migrado e sem registros de negócio. Origem local lida em snapshot consistente; nenhum registro do tatame local foi alterado.
+
+Teste em tatame_startdate_migration_3877a2f8, PostgreSQL 17.11 isolado na porta 55432, com proprietário não superusuário: 29 tabelas conferidas por contagem e digest de conteúdo; 1 academia, 20 alunos, 67 mensalidades e 556 presenças. Goose preservado; 8 triggers restaurados; sequência de graduação e geração de novo evento de graduação funcionando. Nova execução no destino ocupado recusada antes de qualquer alteração. Nenhuma conexão ou importação no Neon foi executada pelo agente. A execução remota permanece a cargo do usuário no pgAdmin.
+## Número do aluno com cinco dígitos — 22/10/2026
+
+- Migração 012 validada em PostgreSQL 18 temporário, separado do banco de uso: códigos legados convertidos, cinco dígitos existentes preservados, 29 tabelas comparadas sem mudanças fora dos números. QR e matrícula arquivada preservados. Vínculos antigos sincronizados sem gerar novos históricos.
+- 24 inserções concorrentes propondo o mesmo número já ocupado receberam números exclusivos. A mesma numeração foi aceita em outra academia. Banco rejeitou atualização para oito dígitos.
+- Teste HTTP confirmou cadastro automático, convite/aceite mantendo número e QR, cartão acessível somente pelo gestor autorizado e titular, recusa a outra conta e tablet, busca pelo número inclusive entre arquivados, check-in agendado, reenvio sem duplicação, recusa de número inválido e mistura de identificações, bloqueio de arquivado e restauração com o mesmo número/QR.
+- Suíte Go completa com TEST_DATABASE_URL em PostgreSQL real, go vet, TypeScript, lint, teste do formato no frontend e compilação Expo web com same-origin passaram. Migração desde a versão 001 até 012 também preservou presença e mensalidade antiga.
+- Nenhuma conexão ao banco de uso ou ao Neon foi feita. O backend atualizado aplica a migração ao iniciar; o site publicado exige novo deploy. Nenhum APK novo foi gerado. O PostgreSQL temporário foi desligado ao terminar.
+
+### Ativação no localhost — 22/10/2026, 17h34 (America/Sao_Paulo)
+
+O perfil ainda exibia oito números porque o processo local da API iniciado às 16h38 continuava na versão 2.12.0 e o banco tatame permanecia no esquema 11. Foi salvo um backup atualizado, restaurado em PostgreSQL isolado e validada a migração da cópia: 21 participações convertidas, preservando todos os dados fora do campo student_code nas 29 tabelas de negócio.
+
+Depois da validação, apenas a API antiga da porta 8080 foi encerrada. Outro backup foi salvo em artifacts/backups/tatame-before-five-digits-20261022-173402.dump. A migração 012 foi aplicada no tatame local e a API atualizada reiniciada. Verificação final: /healthz ok, OpenAPI 2.13.0, esquema 12, 21 códigos com cinco dígitos, zero códigos legados, 20 alunos, 67 mensalidades e 556 presenças. QR e demais dados permaneceram iguais. O frontend Expo da porta 8081 foi mantido; recarregar a página consulta os números atualizados. O PostgreSQL isolado foi desligado. Não houve conexão nem alteração no Neon.
+## Presenças no cadastro do aluno — 22/10/2026
+
+A aba Presenças do gestor abre uma visão dedicada com retorno ao cadastro, título curto, nome/número do aluno, calendário mensal, totais de treinos/dias e último treino. Dias marcados abrem as aulas e a origem do registro. O histórico completo fica no seletor de período e usa cinco registros por página. O computador mostra calendário e lista lado a lado; o celular alterna as duas visualizações. O portal pessoal conserva a apresentação anterior.
+
+A implementação reutiliza a API existente. Meses são carregados por todas as páginas antes de exibir os dias confirmados; falha intermediária não mostra um mês parcial como completo. O agrupamento usa a data da aula no fuso da academia, incluindo lançamentos retroativos. Dias sem registro não são classificados como faltas. O botão de registrar só aparece para gestor com aluno ativo e mantém o formulário manual já existente.
+
+Passaram TypeScript, lint, compilação Expo web e testes de calendário (alinhamento semanal, ano bissexto, seis semanas, mudança de ano, fuso, retroatividade, mais de 100 registros e erro em página intermediária). Também passaram os testes existentes de número do aluno, acessos e grade semanal. Conferência em navegador com conta e presenças fictícias: abertura pelo cadastro, calendário, detalhes do dia, data pré-preenchida no lançamento, cancelamento, histórico completo e paginação até meses anteriores.
+
+Nenhum dado da academia de uso foi alterado nesta tarefa e não houve migração do banco. A API e o PostgreSQL usados apenas na conferência foram encerrados; os serviços locais do usuário foram preservados. Capturas de teste em artifacts/validation/student-attendance-calendar-390.png e student-attendance-calendar-desktop.png.
+
+Conferência visual final em 1280 px, 390 px e 320 px: sem transbordamento horizontal nas larguras de celular e nenhum erro JavaScript durante a navegação. O teste confirmou o título compacto Presenças com identificação do aluno, retorno Cadastro, calendário, consulta de lançamento retroativo, transição para lançamento com dia preenchido, histórico completo e paginação. Apenas API 18089 e PostgreSQL 55439 de teste foram encerrados; localhost 8080 e Expo 8081 continuam sendo os serviços de uso.
+## Filtros do financeiro — 22/10/2026
+
+- Tela inicia no mês atual no fuso da academia. Período, situação e aluno ficam reunidos no botão Filtros, com resumo e quantidade de filtros personalizados aplicados.
+- Alterações só entram na consulta ao aplicar. Fechar descarta o rascunho; Restaurar padrão volta ao mês atual, todas as situações e todos os alunos. Trocar de academia reinicia os filtros.
+- TypeScript, lint e exportação Expo web passaram. Navegador com dados fictícios em PostgreSQL isolado confirmou mês atual, próximo mês, todos os meses com situação paga e aluno, fechamento sem aplicar e restauração do padrão. Layout conferido em 390 px e 320 px, sem transbordamento horizontal ou erros JavaScript.
+- Prévia: artifacts/validation/finance-filters-390.png. Nenhuma alteração no banco de uso ou no Neon; nenhum deploy realizado.
+## Dockerfile para atualização no Render — 22/10/2026
+
+- Dockerfile da raiz atualizado para compilar Expo web com same-origin e .env desabilitado, verificar TypeScript e módulos Go, gerar API Linux estática e entregar os dois artefatos em Alpine com usuário sem privilégios. PORT pode ser sobrescrita pelo Render; SIGTERM encerra a API pelo tratamento existente.
+- .dockerignore ampliado para excluir também .tools e backups em subdiretórios, além dos segredos e builds locais já excluídos. Nenhuma variável privada foi lida ou incluída na imagem.
+- Exportação Expo web com CI=1, EXPO_NO_DOTENV=1 e EXPO_PUBLIC_API_URL=same-origin passou; TypeScript passou. go mod verify, teste da porta da hospedagem, teste de links internos/isolamento das rotas API e compilação CGO_ENABLED=0 GOOS=linux GOARCH=amd64 com -mod=readonly passaram.
+- Não há Docker disponível localmente: montagem e execução da imagem completa não foram verificadas. Build final será realizado pelo Render. Nenhum push, deploy, acesso ao Neon ou alteração do banco foi executado nesta etapa.

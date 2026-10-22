@@ -12,9 +12,9 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"io"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"regexp"
-	"strings"
 )
 
 type Error struct {
@@ -79,16 +79,17 @@ func Token() string {
 }
 func Hash(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToString(h[:]) }
 func Digits() string {
-	b := make([]byte, 8)
-	if _, e := rand.Read(b); e != nil {
-		panic(e)
+	// The database resolves collisions transactionally within each academy.
+	n, err := rand.Int(rand.Reader, big.NewInt(100000))
+	if err != nil {
+		panic(err)
 	}
-	var s strings.Builder
-	for _, v := range b {
-		fmt.Fprintf(&s, "%d", v%10)
-	}
-	return s.String()
+	return fmt.Sprintf("%05d", n.Int64())
 }
+
+var studentCodePattern = regexp.MustCompile("^[0-9]{5}$")
+
+func ValidStudentCode(value string) bool { return studentCodePattern.MatchString(value) }
 
 var uuidPattern = regexp.MustCompile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 

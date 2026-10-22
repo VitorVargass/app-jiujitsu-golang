@@ -89,7 +89,7 @@ function Content() {
           </View>
           <View style={{ flex: 1, gap: 5 }}>
             <Heading>Um aparelho para a presença</Heading>
-            <Label muted>Alunos digitam o CPF ou mostram o QR.</Label>
+            <Label muted>Alunos digitam seus 5 números ou mostram o QR.</Label>
           </View>
         </View>
         <Label>

@@ -23,23 +23,10 @@ func (s Service) CheckIn(ctx context.Context, a, session, key string, in Input) 
 		return Result{}, core.E(404, "not_found", "Aula não encontrada.")
 	}
 	if in.MembershipID != "" || in.StudentID != "" {
-		return Result{}, core.E(403, "forbidden", "O tablet deve ler o QR ou informar o CPF da pessoa.")
+		return Result{}, core.E(403, "forbidden", "O tablet deve ler o QR ou informar o número de 5 dígitos do aluno.")
 	}
-	identifiers := 0
-	for _, value := range []string{in.QRToken, in.StudentCode, in.CPF} {
-		if value != "" {
-			identifiers++
-		}
-	}
-	if identifiers != 1 || len(in.QRToken) > 100 || len(in.StudentCode) > 16 {
-		return Result{}, core.E(422, "invalid_identifier", "Informe somente CPF ou QR Code da pessoa.")
-	}
-	if in.CPF != "" {
-		cpf, valid := core.NormalizeCPF(in.CPF)
-		if !valid || cpf == "" {
-			return Result{}, core.E(422, "invalid_cpf", "Informe um CPF válido.")
-		}
-		in.CPF = cpf
+	if err := normalizeIdentifier(&in); err != nil {
+		return Result{}, err
 	}
 	return s.Repo.Record(ctx, a, session, key, in)
 }

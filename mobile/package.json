@@ -44,6 +44,8 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test:access": "node --experimental-strip-types --test tests/access.test.mjs",
+    "test:attendance-calendar": "node --experimental-strip-types --test tests/attendance-calendar.test.mjs",
+    "test:student-number": "node --experimental-strip-types --test tests/student-number.test.mjs",
     "test:weekly": "node --experimental-strip-types --test tests/weekly.test.mjs",
     "export:web": "expo export --platform web",
     "build:web": "node scripts/check-web-env.mjs && expo export --platform web --clear",

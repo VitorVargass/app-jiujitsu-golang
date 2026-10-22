@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import QRCode from "react-native-qrcode-svg";
+import { StudentNumberCard } from "../student/StudentNumberCard";
 import { PersonalGate, AcademyShell } from "../shared/AcademyShell";
 import {
   Button,
@@ -73,7 +73,8 @@ function EditCPF({
         editable={!save.isPending}
       />
       <Label muted>
-        Use seu próprio CPF para registrar presença no tablet da academia.
+        O CPF é um dado cadastral. Para presença, use seu número de 5 dígitos ou
+        QR Code.
       </Label>
       <Notice message={save.error?.message} />
     </EditorDialog>
@@ -82,7 +83,6 @@ function EditCPF({
 function Content() {
   const { academy } = useSession(),
     a = academy!;
-  const { width } = useWindowDimensions();
   const [editing, setEditing] = useState(false);
   const q = useQuery({
     queryKey: ["participation", a.id],
@@ -124,7 +124,7 @@ function Content() {
             />
             <View style={s.identity}>
               <View style={{ flex: 1, minWidth: 165, gap: 5 }}>
-                <Text style={s.caption}>CPF para presença</Text>
+                <Text style={s.caption}>CPF cadastral</Text>
                 <Text selectable style={s.cpf}>
                   {q.data.cpf ? formatCPF(q.data.cpf) : "Não informado"}
                 </Text>
@@ -138,34 +138,15 @@ function Content() {
                 {q.data.cpf ? "Editar CPF" : "Informar CPF"}
               </Button>
             </View>
-            {q.data.cpf && q.data.can_check_in ? (
-              <View style={{ alignItems: "center", gap: 10 }}>
-                <View
-                  style={{
-                    backgroundColor: "white",
-                    padding: 20,
-                    borderRadius: 12,
-                  }}
-                >
-                  <QRCode
-                    value={q.data.qr_token}
-                    size={Math.min(180, width - 120)}
-                    color="black"
-                    backgroundColor="white"
-                  />
-                </View>
-                <Label muted>
-                  Digite seu CPF ou apresente este QR no tablet.
-                </Label>
-              </View>
-            ) : (
-              <Notice
-                message={
-                  q.data.can_check_in
-                    ? "Informe seu CPF antes do primeiro check-in."
-                    : "Sua participação está inativa para novos check-ins. O histórico continua disponível."
-                }
+            {q.data.can_check_in ? (
+              <StudentNumberCard
+                name={q.data.name}
+                academy={a.name}
+                code={q.data.student_code}
+                qrToken={q.data.qr_token}
               />
+            ) : (
+              <Notice message="Sua participação está inativa para novos check-ins. O histórico continua disponível." />
             )}
           </Card>
           <StudentAttendances own />

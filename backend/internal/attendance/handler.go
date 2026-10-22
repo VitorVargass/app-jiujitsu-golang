@@ -114,10 +114,19 @@ func (h Handler) Credential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	repo := students.Repository{DB: h.Service.Repo.DB}
-	id, e := repo.OwnID(r.Context(), a, u)
-	if e != nil {
-		core.Fail(w, e)
-		return
+	id := r.PathValue("student")
+	if id != "" {
+		if _, err := h.Service.Access.Require(r.Context(), a, "admin"); err != nil {
+			core.Fail(w, err)
+			return
+		}
+	} else {
+		own, err := repo.OwnID(r.Context(), a, u)
+		if err != nil {
+			core.Fail(w, err)
+			return
+		}
+		id = own
 	}
 	st, e := repo.Get(r.Context(), a, id)
 	if e != nil {
@@ -136,5 +145,6 @@ func (h Handler) Credential(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+	w.Header().Set("Cache-Control", "no-store")
 	core.Write(w, 200, map[string]any{"cpf": st.CPF, "archived_at": st.ArchivedAt, "student_code": code, "qr_token": "tatame:" + qr, "student_name": st.Name, "belt": rank, "status": st.Status, "modality_details": st.ModalityDetails})
 }

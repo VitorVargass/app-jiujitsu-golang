@@ -26,7 +26,7 @@ const schemas={
  OpenInput:input({schedule_id:uuid,date:{type:'string',format:'date',description:'Hoje no fuso da academia.'}},['schedule_id']),
  SessionUpdate:input({status:{type:'string',enum:['closed','cancelled']}},['status']),
  Session:object({id:uuid,class_id:uuid,class_name:string,teacher_membership_id:uuid,teacher_name:string,starts_at:{type:'string',format:'date-time'},status:{type:'string',enum:['open','closed','cancelled']},attendance_count:{type:'integer'}}),
- CheckinInput:{...input({qr_token:string,student_code:{type:'string',pattern:'^[0-9]{8}$'},membership_id:uuid}),oneOf:[{required:['qr_token']},{required:['student_code']},{required:['membership_id']}],description:'Exatamente uma identificação. membership_id apenas para professor ou gestor.'},
+ CheckinInput:{...input({qr_token:string,student_code:{type:'string',pattern:'^[0-9]{5}$'},membership_id:uuid}),oneOf:[{required:['qr_token']},{required:['student_code']},{required:['membership_id']}],description:'Exatamente uma identificação. membership_id apenas para professor ou gestor.'},
  CheckinResult:object({id:uuid,membership_id:uuid,student_name:string,belt:string,checked_in_at:{type:'string',format:'date-time'},duplicate:{type:'boolean'}}),
  Attendance:object({id:uuid,session_id:uuid,class_name:string,student_name:string,belt:string,checked_in_at:{type:'string',format:'date-time'}}),
  Credential:object({student_code:string,qr_token:string,student_name:string,belt:string}),

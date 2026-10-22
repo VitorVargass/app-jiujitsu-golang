@@ -26,7 +26,10 @@ import {
 import { api, academyPath, APIError } from "../../services/api";
 import { useSession } from "../../services/session";
 import { AttendanceOptions, CheckinResult } from "../../types";
-import { cpfDigits, formatCPF, validCPF } from "../../types/cpf";
+import {
+  studentNumberDigits,
+  validStudentNumber,
+} from "../../types/student-number";
 import { colors, accents, displayTime } from "../../theme";
 import { KioskCamera } from "./KioskCamera";
 import { KioskLessonPicker, KioskSuccess } from "./KioskPanels";
@@ -46,13 +49,11 @@ function Content() {
   const [exit, setExit] = useState(false),
     [exiting, setExiting] = useState(false),
     [exitError, setExitError] = useState("");
-  const [legacyCode, setLegacyCode] = useState(false);
   const submitting = useRef(false);
   const event = useRef<{
     body: {
       qr_token?: string;
       student_code?: string;
-      cpf?: string;
       schedule_id: string;
       date: string;
     };
@@ -87,7 +88,6 @@ function Content() {
     resetCheckin();
     event.current = null;
     setCode("");
-    setLegacyCode(false);
   }, [resetCheckin]);
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 1000);
@@ -99,7 +99,7 @@ function Content() {
     return () => clearTimeout(timer);
   }, [isSuccess, clearCheckin]);
   async function submit(
-    body: { qr_token?: string; student_code?: string; cpf?: string },
+    body: { qr_token?: string; student_code?: string },
     retry = false,
   ) {
     if ((!retry && !active) || submitting.current) return;
@@ -130,15 +130,12 @@ function Content() {
     }
   }
   const retry = checkin.error instanceof APIError && checkin.error.status === 0;
-  const valid = legacyCode ? code.length === 8 : validCPF(code);
+  const valid = validStudentNumber(code);
   const canSubmit = retry || (!!active && valid);
   function confirm() {
     if (!canSubmit || checkin.isPending) return;
     if (retry && event.current) void submit(event.current.body, true);
-    else
-      void submit(
-        legacyCode ? { student_code: code } : { cpf: cpfDigits(code) },
-      );
+    else void submit({ student_code: code });
   }
   return (
     <Page
@@ -253,20 +250,17 @@ function Content() {
                 <>
                   <View style={s.identification}>
                     <Field
-                      label={legacyCode ? "Código anterior" : "Seu CPF"}
+                      label="Número do aluno"
                       editable={!checkin.isPending}
                       value={code}
                       onChangeText={(value) => {
-                        setCode(
-                          legacyCode
-                            ? value.replace(/[^0-9]/g, "")
-                            : formatCPF(value),
-                        );
+                        setCode(studentNumberDigits(value));
                         checkin.reset();
                       }}
                       keyboardType="number-pad"
-                      maxLength={legacyCode ? 8 : 14}
-                      placeholder={legacyCode ? "8 números" : "000.000.000-00"}
+                      autoComplete="off"
+                      maxLength={5}
+                      placeholder="5 números"
                       style={[
                         s.input,
                         width < 380 && { fontSize: 22, letterSpacing: 0.5 },
@@ -274,9 +268,9 @@ function Content() {
                       returnKeyType="done"
                       onSubmitEditing={confirm}
                     />
-                    {!legacyCode && cpfDigits(code).length === 11 && !valid ? (
-                      <Text style={s.invalid}>Confira os números do CPF.</Text>
-                    ) : null}
+                    <Text style={s.hint}>
+                      Seu número tem 5 dígitos. Se esqueceu, peça à recepção.
+                    </Text>
                     <Button
                       icon="check-circle"
                       disabled={!canSubmit}
@@ -335,22 +329,6 @@ function Content() {
               onPress={() => {
                 setSettings(false);
                 void sessions.refetch();
-              }}
-            />
-            <MenuItem
-              icon="qr"
-              title={legacyCode ? "Usar CPF" : "Usar código anterior"}
-              detail={
-                legacyCode
-                  ? "Voltar à identificação por CPF"
-                  : "Para cadastros que ainda usam 8 números"
-              }
-              onPress={() => {
-                setLegacyCode(!legacyCode);
-                setCode("");
-                checkin.reset();
-                event.current = null;
-                setSettings(false);
               }}
             />
             <MenuItem

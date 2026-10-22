@@ -160,8 +160,8 @@ function InvitationForm({ token }: { token: string }) {
                   editable={!busy}
                 />
                 <Label muted>
-                  Preencha com o CPF do próprio aluno para se identificar no
-                  tablet. Você também poderá usar seu QR Code.
+                  Este é um dado cadastral do aluno. No tablet, ele usará seu
+                  número de 5 dígitos ou QR Code.
                 </Label>
               </>
             )}

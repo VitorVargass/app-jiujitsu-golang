@@ -42,7 +42,7 @@ func TestRestoredCopyMigration(t *testing.T) {
 		"plans":          "SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'[]')) FROM plans t",
 		"billing":        "SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY academy_id,student_id)::text,'[]')) FROM student_billing t",
 		"invoices":       "SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'[]')) FROM invoices t",
-		"memberships":    "SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'[]')) FROM memberships t",
+		"memberships":    "SELECT md5(COALESCE(jsonb_agg(to_jsonb(t)-'student_code' ORDER BY id)::text,'[]')) FROM memberships t",
 		"auth_sessions":  "SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY token_hash)::text,'[]')) FROM auth_sessions t",
 		"devices":        "SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'[]')) FROM devices t",
 		"checkin_events": "SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY academy_id,principal_id,event_key)::text,'[]')) FROM checkin_events t",
@@ -54,11 +54,11 @@ func TestRestoredCopyMigration(t *testing.T) {
 		afterQueries[name] = q
 	}
 	afterQueries["invoices"] = strings.ReplaceAll(afterQueries["invoices"], "to_jsonb(t)", "(to_jsonb(t)-'discount_cents'-'discount_reason'-'payment_method')")
-	afterQueries["students"] = strings.ReplaceAll(afterQueries["students"], "to_jsonb(t)-'email'", "to_jsonb(t)-'activity_tracking_started_at'-'email'")
+	afterQueries["students"] = strings.ReplaceAll(afterQueries["students"], "to_jsonb(t)-'email'", "to_jsonb(t)-'started_on'-'activity_tracking_started_at'-'email'")
 	beforeQueries["user_emails"] = "SELECT md5(COALESCE(jsonb_agg(jsonb_build_object('id',u.id,'email',lower(btrim(u.email))) ORDER BY u.id)::text,'[]')) FROM users u"
 	afterQueries["user_emails"] = "SELECT md5(COALESCE(jsonb_agg(jsonb_build_object('id',u.id,'email',p.email) ORDER BY u.id)::text,'[]')) FROM users u JOIN people p ON p.id=u.person_id"
-	beforeQueries["student_credentials"] = "SELECT md5(COALESCE(jsonb_agg(jsonb_build_object('id',s.id,'cpf',s.cpf,'code',s.student_code,'qr',s.qr_token) ORDER BY s.id)::text,'[]')) FROM students s"
-	afterQueries["student_credentials"] = "SELECT md5(COALESCE(jsonb_agg(jsonb_build_object('id',s.id,'cpf',p.cpf,'code',p.student_code,'qr',p.qr_token) ORDER BY s.id)::text,'[]')) FROM students s JOIN academy_participants p ON p.academy_id=s.academy_id AND p.id=s.participant_id"
+	beforeQueries["student_credentials"] = "SELECT md5(COALESCE(jsonb_agg(jsonb_build_object('id',s.id,'cpf',s.cpf,'qr',s.qr_token) ORDER BY s.id)::text,'[]')) FROM students s"
+	afterQueries["student_credentials"] = "SELECT md5(COALESCE(jsonb_agg(jsonb_build_object('id',s.id,'cpf',p.cpf,'qr',p.qr_token) ORDER BY s.id)::text,'[]')) FROM students s JOIN academy_participants p ON p.academy_id=s.academy_id AND p.id=s.participant_id"
 	beforeQueries["attendances"] = "SELECT md5(COALESCE(jsonb_agg((to_jsonb(t)-'membership_id')||jsonb_build_object('participant_id',t.membership_id) ORDER BY id)::text,'[]')) FROM attendances t"
 	afterQueries["attendances"] = "SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY id)::text,'[]')) FROM attendances t"
 	before := map[string]string{}
@@ -90,7 +90,7 @@ func TestRestoredCopyMigration(t *testing.T) {
 		t.Fatal("participant history index missing", err)
 	}
 	version, err = goose.GetDBVersion(db)
-	if err != nil || version != 10 {
+	if err != nil || version != 12 {
 		t.Fatal("migration 008 missing", version, err)
 	}
 }

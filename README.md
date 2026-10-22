@@ -111,6 +111,17 @@ Os cards do início são clicáveis por toda a sua área: alunos ativos abrem Al
 
 A navegação inferior acompanha a cor de cada seção. Situações financeiras e de dispositivos usam texto e cores; os filtros de mês/aluno ficam no botão de filtros do Financeiro. A versão web permite ativar os cards pelo teclado; as páginas vizinhas do carrossel ficam fora da ordem de Tab.
 
+## Presenças do aluno
+
+Em Alunos, abra o cadastro e toque em Presenças. A visão dedicada mostra o calendário do mês e um resumo dos treinos; toque em um dia marcado para consultar as aulas. O botão Cadastro retorna aos dados do aluno. No computador, calendário e lista aparecem lado a lado; no celular, use Calendário ou Lista. O seletor de mês também oferece Todos os meses, com cinco registros por página. Registrar permite lançar a presença numa aula, inclusive a partir do dia consultado. Dias vazios significam ausência de registro, sem presumir falta.
+## Número do aluno e cartão de presença
+
+O check-in atual pede cinco números ou QR Code. O sistema gera o número automaticamente, sem usar partes do CPF, e reserva cada número por academia, inclusive entre arquivados. Zeros à esquerda fazem parte do número. CPF permanece como dado cadastral e financeiro.
+
+O gestor consulta o número na lista e no cadastro do aluno, ou abre **Cartão de presença** para ver o QR e copiar a identificação para o responsável. O portal do aluno mostra o mesmo cartão. A busca por número também encontra arquivados.
+
+A migração 012 troca códigos antigos de oito números por cinco, preserva códigos que já tenham cinco dígitos e conserva QR, contas, presenças, graduações e cobranças. Após essa conversão inicial, editar, arquivar e restaurar o aluno não altera seu número. No Render, a migração roda ao iniciar o backend do novo deploy; o banco publicado não foi alterado durante os testes locais.
+
 ## Fluxo do gestor e do aluno
 
 1. Entre com e-mail e senha. Seu acesso é identificado automaticamente; havendo vários, escolha após o login ou retome a última seleção válida. Contas novas podem abrir o convite da academia ou escolher Cadastrar minha academia. Outras unidades ficam em Mais → Nova academia.

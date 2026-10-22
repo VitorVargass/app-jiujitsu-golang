@@ -72,8 +72,8 @@ function ListContent() {
     >
       <View style={{ gap: 12 }}>
         <SearchBar
-          label="Buscar aluno por nome ou CPF"
-          placeholder="Nome ou CPF completo..."
+          label="Buscar aluno por nome, número ou CPF"
+          placeholder="Nome, 5 números ou CPF completo..."
           value={search}
           onChangeText={(v) => {
             setSearch(v);
@@ -205,6 +205,7 @@ function ListContent() {
                 <Text numberOfLines={1} style={listStyles.studentName}>
                   {s.name}
                 </Text>
+                <Text style={listStyles.studentMeta}>Nº {s.student_code}</Text>
                 <Text numberOfLines={1} style={listStyles.studentMeta}>
                   {s.modality_details?.length
                     ? s.modality_details

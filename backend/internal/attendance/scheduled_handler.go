@@ -57,26 +57,12 @@ func (h Handler) ScheduledCheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if in.MembershipID != "" || in.StudentID != "" {
-		core.Fail(w, core.E(403, "forbidden", "Informe somente CPF, QR ou código da pessoa."))
+		core.Fail(w, core.E(403, "forbidden", "Informe somente o número do aluno ou QR Code."))
 		return
 	}
-	identifiers := 0
-	for _, value := range []string{in.CPF, in.QRToken, in.StudentCode} {
-		if value != "" {
-			identifiers++
-		}
-	}
-	if identifiers != 1 || len(in.QRToken) > 100 || len(in.StudentCode) > 16 {
-		core.Fail(w, core.E(422, "invalid_identifier", "Informe somente CPF ou QR Code."))
+	if err := normalizeIdentifier(&in.Input); err != nil {
+		core.Fail(w, err)
 		return
-	}
-	if in.CPF != "" {
-		cpf, ok := core.NormalizeCPF(in.CPF)
-		if !ok || cpf == "" {
-			core.Fail(w, core.E(422, "invalid_cpf", "Informe um CPF válido."))
-			return
-		}
-		in.CPF = cpf
 	}
 	value, err := h.Service.Repo.record(r.Context(), a, "", key, in.Input, &in, false)
 	if err != nil {

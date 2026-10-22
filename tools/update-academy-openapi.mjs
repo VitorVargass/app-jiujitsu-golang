@@ -112,4 +112,23 @@ route(base+"/students/{student_id}/progress","get","Consultar evolução e tempo
 schema.Billing.properties.first_month.description="Ao ativar a cobrança, a primeira mensalidade é emitida imediatamente com o vencimento no mês escolhido, inclusive futuro. As seguintes são emitidas no início de cada mês. No retorno, representa a próxima competência ainda não emitida; a edição de contrato ativo não altera mensalidades já emitidas.";
 schema.StudentStartDateInput=obj({started_on:{type:"string",format:"date"},expected_started_on:{type:"string",format:"date"}},["started_on","expected_started_on"]);
 route(base+"/students/{student_id}/start-date","patch","Corrigir início do aluno na academia","Student","StudentStartDateInput",[],"Somente gestor ativo desta academia; aluno arquivado deve ser restaurado. Valida calendário, nascimento e data atual no fuso da academia. Correção isolada não altera criação da conta, períodos ativos, graduações, presenças nem contrato/mensalidades. Data atual diferente da esperada: 409; repetição do mesmo resultado: 200. O tempo desde o início informado é distinto da atividade acompanhada.");
+
+const studentNumber={type:"string",pattern:"^[0-9]{5}$",minLength:5,maxLength:5,readOnly:true,description:"Número automático e permanente do aluno nesta academia. Não deriva do CPF. Arquivamento não libera nem altera o número."};
+schema.CheckinInput.properties.student_code={...studentNumber,readOnly:false};
+schema.CheckinInput.description="Exatamente uma identificação: student_code de 5 dígitos ou qr_token. CPF aceito somente para compatibilidade com clientes anteriores. Tablet autorizado obrigatório.";
+schema.CheckinInput.properties.cpf.description="Compatibilidade com clientes anteriores. O tablet atual utiliza o número de 5 dígitos ou QR.";
+schema.ScheduledCheckInInput.properties.student_code={...studentNumber,readOnly:false};
+schema.ScheduledCheckInInput.oneOf=[{required:["student_code"]},{required:["qr_token"]},{required:["cpf"]}];
+schema.Credential.properties.student_code=studentNumber;
+schema.Participation.properties.student_code=studentNumber;
+schema.Student.allOf[1].properties.student_code=studentNumber;
+doc.paths[base+"/sessions/{session_id}/check-ins"].post.description=checkin.description.replace("cpf, qr_token ou student_code legado","student_code de 5 dígitos ou qr_token (CPF aceito para clientes anteriores)");
+doc.paths[base+"/check-ins"].post.description=doc.paths[base+"/check-ins"].post.description.replace("CPF, QR ou código","número do aluno de 5 dígitos ou QR (CPF aceito para clientes anteriores)");
+doc.paths[base+"/students"].get.description+=" Busca exata pelo número de 5 dígitos também encontra alunos arquivados quando status é omitido.";
+doc.paths[base+"/me/student-credential"].get.summary="Consultar meu número de 5 dígitos e QR";
+doc.paths[base+"/me/participation"].get.summary="Consultar número, QR e identidade pessoais";
+doc.paths[base+"/me/participation"].patch.summary="Atualizar o CPF cadastral";
+route(base+"/students/{student_id}/credential","get","Consultar cartão de presença do aluno","Credential",null,[],"Somente gestor da mesma academia. Retorna número de 5 dígitos e QR, inclusive de cadastro arquivado para consulta. Não concede acesso ao portal. Tablet e outro aluno não podem consultar.");
+doc.info.version="2.13.0";
+
 const raw=JSON.stringify(doc,null,2)+"\n";fs.writeFileSync(new URL("../docs/openapi.json",import.meta.url),raw);fs.writeFileSync(new URL("../backend/internal/httpapi/openapi.json",import.meta.url),raw);

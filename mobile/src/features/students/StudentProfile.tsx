@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { FormScrollContext } from "../../components/FormScrollContext";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useMutation } from "@tanstack/react-query";
@@ -28,8 +29,14 @@ import { queryClient, useSession } from "../../services/session";
 import { portalLink } from "../../services/links";
 import { AcademyShell } from "../shared/AcademyShell";
 import StudentForm from "./StudentForm";
+import { StudentCardDialog } from "./StudentCardDialog";
 import { StudentSection, StudentSectionEditor } from "./StudentSectionEditor";
 
+function SectionScrollReset({ section }: { section: string }) {
+  const reset = useContext(FormScrollContext);
+  useEffect(() => reset(), [section, reset]);
+  return null;
+}
 function Edit({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable
@@ -72,6 +79,7 @@ export default function StudentProfile({
     [archive, setArchive] = useState(false),
     [message, setMessage] = useState(""),
     [link, setLink] = useState("");
+  const [showCard, setShowCard] = useState(false);
   const archived = !!student.archived_at;
   const age = ageOn(student.birth_date, a.timezone);
   const invite = useMutation({
@@ -131,6 +139,32 @@ export default function StudentProfile({
         onExit={() => setFull(null)}
       />
     );
+  if (tab === "attendance")
+    return (
+      <AcademyShell
+        wide
+        title="Presenças"
+        subtitle={student.name + " · Nº " + student.student_code}
+        swipeEnabled={false}
+        titleAction={
+          <Button
+            compact
+            secondary
+            icon="chevron-left"
+            onPress={() => setTab("enrollment")}
+          >
+            Cadastro
+          </Button>
+        }
+      >
+        <SectionScrollReset section="attendance" />
+        <StudentAttendances
+          key={student.id}
+          studentId={student.id}
+          canRecord={!archived && student.status === "active"}
+        />
+      </AcademyShell>
+    );
   function edit(section: StudentSection) {
     setMessage("");
     setEditor(section);
@@ -150,12 +184,16 @@ export default function StudentProfile({
         </Button>
       }
     >
+      <SectionScrollReset section={tab} />
       <Notice success message={message} />
       <View style={s.hero}>
         <View style={s.identity}>
           <Avatar name={student.name} />
           <View style={{ flex: 1, gap: 8, minWidth: 0 }}>
             <Text style={s.name}>{student.name}</Text>
+            <Text selectable style={s.caption}>
+              Número do aluno: {student.student_code}
+            </Text>
             <Badge
               label={
                 archived
@@ -199,6 +237,17 @@ export default function StudentProfile({
           </View>
         ) : null}
       </View>
+      <Button compact secondary icon="qr" onPress={() => setShowCard(true)}>
+        Cartão de presença
+      </Button>
+      {showCard ? (
+        <StudentCardDialog
+          academyId={a.id}
+          academyName={a.name}
+          studentId={student.id}
+          onClose={() => setShowCard(false)}
+        />
+      ) : null}
       <View accessibilityRole="tablist" style={s.tabs}>
         {(
           [
@@ -236,13 +285,6 @@ export default function StudentProfile({
           timezone={a.timezone}
           onEdit={edit}
           onContract={() => setFull(student.birth_date ? 1 : 0)}
-        />
-      ) : null}
-      {tab === "attendance" ? (
-        <StudentAttendances
-          key={student.id}
-          studentId={student.id}
-          canRecord={!archived && student.status === "active"}
         />
       ) : null}
       {tab === "progress" ? (
@@ -365,6 +407,17 @@ export default function StudentProfile({
       ) : null}
       {menu ? (
         <EditorDialog title="Opções do aluno" onClose={() => setMenu(false)}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setMenu(false);
+              setShowCard(true);
+            }}
+            style={s.menuItem}
+          >
+            <Icon name="qr" size={18} color={colors.muted} />
+            <Text style={s.value}>Cartão de presença</Text>
+          </Pressable>
           {!archived ? (
             <Pressable
               accessibilityRole="button"

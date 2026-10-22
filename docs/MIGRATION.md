@@ -96,3 +96,14 @@ A migração passou desde a 001 e numa cópia isolada da versão 009. O teste de
 Adiciona started_on em students sem alterar created_at. Os cadastros existentes recebem a data de criação convertida para o fuso da academia; o gestor pode corrigi-la em Evolução. Dados financeiros, graduações, períodos ativos e presenças são preservados. Importações que omitem started_on usam a data local de created_at. Nenhuma cobrança é retroagida a partir dessa data.
 
 Foi criado backup da base de validação e uma cópia do esquema 010 foi migrada isoladamente. Testes cobrem virada de dia no fuso da academia, preservação dos dados e execuções repetidas. A alteração é aplicada pelo Goose ao reiniciar a API atualizada; conserve um backup do banco antes de atualizar sua instalação.
+
+## 012 — Número do aluno com cinco dígitos
+
+Ao iniciar o backend atualizado, Goose aplica 012_student_numbers.sql em uma transação. Cadastros cujo número não tenha exatamente cinco dígitos recebem um novo número; os demais conservam o número atual. A geração não usa CPF. O QR Token, CPF, IDs, usuários, vínculos, presenças, financeiro e históricos de graduação são preservados. Vínculos legados passam a usar o mesmo número da participação correspondente, sem acionar criação de matrículas ou eventos de evolução.
+
+A reserva usa bloqueio transacional por academia, consulta de disponibilidade e restrição única no banco. Inserções simultâneas ou propostas repetidas recebem números distintos. A reserva inclui arquivados e participantes sem matrícula financeira. Os 100 mil números possíveis incluem zeros à esquerda; o app os trata como texto. Não exclua arquivados para liberar números.
+
+Depois da publicação, confira o novo número no cadastro/cartão do aluno. Oito dígitos deixam de ser aceitos no tablet atualizado; os QR Codes existentes continuam válidos. CPF ainda é aceito pela API para compatibilidade com versões anteriores, mas não é oferecido na nova tela de check-in. Conservem um backup anterior ao deploy: recuperar números antigos exige restaurar esse backup. Não edite migrações antigas.
+
+Nenhuma migração foi executada no banco de uso ou no Neon durante esta implementação. A validação usou PostgreSQL 18 isolado na porta 55439. Em uma instalação publicada, a aplicação desta mudança acontece no próximo deploy que contenha a migração 012.
+Ativação local em 22/10/2026 às 17h34: a migração 012 já foi aplicada no banco tatame deste computador, depois de backup e validação em cópia restaurada. Os 21 participantes agora possuem números de cinco dígitos; alunos, mensalidades, presenças e QR foram preservados. A API local está na versão 2.13.0. O Neon continua dependendo do deploy da versão atualizada.

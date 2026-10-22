@@ -48,8 +48,8 @@ func (r Repository) List(ctx context.Context, a, search, status, modality string
 		cpf = ""
 	}
 	where := ` FROM students s JOIN academy_participants p ON p.academy_id=s.academy_id AND p.id=s.participant_id JOIN people i ON i.id=s.person_id WHERE s.academy_id=$1
- AND (s.name ILIKE '%'||$2||'%' OR ($5::text<>'' AND p.cpf=$5))
- AND (($3::text='' AND (s.archived_at IS NULL OR $5::text<>''))
+ AND (s.name ILIKE '%'||$2||'%' OR ($5::text<>'' AND p.cpf=$5) OR p.student_code=$2)
+ AND (($3::text='' AND (s.archived_at IS NULL OR $5::text<>'' OR p.student_code=$2))
    OR ($3='archived' AND s.archived_at IS NOT NULL)
    OR ($3 IN ('active','inactive') AND s.archived_at IS NULL AND s.status=$3))
  AND ($4::text='' OR EXISTS(SELECT 1 FROM student_modalities sm WHERE sm.academy_id=s.academy_id AND sm.student_id=s.id AND sm.modality_id::text=$4))`

@@ -1,12 +1,23 @@
+# Configuracoes locais, repositorios e ferramentas privadas.
 .git
+**/.git
 .tools
+**/.tools
 artifacts
+**/artifacts
+**/backups
+**/.vscode
+
+# Dependencias e builds: a imagem recompila a partir do codigo-fonte.
 **/node_modules
 **/.expo
 **/.vercel
 **/dist
+**/coverage
 mobile/android
 mobile/ios
+
+# Segredos e copias de bancos nunca entram na imagem.
 **/.env
 **/.env.*
 **/asaas-connections*.json
