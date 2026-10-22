@@ -435,3 +435,9 @@ Conferência visual final em 1280 px, 390 px e 320 px: sem transbordamento horiz
 - .dockerignore ampliado para excluir também .tools e backups em subdiretórios, além dos segredos e builds locais já excluídos. Nenhuma variável privada foi lida ou incluída na imagem.
 - Exportação Expo web com CI=1, EXPO_NO_DOTENV=1 e EXPO_PUBLIC_API_URL=same-origin passou; TypeScript passou. go mod verify, teste da porta da hospedagem, teste de links internos/isolamento das rotas API e compilação CGO_ENABLED=0 GOOS=linux GOARCH=amd64 com -mod=readonly passaram.
 - Não há Docker disponível localmente: montagem e execução da imagem completa não foram verificadas. Build final será realizado pelo Render. Nenhum push, deploy, acesso ao Neon ou alteração do banco foi executado nesta etapa.
+## Correção do TypeScript no build limpo do Render — 22/10/2026
+
+- Falha TS2769 em SwipeNavigator.tsx reproduzida com os arquivos versionados do commit cb71bb5, sem expo-env.d.ts ou .expo locais. Os estilos web touchAction/overscrollBehaviorX dependiam das declarações Expo carregadas pelo arquivo gerado ignorado pelo Git.
+- Adicionado mobile/src/types/expo.d.ts, que importa expo/types durante a checagem. Os tipos oficiais web ficam disponíveis também na cópia limpa; comportamento e estilos dos gestos permanecem iguais e a verificação TypeScript do Dockerfile continua ativa.
+- TypeScript da cópia limpa passou antes da exportação, sem expo-env.d.ts e sem .expo. Exportação web com CI=1, EXPO_NO_DOTENV=1 e EXPO_PUBLIC_API_URL=same-origin seguida de TypeScript também passou na mesma cópia. Formatação, TypeScript e lint do projeto passaram.
+- O novo arquivo precisa ser incluído no commit enviado ao GitHub. Nenhum push ou deploy executado pelo agente; a imagem Docker completa continua sem execução local por ausência do Docker.
