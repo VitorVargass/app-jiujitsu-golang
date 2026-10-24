@@ -1,11 +1,6 @@
+import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { useState } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router, Href } from "expo-router";
 import { EditorDialog } from "../../components/EditorDialog";
 import { Icon } from "../../components/Icon";
@@ -45,8 +40,8 @@ export function HistoryList({
   timezone: string;
   admin: boolean;
 }) {
-  const { width } = useWindowDimensions();
-  const desktop = admin && width >= 900;
+  const { isWide } = useResponsiveLayout();
+  const desktop = admin && isWide;
   const [detail, setDetail] = useState<Attendance | null>(null);
   const days = new Map<string, Attendance[]>();
   for (const item of items) {
@@ -200,7 +195,8 @@ export function HistoryList({
                 secondary
                 icon="users"
                 onPress={() => {
-                  const destination = ("/students/" + detail.student_id) as Href;
+                  const destination = ("/students/" +
+                    detail.student_id) as Href;
                   setDetail(null);
                   router.push(destination);
                 }}

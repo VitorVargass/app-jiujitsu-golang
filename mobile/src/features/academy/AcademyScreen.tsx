@@ -1,3 +1,5 @@
+import { ResponsiveGrid } from "../../components/ResponsiveGrid";
+import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { Href, router } from "expo-router";
 import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { useQuery } from "@tanstack/react-query";
@@ -34,6 +36,7 @@ function Metric({
 }) {
   const accent = accents[tone];
   const { width } = useWindowDimensions();
+  const { isWide } = useResponsiveLayout();
   const valueSize =
     typeof value === "string"
       ? Math.min(
@@ -50,7 +53,11 @@ function Metric({
     <Card
       onPress={() => router.replace(href)}
       accessibilityLabel={label + ": " + value + ". " + hint}
-      style={[styles.metric, { borderColor: accent.border }]}
+      style={[
+        styles.metric,
+        isWide && { flexBasis: "22%", minHeight: 165 },
+        { borderColor: accent.border },
+      ]}
     >
       <View style={styles.metricTop}>
         <View style={[styles.metricIcon, { backgroundColor: accent.soft }]}>
@@ -66,7 +73,7 @@ function Metric({
           styles.value,
           {
             color: accent.color,
-            fontSize: valueSize,
+            fontSize: isWide ? 24 : valueSize,
           },
         ]}
       >
@@ -175,175 +182,199 @@ function Content() {
         </View>
       )}
 
-      {dash.data ? (
-        <Card
-          onPress={() => router.push("/academy-history")}
-          accessibilityLabel={
-            "Ritmo da semana. " +
-            total +
-            " presenças nos últimos sete dias. Ver histórico de presenças"
-          }
-          style={styles.chartCard}
-        >
-          <View style={styles.sectionHeading}>
-            <View style={{ flex: 1, gap: 5 }}>
-              <Heading>Ritmo da semana</Heading>
-              <Label muted>Presenças nos últimos 7 dias</Label>
-            </View>
-            <View
-              style={[
-                styles.metricIcon,
-                { backgroundColor: accents.brand.soft },
-              ]}
+      <ResponsiveGrid>
+        <View style={{ gap: 20 }}>
+          {dash.data ? (
+            <Card
+              onPress={() => router.push("/academy-history")}
+              accessibilityLabel={
+                "Ritmo da semana. " +
+                total +
+                " presenças nos últimos sete dias. Ver histórico de presenças"
+              }
+              style={styles.chartCard}
             >
-              <Icon name="calendar" size={21} color={accents.brand.color} />
-            </View>
+              <View style={styles.sectionHeading}>
+                <View style={{ flex: 1, gap: 5 }}>
+                  <Heading>Ritmo da semana</Heading>
+                  <Label muted>Presenças nos últimos 7 dias</Label>
+                </View>
+                <View
+                  style={[
+                    styles.metricIcon,
+                    { backgroundColor: accents.brand.soft },
+                  ]}
+                >
+                  <Icon name="calendar" size={21} color={accents.brand.color} />
+                </View>
+              </View>
+              <View
+                style={styles.chart}
+                accessible
+                accessibilityLabel={week
+                  .map((d) => d.date + ": " + d.count)
+                  .join(", ")}
+              >
+                {week.map((d, index) => {
+                  const latest = index === week.length - 1;
+                  const weekday = new Intl.DateTimeFormat("pt-BR", {
+                    weekday: "short",
+                    timeZone: "UTC",
+                  })
+                    .format(new Date(d.date + "T12:00:00Z"))
+                    .replace(".", "");
+                  return (
+                    <View key={d.date} style={styles.chartColumn}>
+                      <Text
+                        style={[
+                          styles.chartCount,
+                          latest && { color: colors.primaryLight },
+                        ]}
+                      >
+                        {d.count}
+                      </Text>
+                      <View style={styles.chartTrack}>
+                        <View
+                          style={[
+                            styles.bar,
+                            {
+                              height: Math.max(5, (d.count / maximum) * 80),
+                              backgroundColor: latest
+                                ? colors.primary
+                                : accents.brand.color,
+                              opacity: d.count ? 1 : 0.28,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text
+                        style={[
+                          styles.chartDay,
+                          latest && { color: colors.primaryLight },
+                        ]}
+                      >
+                        {weekday}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+              <View style={styles.cardFooter}>
+                <Text style={styles.footerText}>
+                  {total}{" "}
+                  {total === 1 ? "presença na semana" : "presenças na semana"}
+                </Text>
+                <Icon
+                  name="chevron-right"
+                  size={17}
+                  color={accents.brand.color}
+                />
+              </View>
+            </Card>
+          ) : null}
+        </View>
+        <View style={{ gap: 16 }}>
+          <View style={styles.sectionHeading}>
+            <Heading>Aulas de hoje</Heading>
+            <Badge
+              label={
+                String(open.length) + (open.length === 1 ? " aula" : " aulas")
+              }
+              tone="slate"
+            />
           </View>
-          <View
-            style={styles.chart}
-            accessible
-            accessibilityLabel={week
-              .map((d) => d.date + ": " + d.count)
-              .join(", ")}
-          >
-            {week.map((d, index) => {
-              const latest = index === week.length - 1;
-              const weekday = new Intl.DateTimeFormat("pt-BR", {
-                weekday: "short",
-                timeZone: "UTC",
-              })
-                .format(new Date(d.date + "T12:00:00Z"))
-                .replace(".", "");
-              return (
-                <View key={d.date} style={styles.chartColumn}>
-                  <Text
+          <Notice message={sessions.error?.message} />
+          {sessions.isPending ? (
+            <Loading />
+          ) : open.length ? (
+            open.map((s) => (
+              <Card
+                key={s.schedule_id + s.date}
+                onPress={() =>
+                  router.push({
+                    pathname: "/attendance-day",
+                    params: { scheduleId: s.schedule_id, date: s.date },
+                  })
+                }
+                accessibilityLabel={"Aula " + s.class_name + ". Ver presenças"}
+                style={styles.sessionCard}
+              >
+                <View style={styles.sectionHeading}>
+                  <View
                     style={[
-                      styles.chartCount,
-                      latest && { color: colors.primaryLight },
+                      styles.metricIcon,
+                      { backgroundColor: accents.brand.soft },
                     ]}
                   >
-                    {d.count}
-                  </Text>
-                  <View style={styles.chartTrack}>
-                    <View
-                      style={[
-                        styles.bar,
-                        {
-                          height: Math.max(5, (d.count / maximum) * 80),
-                          backgroundColor: latest
-                            ? colors.primary
-                            : accents.brand.color,
-                          opacity: d.count ? 1 : 0.28,
-                        },
-                      ]}
+                    <Icon
+                      name="calendar"
+                      size={22}
+                      color={accents.brand.color}
                     />
                   </View>
-                  <Text
-                    style={[
-                      styles.chartDay,
-                      latest && { color: colors.primaryLight },
-                    ]}
-                  >
-                    {weekday}
-                  </Text>
+                  <View style={{ flex: 1, gap: 5 }}>
+                    <Heading>{s.class_name}</Heading>
+                    <Label muted>
+                      {displayTime(s.starts_at, a.timezone)} •{" "}
+                      {s.attendance_count} presentes
+                    </Label>
+                  </View>
+                  <Icon
+                    name="chevron-right"
+                    size={20}
+                    color={accents.brand.color}
+                  />
                 </View>
-              );
-            })}
-          </View>
-          <View style={styles.cardFooter}>
-            <Text style={styles.footerText}>
-              {total}{" "}
-              {total === 1 ? "presença na semana" : "presenças na semana"}
-            </Text>
-            <Icon name="chevron-right" size={17} color={accents.brand.color} />
-          </View>
-        </Card>
-      ) : null}
-
-      <View style={styles.sectionHeading}>
-        <Heading>Aulas de hoje</Heading>
-        <Badge
-          label={String(open.length) + (open.length === 1 ? " aula" : " aulas")}
-          tone="slate"
-        />
-      </View>
-      <Notice message={sessions.error?.message} />
-      {sessions.isPending ? (
-        <Loading />
-      ) : open.length ? (
-        open.map((s) => (
-          <Card
-            key={s.schedule_id + s.date}
-            onPress={() =>
-              router.push({
-                pathname: "/attendance-day",
-                params: { scheduleId: s.schedule_id, date: s.date },
-              })
-            }
-            accessibilityLabel={"Aula " + s.class_name + ". Ver presenças"}
-            style={styles.sessionCard}
-          >
-            <View style={styles.sectionHeading}>
+                <View style={styles.cardFooter}>
+                  <Badge
+                    label={
+                      s.phase === "ended"
+                        ? "Concluída"
+                        : s.phase === "live"
+                          ? "Check-in liberado"
+                          : "Na agenda"
+                    }
+                    tone="slate"
+                  />
+                  <Text style={styles.footerText}>Ver lista</Text>
+                </View>
+              </Card>
+            ))
+          ) : !sessions.error ? (
+            <Card
+              onPress={() => router.replace("/classes")}
+              accessibilityLabel="Nenhuma aula na agenda hoje. Ver turmas"
+              style={styles.emptySession}
+            >
               <View
                 style={[
                   styles.metricIcon,
                   { backgroundColor: accents.brand.soft },
                 ]}
               >
-                <Icon name="calendar" size={22} color={accents.brand.color} />
+                <Icon name="calendar" size={24} color={accents.brand.color} />
               </View>
-              <View style={{ flex: 1, gap: 5 }}>
-                <Heading>{s.class_name}</Heading>
-                <Label muted>
-                  {displayTime(s.starts_at, a.timezone)} • {s.attendance_count}{" "}
-                  presentes
-                </Label>
+              <Heading>Sem aulas previstas para hoje</Heading>
+              <Label muted>
+                Confira a agenda semanal em Turmas. O tablet libera o check-in
+                nos horários cadastrados.
+              </Label>
+              <View style={styles.cardFooter}>
+                <Text
+                  style={[styles.footerText, { color: accents.brand.color }]}
+                >
+                  Ir para turmas
+                </Text>
+                <Icon
+                  name="chevron-right"
+                  size={18}
+                  color={accents.brand.color}
+                />
               </View>
-              <Icon
-                name="chevron-right"
-                size={20}
-                color={accents.brand.color}
-              />
-            </View>
-            <View style={styles.cardFooter}>
-              <Badge
-                label={
-                  s.phase === "ended"
-                    ? "Concluída"
-                    : s.phase === "live"
-                      ? "Check-in liberado"
-                      : "Na agenda"
-                }
-                tone="slate"
-              />
-              <Text style={styles.footerText}>Ver lista</Text>
-            </View>
-          </Card>
-        ))
-      ) : !sessions.error ? (
-        <Card
-          onPress={() => router.replace("/classes")}
-          accessibilityLabel="Nenhuma aula na agenda hoje. Ver turmas"
-          style={styles.emptySession}
-        >
-          <View
-            style={[styles.metricIcon, { backgroundColor: accents.brand.soft }]}
-          >
-            <Icon name="calendar" size={24} color={accents.brand.color} />
-          </View>
-          <Heading>Sem aulas previstas para hoje</Heading>
-          <Label muted>
-            Confira a agenda semanal em Turmas. O tablet libera o check-in nos
-            horários cadastrados.
-          </Label>
-          <View style={styles.cardFooter}>
-            <Text style={[styles.footerText, { color: accents.brand.color }]}>
-              Ir para turmas
-            </Text>
-            <Icon name="chevron-right" size={18} color={accents.brand.color} />
-          </View>
-        </Card>
-      ) : null}
+            </Card>
+          ) : null}
+        </View>
+      </ResponsiveGrid>
     </AcademyShell>
   );
 }

@@ -118,7 +118,7 @@ export function FormWizard({
   );
 }
 const styles = StyleSheet.create({
-  root: { gap: 20 },
+  root: { gap: 20, width: "100%", maxWidth: 1040, alignSelf: "center" },
   progress: { gap: 10 },
   bars: { flexDirection: "row", gap: 6 },
   bar: { height: 4, flex: 1, borderRadius: 4, backgroundColor: colors.border },

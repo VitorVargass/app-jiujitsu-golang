@@ -27,6 +27,7 @@ export default function AcademyPickerScreen() {
   if (!academiesError && !options.length) return <Redirect href="/entry" />;
   return (
     <Page
+      wide
       title="Academias e perfis"
       subtitle="Troque de academia ou de área quando precisar."
       action={

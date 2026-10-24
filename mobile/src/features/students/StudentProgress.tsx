@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
@@ -87,99 +88,109 @@ export function StudentProgress({
           onClose={() => setStartEditor(false)}
         />
       ) : null}
-      {q.isPending ? (
-        <Loading />
-      ) : q.error ? (
-        <Notice message={q.error.message} />
-      ) : q.data ? (
-        <Card>
-          <View style={s.progressHeading}>
-            <Heading>Tempo na academia</Heading>
-            {!student.archived_at ? (
-              <IconButton
-                icon="edit"
-                label="Editar início na academia"
-                onPress={() => setStartEditor(true)}
-              />
-            ) : null}
-          </View>
-          <View style={s.metrics}>
-            <View style={s.metric}>
-              <Text style={s.number}>
-                {enrollmentDuration(
-                  q.data.started_on,
-                  q.dataUpdatedAt,
-                  timezone,
-                  q.data.tenure_days,
-                )}
-              </Text>
-              <Label muted>desde o início na academia</Label>
-            </View>
-            <View style={s.metric}>
-              <Label>Início: {formatBirth(q.data.started_on)}</Label>
-              <Label muted>
-                Cadastro no aplicativo em {date(q.data.joined_at)}
-              </Label>
-            </View>
-          </View>
-          <View style={s.tracking}>
-            <Icon name="check-circle" size={18} color={accents.mint.color} />
-            <View style={{ flex: 1, gap: 6 }}>
-              <Label>{q.data.active_days} dias de atividade acompanhada</Label>
-              <Label muted>
-                Acompanhamento desde {date(q.data.tracking_started_at)}. A
-                contagem usa os períodos registrados e exclui pausas.
-              </Label>
-              {!q.data.active_since ? (
-                <Label muted>Atualmente inativo ou arquivado</Label>
-              ) : null}
-            </View>
-          </View>
-        </Card>
-      ) : null}
-      <Card>
-        <Heading>Graduação atual</Heading>
-        <Label muted>
-          Faixas e graus por modalidade. Cada alteração entra no histórico.
-        </Label>
-        {student.modality_details.map((d) => {
-          const m = modalities.find((v) => v.id === d.modality_id),
-            options = m?.belt_options;
-          return (
-            <View key={d.modality_id} style={s.rank}>
-              <View style={{ flex: 1, gap: 8, minWidth: 0 }}>
-                <Label>{m?.name ?? "Modalidade"}</Label>
-                {d.belt ? (
-                  <BeltSwatch
-                    degrees={d.degrees}
-                    colors={
-                      options?.find((v) => v.label === d.belt)?.colors ?? [
-                        "#929292",
-                      ]
-                    }
+      <ResponsiveGrid>
+        <View style={{ gap: 20 }}>
+          {q.isPending ? (
+            <Loading />
+          ) : q.error ? (
+            <Notice message={q.error.message} />
+          ) : q.data ? (
+            <Card>
+              <View style={s.progressHeading}>
+                <Heading>Tempo na academia</Heading>
+                {!student.archived_at ? (
+                  <IconButton
+                    icon="edit"
+                    label="Editar início na academia"
+                    onPress={() => setStartEditor(true)}
                   />
                 ) : null}
-                <Label muted>{rankLabel(d.belt, d.degrees)}</Label>
               </View>
-              {!student.archived_at && (d.belt || options?.length) ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    "Editar faixa de " + (m?.name ?? "modalidade")
-                  }
-                  onPress={() => onEdit(d.modality_id)}
-                  style={s.edit}
-                >
-                  <Icon name="edit" color={colors.primaryLight} size={18} />
-                </Pressable>
-              ) : null}
-            </View>
-          );
-        })}
-        {!student.modality_details.length ? (
-          <Label muted>Nenhuma modalidade vinculada.</Label>
-        ) : null}
-      </Card>
+              <View style={s.metrics}>
+                <View style={s.metric}>
+                  <Text style={s.number}>
+                    {enrollmentDuration(
+                      q.data.started_on,
+                      q.dataUpdatedAt,
+                      timezone,
+                      q.data.tenure_days,
+                    )}
+                  </Text>
+                  <Label muted>desde o início na academia</Label>
+                </View>
+                <View style={s.metric}>
+                  <Label>Início: {formatBirth(q.data.started_on)}</Label>
+                  <Label muted>
+                    Cadastro no aplicativo em {date(q.data.joined_at)}
+                  </Label>
+                </View>
+              </View>
+              <View style={s.tracking}>
+                <Icon
+                  name="check-circle"
+                  size={18}
+                  color={accents.mint.color}
+                />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Label>
+                    {q.data.active_days} dias de atividade acompanhada
+                  </Label>
+                  <Label muted>
+                    Acompanhamento desde {date(q.data.tracking_started_at)}. A
+                    contagem usa os períodos registrados e exclui pausas.
+                  </Label>
+                  {!q.data.active_since ? (
+                    <Label muted>Atualmente inativo ou arquivado</Label>
+                  ) : null}
+                </View>
+              </View>
+            </Card>
+          ) : null}
+        </View>
+        <Card>
+          <Heading>Graduação atual</Heading>
+          <Label muted>
+            Faixas e graus por modalidade. Cada alteração entra no histórico.
+          </Label>
+          {student.modality_details.map((d) => {
+            const m = modalities.find((v) => v.id === d.modality_id),
+              options = m?.belt_options;
+            return (
+              <View key={d.modality_id} style={s.rank}>
+                <View style={{ flex: 1, gap: 8, minWidth: 0 }}>
+                  <Label>{m?.name ?? "Modalidade"}</Label>
+                  {d.belt ? (
+                    <BeltSwatch
+                      degrees={d.degrees}
+                      colors={
+                        options?.find((v) => v.label === d.belt)?.colors ?? [
+                          "#929292",
+                        ]
+                      }
+                    />
+                  ) : null}
+                  <Label muted>{rankLabel(d.belt, d.degrees)}</Label>
+                </View>
+                {!student.archived_at && (d.belt || options?.length) ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      "Editar faixa de " + (m?.name ?? "modalidade")
+                    }
+                    onPress={() => onEdit(d.modality_id)}
+                    style={s.edit}
+                  >
+                    <Icon name="edit" color={colors.primaryLight} size={18} />
+                  </Pressable>
+                ) : null}
+              </View>
+            );
+          })}
+          {!student.modality_details.length ? (
+            <Label muted>Nenhuma modalidade vinculada.</Label>
+          ) : null}
+        </Card>
+      </ResponsiveGrid>
       <Card>
         <Heading>Evolução do aluno</Heading>
         <Row>

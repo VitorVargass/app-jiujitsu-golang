@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../../components/Icon";
 import { Badge, Button, Card, Heading, Label } from "../../components/ui";
@@ -28,7 +29,7 @@ export function StudentEnrollment({
   const plan = plans.find((p) => p.id === student.plan_id);
   const mode = student.charge_mode;
   return (
-    <>
+    <ResponsiveGrid>
       <Card>
         <View style={s.heading}>
           <View style={s.title}>
@@ -84,6 +85,9 @@ export function StudentEnrollment({
             tone={b?.enabled ? "mint" : "amber"}
           />
         </View>
+      </Card>
+      <Card>
+        <Heading>Cobrança e responsável</Heading>
         <View style={s.terms}>
           <View style={s.term}>
             <Text style={s.caption}>Vencimento</Text>
@@ -146,7 +150,7 @@ export function StudentEnrollment({
           no Financeiro.
         </Label>
       </Card>
-    </>
+    </ResponsiveGrid>
   );
 }
 const s = StyleSheet.create({

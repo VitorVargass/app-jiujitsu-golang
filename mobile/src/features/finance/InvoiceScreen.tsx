@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
@@ -101,7 +102,7 @@ export function InvoiceContent({ id }: { id: string }) {
       ) : invoice.error ? (
         <Notice message={invoice.error.message} />
       ) : i ? (
-        <>
+        <ResponsiveGrid>
           <Card>
             <View style={s.top}>
               <Label muted>{formatMonth(i.competence)}</Label>
@@ -164,34 +165,41 @@ export function InvoiceContent({ id }: { id: string }) {
               </View>
             ) : null}
           </Card>
-          {role === "admin" ? (
-            <InvoiceActions
-              key={id}
-              academyId={a.id}
-              invoice={i}
-              onCopy={() => copy.mutate(portalLink("/pay/" + a.id + "/" + id))}
-              onPix={openPix}
-              onCancel={() => {
-                cancel.reset();
-                setConfirmCancel(true);
-              }}
-              onSaved={(updated) => {
-                pix.reset();
-                setMessage(
-                  updated.status === "paid"
-                    ? "Pagamento registrado."
-                    : "Desconto atualizado.",
-                );
-                queryClient.setQueryData(["invoice", a.id, id], updated);
-                void queryClient.invalidateQueries();
-              }}
-            />
-          ) : !paid && !closed ? (
-            <Button icon="qr" loading={pix.isPending} onPress={openPix}>
-              Pagar com Pix
-            </Button>
-          ) : null}
-        </>
+          <Card>
+            <Label>Ações da mensalidade</Label>
+            {role === "admin" ? (
+              <InvoiceActions
+                key={id}
+                academyId={a.id}
+                invoice={i}
+                onCopy={() =>
+                  copy.mutate(portalLink("/pay/" + a.id + "/" + id))
+                }
+                onPix={openPix}
+                onCancel={() => {
+                  cancel.reset();
+                  setConfirmCancel(true);
+                }}
+                onSaved={(updated) => {
+                  pix.reset();
+                  setMessage(
+                    updated.status === "paid"
+                      ? "Pagamento registrado."
+                      : "Desconto atualizado.",
+                  );
+                  queryClient.setQueryData(["invoice", a.id, id], updated);
+                  void queryClient.invalidateQueries();
+                }}
+              />
+            ) : !paid && !closed ? (
+              <Button icon="qr" loading={pix.isPending} onPress={openPix}>
+                Pagar com Pix
+              </Button>
+            ) : (
+              <Label muted>Nenhuma ação pendente.</Label>
+            )}
+          </Card>
+        </ResponsiveGrid>
       ) : null}
       <Notice success message={message} />
       <Notice message={copy.error?.message} />

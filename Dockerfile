@@ -7,12 +7,14 @@ WORKDIR /build/mobile
 COPY mobile/package.json mobile/package-lock.json ./
 # O Expo e o TypeScript precisam das dependencias de desenvolvimento no build.
 RUN npm ci --include=dev --no-audit --no-fund
+# Inclui todas as rotas e telas atuais, inclusive a gestao compartilhada.
 COPY mobile/ ./
 ENV CI=1 \
     EXPO_NO_DOTENV=1 \
     EXPO_PUBLIC_API_URL=same-origin
-RUN npm run build:web \
-    && npm run typecheck \
+RUN npm run typecheck \
+    && npm run lint \
+    && npm run build:web \
     && test -s dist/index.html
 
 FROM golang:1.27-alpine AS backend

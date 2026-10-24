@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { MonthPicker, DueDayPicker } from "../../components/BillingDatePicker";
 import { academyDate } from "../../types/attendance";
 import { dueDateLabel, formatMonth } from "../../types/month";
@@ -541,120 +542,127 @@ export default function StudentForm({
               <>
                 {step === 0 ? (
                   <Card>
-                    {!initial && actor ? (
-                      <Button
-                        compact
-                        secondary
-                        icon="users"
-                        onPress={() => void ownIdentity()}
-                      >
-                        {useMine
-                          ? "Usando minha própria conta"
-                          : "Usar minha própria conta"}
-                      </Button>
-                    ) : null}
-                    <Field
-                      label="Nome completo"
-                      value={name}
-                      onChangeText={setName}
-                      autoCapitalize="words"
-                    />
-                    <Field
-                      label={
-                        initial && !initial.cpf
-                          ? "CPF do aluno (cadastro antigo: opcional)"
-                          : "CPF do aluno"
-                      }
-                      value={cpf}
-                      onChangeText={(value) => setCPF(formatCPF(value))}
-                      keyboardType="number-pad"
-                      maxLength={14}
-                      placeholder="000.000.000-00"
-                    />
-                    <Label muted>
-                      Use o CPF do próprio aluno para identificar a presença.
-                    </Label>
-                    <Field
-                      label="Data de nascimento"
-                      value={birth}
-                      onChangeText={(v) => setBirth(formatBirth(v))}
-                      keyboardType="number-pad"
-                      placeholder="DD/MM/AAAA"
-                      maxLength={10}
-                    />
-                    <Label muted>
-                      {age === null
-                        ? "A data define se precisa de responsável financeiro."
-                        : minor
-                          ? "Menor de idade: informe o responsável financeiro na etapa correspondente."
-                          : "Maior de idade: o próprio aluno será o pagador."}
-                    </Label>
-                    <Field
-                      label="Data de início na academia"
-                      value={started}
-                      onChangeText={(v) => setStarted(formatBirth(v))}
-                      keyboardType="number-pad"
-                      placeholder="DD/MM/AAAA"
-                      maxLength={10}
-                    />
-                    <Label muted>
-                      Quando começou a treinar nesta academia. Pode ser uma data
-                      anterior ao uso do aplicativo.
-                    </Label>
-                    <Field
-                      label="E-mail"
-                      value={email}
-                      onChangeText={changeEmail}
-                      editable={!initial?.email_locked}
-                      keyboardType="email-address"
-                    />
-                    {initial?.email_locked ? (
-                      <Label muted>
-                        E-mail da identidade: não é alterado pela matrícula.
-                      </Label>
-                    ) : (
-                      <Label muted>
-                        Informe o e-mail próprio da pessoa. Ele identifica uma
-                        única pessoa no sistema.
-                      </Label>
-                    )}
-                    <Field
-                      label="Celular"
-                      value={phone}
-                      onChangeText={setPhone}
-                      keyboardType="phone-pad"
-                    />
-                    <Field
-                      label="Telefone alternativo (opcional)"
-                      value={alternate}
-                      onChangeText={setAlternate}
-                      keyboardType="phone-pad"
-                    />
-                    {initial ? (
-                      <>
-                        <Row>
-                          <Chip
-                            selected={status === "active"}
-                            onPress={() => setStatus("active")}
+                    <ResponsiveGrid>
+                      <View style={{ gap: 16 }}>
+                        {!initial && actor ? (
+                          <Button
+                            compact
+                            secondary
+                            icon="users"
+                            onPress={() => void ownIdentity()}
                           >
-                            Ativo
-                          </Chip>
-                          <Chip
-                            selected={status === "inactive"}
-                            onPress={() => {
-                              setStatus("inactive");
-                              setEnabled(false);
-                            }}
-                          >
-                            Inativo
-                          </Chip>
-                        </Row>
+                            {useMine
+                              ? "Usando minha própria conta"
+                              : "Usar minha própria conta"}
+                          </Button>
+                        ) : null}
+                        <Field
+                          label="Nome completo"
+                          value={name}
+                          onChangeText={setName}
+                          autoCapitalize="words"
+                        />
+                        <Field
+                          label={
+                            initial && !initial.cpf
+                              ? "CPF do aluno (cadastro antigo: opcional)"
+                              : "CPF do aluno"
+                          }
+                          value={cpf}
+                          onChangeText={(value) => setCPF(formatCPF(value))}
+                          keyboardType="number-pad"
+                          maxLength={14}
+                          placeholder="000.000.000-00"
+                        />
                         <Label muted>
-                          Inativar interrompe novas cobranças e presenças,
-                          preservando o histórico.
+                          Use o CPF do próprio aluno no cadastro. Para marcar
+                          presença, ele usa seus cinco números ou o QR.
                         </Label>
-                      </>
-                    ) : null}
+                        <Field
+                          label="Data de nascimento"
+                          value={birth}
+                          onChangeText={(v) => setBirth(formatBirth(v))}
+                          keyboardType="number-pad"
+                          placeholder="DD/MM/AAAA"
+                          maxLength={10}
+                        />
+                        <Label muted>
+                          {age === null
+                            ? "A data define se precisa de responsável financeiro."
+                            : minor
+                              ? "Menor de idade: informe o responsável financeiro na etapa correspondente."
+                              : "Maior de idade: o próprio aluno será o pagador."}
+                        </Label>
+                        <Field
+                          label="Data de início na academia"
+                          value={started}
+                          onChangeText={(v) => setStarted(formatBirth(v))}
+                          keyboardType="number-pad"
+                          placeholder="DD/MM/AAAA"
+                          maxLength={10}
+                        />
+                        <Label muted>
+                          Quando começou a treinar nesta academia. Pode ser uma
+                          data anterior ao uso do aplicativo.
+                        </Label>
+                      </View>
+                      <View style={{ gap: 16 }}>
+                        <Field
+                          label="E-mail"
+                          value={email}
+                          onChangeText={changeEmail}
+                          editable={!initial?.email_locked}
+                          keyboardType="email-address"
+                        />
+                        {initial?.email_locked ? (
+                          <Label muted>
+                            E-mail da identidade: não é alterado pela matrícula.
+                          </Label>
+                        ) : (
+                          <Label muted>
+                            Informe o e-mail próprio da pessoa. Ele identifica
+                            uma única pessoa no sistema.
+                          </Label>
+                        )}
+                        <Field
+                          label="Celular"
+                          value={phone}
+                          onChangeText={setPhone}
+                          keyboardType="phone-pad"
+                        />
+                        <Field
+                          label="Telefone alternativo (opcional)"
+                          value={alternate}
+                          onChangeText={setAlternate}
+                          keyboardType="phone-pad"
+                        />
+                        {initial ? (
+                          <>
+                            <Row>
+                              <Chip
+                                selected={status === "active"}
+                                onPress={() => setStatus("active")}
+                              >
+                                Ativo
+                              </Chip>
+                              <Chip
+                                selected={status === "inactive"}
+                                onPress={() => {
+                                  setStatus("inactive");
+                                  setEnabled(false);
+                                }}
+                              >
+                                Inativo
+                              </Chip>
+                            </Row>
+                            <Label muted>
+                              Inativar interrompe novas cobranças e presenças,
+                              preservando o histórico.
+                            </Label>
+                          </>
+                        ) : null}
+                      </View>
+                    </ResponsiveGrid>
                   </Card>
                 ) : null}
                 {step === 1 ? (

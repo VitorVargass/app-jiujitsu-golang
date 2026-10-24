@@ -99,6 +99,8 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("GET "+base+"/membership-requests", m.Requests)
 	protected("PATCH "+base+"/membership-requests/{request}", m.Decide)
 	protected("GET "+base+"/members", m.Members)
+	protected("GET "+base+"/managers", m.Managers)
+	protected("POST "+base+"/managers", m.CreateManager)
 	protected("PATCH "+base+"/members/{member}", m.Update)
 	protected("GET "+base+"/classes", c.List)
 	protected("POST "+base+"/classes", c.Save)

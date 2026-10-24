@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../../components/Icon";
 import { Badge, Card, Heading, Label } from "../../components/ui";
@@ -12,7 +13,7 @@ export function AcademyAccessList({ options }: { options: AcademyAccess[] }) {
     ...new Map(options.map((item) => [item.academy.id, item.academy])).values(),
   ];
   return (
-    <>
+    <ResponsiveGrid>
       {groups.map((item) => (
         <Card key={item.id}>
           <View style={s.heading}>
@@ -63,7 +64,7 @@ export function AcademyAccessList({ options }: { options: AcademyAccess[] }) {
             })}
         </Card>
       ))}
-    </>
+    </ResponsiveGrid>
   );
 }
 const s = StyleSheet.create({

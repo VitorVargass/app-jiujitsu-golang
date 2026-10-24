@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useId, useRef } from "react";
 import {
   Modal,
   Pressable,
@@ -9,6 +9,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "./Icon";
+import { useDialogFocus } from "../hooks/useDialogFocus";
+import { useResponsiveLayout } from "../hooks/useResponsiveLayout";
 import { colors } from "../theme";
 
 export function EditorDialog({
@@ -26,6 +28,10 @@ export function EditorDialog({
   pending?: boolean;
   wide?: boolean;
 }) {
+  const panel = useRef<View>(null);
+  const titleId = useId();
+  const { isCompact } = useResponsiveLayout();
+  useDialogFocus(panel, true, pending, onClose);
   return (
     <Modal
       transparent
@@ -37,11 +43,19 @@ export function EditorDialog({
     >
       <SafeAreaView style={s.overlay}>
         <View
+          ref={panel}
+          role="dialog"
+          tabIndex={-1}
+          aria-modal
+          aria-labelledby={titleId}
           accessibilityViewIsModal
-          style={[s.panel, { maxWidth: wide ? 640 : 400 }]}
+          style={[
+            s.panel,
+            { maxWidth: isCompact ? undefined : wide ? 760 : 520 },
+          ]}
         >
           <View style={s.header}>
-            <Text accessibilityRole="header" style={s.title}>
+            <Text nativeID={titleId} accessibilityRole="header" style={s.title}>
               {title}
             </Text>
             <Pressable

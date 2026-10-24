@@ -89,3 +89,8 @@ O formulário apresenta início e fim de cada intervalo, inclusive vários pares
 students.started_on guarda uma data civil no fuso da academia, separada de created_at. A migração 011 preenche os registros antigos com a data local do cadastro; um trigger BEFORE INSERT conserva compatibilidade com importações que omitem o campo. O formulário pode informar uma data histórica válida. PATCH completo sem started_on preserva o valor existente.
 
 PATCH /students/{id}/start-date altera somente started_on, com bloqueio da linha e expected_started_on para detectar edição concorrente. Reenvio do mesmo resultado é idempotente. A autorização é de gestor ativo da academia e o aluno não pode estar arquivado. Não chama geração financeira nem altera períodos de atividade ou eventos de graduação. Progress retorna started_on e tenure_days (dias civis), preservando joined_at como a criação original e active_days como tempo efetivamente acompanhado.
+
+
+## Interface responsiva
+
+A aplicação mobile também fornece o portal web, com navegação lateral e tabelas em telas amplas. Regras, sessão e consultas são compartilhadas. Consulte [RESPONSIVE.md](RESPONSIVE.md) para organização, limites de layout e validação desta entrega.

@@ -1,3 +1,5 @@
+import { InvoicesTable } from "./InvoicesTable";
+import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { formatMonth } from "../../types/month";
 import { FinanceFilters, defaultFinanceFilters } from "./FinanceFilters";
 import { useState } from "react";
@@ -32,6 +34,7 @@ export function InvoiceList({ student = false }: { student?: boolean }) {
   return <InvoiceResults key={academy!.id + student} student={student} />;
 }
 function InvoiceResults({ student }: { student: boolean }) {
+  const { isWide } = useResponsiveLayout();
   const { academy } = useSession();
   const a = academy!;
   const [filters, setFilters] = useState(() =>
@@ -140,65 +143,69 @@ function InvoiceResults({ student }: { student: boolean }) {
       ) : invoices.error ? (
         <Notice message={invoices.error.message} />
       ) : invoices.data?.items.length ? (
-        invoices.data.items.map((i) => (
-          <Card
-            key={i.id}
-            onPress={() =>
-              router.push({ pathname: "/invoice/[id]", params: { id: i.id } })
-            }
-            accessibilityLabel={
-              (student ? "Mensalidade" : i.student_name) +
-              ". " +
-              money(i.amount_cents) +
-              ". " +
-              statusLabel[i.status] +
-              ". Abrir mensalidade"
-            }
-            style={styles.invoice}
-          >
-            <View style={styles.toolbar}>
-              <View
-                style={[
-                  styles.icon,
-                  { backgroundColor: accents[statusTone[i.status]].soft },
-                ]}
-              >
-                <Icon
-                  name="wallet"
-                  size={21}
-                  color={accents[statusTone[i.status]].color}
+        isWide ? (
+          <InvoicesTable items={invoices.data.items} student={student} />
+        ) : (
+          invoices.data.items.map((i) => (
+            <Card
+              key={i.id}
+              onPress={() =>
+                router.push({ pathname: "/invoice/[id]", params: { id: i.id } })
+              }
+              accessibilityLabel={
+                (student ? "Mensalidade" : i.student_name) +
+                ". " +
+                money(i.amount_cents) +
+                ". " +
+                statusLabel[i.status] +
+                ". Abrir mensalidade"
+              }
+              style={styles.invoice}
+            >
+              <View style={styles.toolbar}>
+                <View
+                  style={[
+                    styles.icon,
+                    { backgroundColor: accents[statusTone[i.status]].soft },
+                  ]}
+                >
+                  <Icon
+                    name="wallet"
+                    size={21}
+                    color={accents[statusTone[i.status]].color}
+                  />
+                </View>
+                <Badge
+                  label={statusLabel[i.status]}
+                  tone={statusTone[i.status]}
                 />
               </View>
-              <Badge
-                label={statusLabel[i.status]}
-                tone={statusTone[i.status]}
-              />
-            </View>
-            <Text
-              style={[
-                styles.amount,
-                i.status === "paid" && { color: colors.success },
-              ]}
-            >
-              {money(i.amount_cents)}
-            </Text>
-            <Text style={styles.student}>
-              {student
-                ? "Mensalidade de " + formatMonth(i.competence)
-                : i.student_name}
-            </Text>
-            <Label muted>
-              {!student ? formatMonth(i.competence) + " • " : ""}Vence em{" "}
-              {i.due_date.split("-").reverse().join("/")}
-            </Label>
-            <View style={styles.footer}>
-              <Text style={styles.link}>
-                {i.status === "paid" ? "Ver pagamento" : "Abrir mensalidade"}
+              <Text
+                style={[
+                  styles.amount,
+                  i.status === "paid" && { color: colors.success },
+                ]}
+              >
+                {money(i.amount_cents)}
               </Text>
-              <Icon name="chevron-right" size={18} color={colors.primary} />
-            </View>
-          </Card>
-        ))
+              <Text style={styles.student}>
+                {student
+                  ? "Mensalidade de " + formatMonth(i.competence)
+                  : i.student_name}
+              </Text>
+              <Label muted>
+                {!student ? formatMonth(i.competence) + " • " : ""}Vence em{" "}
+                {i.due_date.split("-").reverse().join("/")}
+              </Label>
+              <View style={styles.footer}>
+                <Text style={styles.link}>
+                  {i.status === "paid" ? "Ver pagamento" : "Abrir mensalidade"}
+                </Text>
+                <Icon name="chevron-right" size={18} color={colors.primary} />
+              </View>
+            </Card>
+          ))
+        )
       ) : (
         <Empty>
           Nenhuma mensalidade encontrada para{" "}

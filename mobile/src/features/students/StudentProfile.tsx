@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useContext, useEffect, useState } from "react";
 import { FormScrollContext } from "../../components/FormScrollContext";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -298,7 +299,7 @@ export default function StudentProfile({
         />
       ) : null}
       {tab === "personal" ? (
-        <>
+        <ResponsiveGrid>
           <Card>
             <View style={s.sectionHeading}>
               <View style={s.titleWithIcon}>
@@ -392,7 +393,7 @@ export default function StudentProfile({
             ) : null}
             <Notice message={invite.error?.message || revoke.error?.message} />
           </Card>
-        </>
+        </ResponsiveGrid>
       ) : null}
       {editor ? (
         <StudentSectionEditor

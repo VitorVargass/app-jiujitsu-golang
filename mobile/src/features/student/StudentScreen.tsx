@@ -23,7 +23,15 @@ export function QRScreen() {
       ) : credential.error ? (
         <Notice message={credential.error.message} />
       ) : credential.data ? (
-        <Card style={{ alignItems: "center", paddingVertical: 32 }}>
+        <Card
+          style={{
+            alignItems: "center",
+            paddingVertical: 32,
+            width: "100%",
+            maxWidth: 640,
+            alignSelf: "center",
+          }}
+        >
           <StudentNumberCard
             name={credential.data.student_name}
             academy={a.name}

@@ -1,3 +1,5 @@
+import { StudentsTable } from "./StudentsTable";
+import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { useState } from "react";
 import { View, Pressable, Text, StyleSheet } from "react-native";
 import { colors } from "../../theme";
@@ -26,6 +28,7 @@ import { api, academyPath } from "../../services/api";
 import { useSession } from "../../services/session";
 import { Catalog, Student, Page, money } from "../../types/billing";
 function ListContent() {
+  const { isWide } = useResponsiveLayout();
   const { academy } = useSession();
   const a = academy!;
   const [search, setSearch] = useState("");
@@ -182,79 +185,88 @@ function ListContent() {
       ) : list.error ? (
         <Notice message={list.error.message} />
       ) : list.data?.items.length ? (
-        <View style={listStyles.list}>
-          {list.data.items.map((s, index) => (
-            <Pressable
-              key={s.id}
-              accessibilityRole="button"
-              accessibilityLabel={"Abrir cadastro de " + s.name}
-              onPress={() =>
-                router.push({
-                  pathname: "/students/[id]",
-                  params: { id: s.id },
-                })
-              }
-              style={({ pressed }) => [
-                listStyles.studentRow,
-                index > 0 && listStyles.rowDivider,
-                pressed && { backgroundColor: colors.surfaceRaised },
-              ]}
-            >
-              <Avatar name={s.name} />
-              <View style={listStyles.studentInfo}>
-                <Text numberOfLines={1} style={listStyles.studentName}>
-                  {s.name}
-                </Text>
-                <Text style={listStyles.studentMeta}>Nº {s.student_code}</Text>
-                <Text numberOfLines={1} style={listStyles.studentMeta}>
-                  {s.modality_details?.length
-                    ? s.modality_details
-                        .map((d) => {
-                          const name = modalities.data?.find(
-                            (m) => m.id === d.modality_id,
-                          )?.name;
-                          return (
-                            (name ?? "Modalidade") +
-                            (d.belt
-                              ? " • " + rankLabel(d.belt, d.degrees ?? 0)
-                              : "")
-                          );
-                        })
-                        .join(" / ")
-                    : s.belt}
-                </Text>
-                <View style={listStyles.situation}>
-                  <View
-                    style={[
-                      listStyles.statusDot,
-                      s.status === "inactive" && {
-                        backgroundColor: colors.muted,
-                      },
-                    ]}
-                  />
-                  <Text style={listStyles.studentMeta}>
-                    {s.archived_at
-                      ? "Arquivado"
-                      : s.status === "active"
-                        ? "Ativo"
-                        : "Inativo"}
+        isWide ? (
+          <StudentsTable
+            items={list.data.items}
+            modalities={modalities.data ?? []}
+          />
+        ) : (
+          <View style={listStyles.list}>
+            {list.data.items.map((s, index) => (
+              <Pressable
+                key={s.id}
+                accessibilityRole="button"
+                accessibilityLabel={"Abrir cadastro de " + s.name}
+                onPress={() =>
+                  router.push({
+                    pathname: "/students/[id]",
+                    params: { id: s.id },
+                  })
+                }
+                style={({ pressed }) => [
+                  listStyles.studentRow,
+                  index > 0 && listStyles.rowDivider,
+                  pressed && { backgroundColor: colors.surfaceRaised },
+                ]}
+              >
+                <Avatar name={s.name} />
+                <View style={listStyles.studentInfo}>
+                  <Text numberOfLines={1} style={listStyles.studentName}>
+                    {s.name}
                   </Text>
+                  <Text style={listStyles.studentMeta}>
+                    Nº {s.student_code}
+                  </Text>
+                  <Text numberOfLines={1} style={listStyles.studentMeta}>
+                    {s.modality_details?.length
+                      ? s.modality_details
+                          .map((d) => {
+                            const name = modalities.data?.find(
+                              (m) => m.id === d.modality_id,
+                            )?.name;
+                            return (
+                              (name ?? "Modalidade") +
+                              (d.belt
+                                ? " • " + rankLabel(d.belt, d.degrees ?? 0)
+                                : "")
+                            );
+                          })
+                          .join(" / ")
+                      : s.belt}
+                  </Text>
+                  <View style={listStyles.situation}>
+                    <View
+                      style={[
+                        listStyles.statusDot,
+                        s.status === "inactive" && {
+                          backgroundColor: colors.muted,
+                        },
+                      ]}
+                    />
+                    <Text style={listStyles.studentMeta}>
+                      {s.archived_at
+                        ? "Arquivado"
+                        : s.status === "active"
+                          ? "Ativo"
+                          : "Inativo"}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              <View style={listStyles.amount}>
-                <Text style={listStyles.amountText}>
-                  {s.billing?.enabled
-                    ? money(s.billing.amount_cents)
-                    : "Sem cobrança"}
-                </Text>
-                {s.billing?.enabled ? (
-                  <Text style={listStyles.studentMeta}>por mês</Text>
-                ) : null}
-              </View>
-              <Icon name="chevron-right" size={16} color={colors.muted} />
-            </Pressable>
-          ))}
-        </View>
+                <View style={listStyles.amount}>
+                  <Text style={listStyles.amountText}>
+                    {s.billing?.enabled
+                      ? money(s.billing.amount_cents)
+                      : "Sem cobrança"}
+                  </Text>
+                  {s.billing?.enabled ? (
+                    <Text style={listStyles.studentMeta}>por mês</Text>
+                  ) : null}
+                </View>
+                <Icon name="chevron-right" size={16} color={colors.muted} />
+              </Pressable>
+            ))}
+          </View>
+        )
       ) : (
         <View style={listStyles.empty}>
           <Icon name="users" size={32} color={colors.muted} />

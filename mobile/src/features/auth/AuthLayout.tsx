@@ -6,8 +6,8 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
+import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, G, Line, Path, Rect } from "react-native-svg";
 import { Brand, BrandGlyph, BrandMark } from "../../components/Brand";
@@ -69,8 +69,7 @@ export function AuthLayout({
   fromStudentLink: boolean;
   children: ReactNode;
 }) {
-  const { width } = useWindowDimensions();
-  const wide = width >= 1024;
+  const { isWide: wide } = useResponsiveLayout();
   return (
     <SafeAreaView style={s.safe}>
       <KeyboardAvoidingView

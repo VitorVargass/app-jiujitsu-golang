@@ -77,7 +77,47 @@ Não é necessário criar outro Web Service nem recriar o banco Neon.
 
 O build faz a exportação web e a verificação TypeScript, verifica os módulos Go e compila a API Linux. A imagem final contém somente o executável, os arquivos web, certificados raiz e fusos horários; Expo, Node e as ferramentas de desenvolvimento ficam nas etapas de compilação. Configurações .env, backups e diretórios .tools, inclusive dentro de backend, são excluídos do contexto.
 
-A API aplica as migrações SQL incorporadas ao iniciar. Nesta atualização, a migração 012 padroniza os números antigos dos alunos em cinco dígitos, preservando QR Codes e históricos. Salve um backup do Neon antes desse deploy. Não é necessário executar seed nem importar novamente os dados.
+A API aplica as migrações SQL incorporadas ao iniciar, caso ainda estejam pendentes no destino. A atualização de interface responsiva e menu de conta não adiciona migrações. Se o Neon já está atualizado, não é necessário recriar tabelas, executar seed ou importar novamente os dados. A migração 012 pertence à atualização anterior dos números de cinco dígitos.
+
+## Atualizar as telas: guia rápido para quem está começando
+
+O **Dockerfile é a receita**, a **imagem é o resultado compilado** e o **container é essa imagem em execução**. Alterar a aparência do computador/celular normalmente não exige mudar a receita: exige construir e publicar outra imagem com o código atualizado.
+
+Neste projeto, as apresentações para computador e celular estão na mesma pasta `mobile`. A instrução `COPY mobile/ ./` inclui as duas. Os arquivos `.web.tsx` entram na versão web automaticamente durante a exportação Expo.
+
+O build segue três etapas:
+
+1. **web:** instala as dependências do lockfile, verifica TypeScript e exporta o Expo para `dist`.
+2. **backend:** compila o programa Go para Linux.
+3. **runtime:** reúne o executável Go e os arquivos web. Só a API roda; ela também entrega o site. PostgreSQL continua no Neon.
+
+### Atualização pelo VS Code e Render, sem Docker instalado no computador
+
+1. Abra a pasta raiz `App-jiujitsu` no VS Code.
+2. Em **Controle do Código-Fonte**, revise e inclua as alterações da interface e os arquivos novos. Inclua o Dockerfile atualizado. Não selecione `.env`, backups ou credenciais.
+3. Faça um commit, por exemplo: `feat: interface responsiva para computador e celular`.
+4. Use **Push/Sincronizar alterações** para enviar à branch `master` do GitHub. Confira no GitHub que os arquivos novos também chegaram; fazer commit sem push deixa o Render sem as alterações.
+5. No serviço existente do Render, confirme: branch `master`, Runtime **Docker**, Root Directory **vazio**, Dockerfile Path **./Dockerfile** e contexto **.**. Mantenha o comando de execução personalizado vazio.
+6. Se Auto-Deploy estiver em **On Commit**, acompanhe o deploy iniciado pelo push. Se estiver desligado, use **Manual Deploy → Deploy latest commit**. Compare o identificador do commit do deploy com o último commit enviado.
+7. Aguarde o deploy ficar **Live**. Abra `/healthz`, faça login e confira o painel, Alunos, Financeiro e o novo avatar de conta em uma janela larga e em uma tela pequena.
+
+Não precisa enviar a pasta `dist`, gerar APK, recriar o serviço ou mexer na conexão Neon para atualizar estas telas. O Render gera os arquivos web a partir do código do GitHub. `EXPO_PUBLIC_API_URL=same-origin` já está definido na etapa web do Dockerfile; o site usa a API do mesmo endereço.
+
+### Cache e versões antigas
+
+O Docker reutiliza as camadas que não mudaram. Uma alteração nos arquivos copiados de `mobile` invalida a camada de código e recompila o frontend. Não é necessário limpar o cache em toda atualização.
+
+Se aparecer uma tela antiga, primeiro confirme que o commit correto está **Live**, depois atualize o navegador com **Ctrl+F5** ou teste uma janela anônima. Se ainda houver evidência de build antigo, use **Manual Deploy → Clear build cache & deploy**. **Restart service** apenas reinicia a versão já publicada; não publica o código novo do GitHub.
+
+### Compilar uma imagem no computador, opcional
+
+Com Docker Desktop instalado e em execução, abra um terminal na raiz do repositório e execute:
+
+```sh
+docker build -t tatamemix:demo .
+```
+
+`-t` dá um nome à imagem e o ponto final define a pasta atual como contexto: por isso deve ser a raiz, onde estão `backend`, `mobile` e `Dockerfile`. Esse comando só constrói a imagem localmente; não a envia ao Render nem inicia a aplicação. O fluxo via GitHub acima permite que o próprio Render faça o build, sem Docker local.
 
 ## 4. Abrir e conferir
 

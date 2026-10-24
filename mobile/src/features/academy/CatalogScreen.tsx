@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -437,33 +438,39 @@ function Content() {
               Planos
             </Chip>
           </Row>
-          <Button icon="plus" onPress={() => setEditing(null)}>
-            Adicionar {plans ? "plano" : "modalidade"}
-          </Button>
+          <View style={{ alignItems: "flex-start" }}>
+            <Button compact icon="plus" onPress={() => setEditing(null)}>
+              Adicionar {plans ? "plano" : "modalidade"}
+            </Button>
+          </View>
           {list.isPending ? (
             <Loading />
           ) : list.error ? (
             <Notice message={list.error.message} />
           ) : (
-            list.data?.map((c) => (
-              <Card key={c.id}>
-                <Heading>{c.name}</Heading>
-                <Label muted>
-                  {c.active ? "Ativo" : "Inativo"} •{" "}
-                  {money(c.amount_cents ?? 0)}/mês
-                </Label>
-                {!plans ? (
+            <ResponsiveGrid>
+              {list.data?.map((c) => (
+                <Card
+                  key={c.id}
+                  onPress={() => setEditing(c)}
+                  accessibilityLabel={"Editar " + c.name}
+                >
+                  <Heading>{c.name}</Heading>
                   <Label muted>
-                    {c.belt_options?.length
-                      ? c.belt_options.length + " graduações"
-                      : "Sem faixas"}
+                    {c.active ? "Ativo" : "Inativo"} •{" "}
+                    {money(c.amount_cents ?? 0)}/mês
                   </Label>
-                ) : null}
-                <Button secondary onPress={() => setEditing(c)}>
-                  Editar {c.name}
-                </Button>
-              </Card>
-            ))
+                  {!plans ? (
+                    <Label muted>
+                      {c.belt_options?.length
+                        ? c.belt_options.length + " graduações"
+                        : "Sem faixas"}
+                    </Label>
+                  ) : null}
+                  <Label>Editar cadastro →</Label>
+                </Card>
+              ))}
+            </ResponsiveGrid>
           )}
         </>
       )}

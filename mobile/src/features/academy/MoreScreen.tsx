@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { View } from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -65,64 +66,75 @@ function Content() {
   });
   return (
     <AcademyShell title="Mais">
-      <Shortcut
-        title="Minha participação"
-        description="Meu número, QR e histórico de presenças"
-        label="Minha participação. Meu número e minhas presenças"
-        icon="users"
-        tone="mint"
-        onPress={() => router.push("/participation")}
-      />
-      <Shortcut
-        title="Modalidades e planos"
-        description="Valores, pacotes e graduações"
-        label="Modalidades e planos. Configurar valores e graduações"
-        icon="sliders"
-        tone="lavender"
-        onPress={() => router.push("/catalog")}
-      />
-      <Shortcut
-        title="Histórico da academia"
-        description="Acompanhe os treinos dos alunos"
-        label="Histórico da academia. Consultar presenças"
-        icon="check-circle"
-        tone="blue"
-        onPress={() => router.push("/academy-history")}
-      />
-      <Shortcut
-        title="Check-in da academia"
-        description="Prepare o aparelho da recepção e gerencie seus acessos"
-        label="Check-in da academia. Preparar aparelho e gerenciar acessos"
-        icon="tablet"
-        tone="amber"
-        onPress={() => router.push("/devices")}
-      />
-      <Shortcut
-        title="Nova academia"
-        description="Cadastre outra unidade com alunos e financeiro próprios"
-        label="Nova academia. Cadastrar outra unidade"
-        icon="plus"
-        tone="blue"
-        onPress={() => router.push("/create-academy")}
-      />
-      <Card>
-        <Heading>Pagamentos Pix · Asaas</Heading>
-        {bank.isPending ? (
-          <Loading />
-        ) : (
-          <Badge
-            label={
-              bank.data?.connected
-                ? bank.data.environment === "production"
-                  ? "Integração ativa"
-                  : "Ambiente de teste"
-                : "Integração não configurada"
-            }
-            tone={bank.data?.connected ? "mint" : "amber"}
-          />
-        )}
-        <Notice message={bank.error?.message} />
-      </Card>
+      <Heading>Gestão e configurações</Heading>
+      <ResponsiveGrid>
+        <Shortcut
+          title="Gestores"
+          description="Pessoas que administram esta academia"
+          label="Gestores. Adicionar pessoas à gestão da academia"
+          icon="users"
+          tone="brand"
+          onPress={() => router.push("/managers")}
+        />
+        <Shortcut
+          title="Minha participação"
+          description="Meu número, QR e histórico de presenças"
+          label="Minha participação. Meu número e minhas presenças"
+          icon="users"
+          tone="mint"
+          onPress={() => router.push("/participation")}
+        />
+        <Shortcut
+          title="Modalidades e planos"
+          description="Valores, pacotes e graduações"
+          label="Modalidades e planos. Configurar valores e graduações"
+          icon="sliders"
+          tone="lavender"
+          onPress={() => router.push("/catalog")}
+        />
+        <Shortcut
+          title="Histórico da academia"
+          description="Acompanhe os treinos dos alunos"
+          label="Histórico da academia. Consultar presenças"
+          icon="check-circle"
+          tone="blue"
+          onPress={() => router.push("/academy-history")}
+        />
+        <Shortcut
+          title="Check-in da academia"
+          description="Prepare o aparelho da recepção e gerencie seus acessos"
+          label="Check-in da academia. Preparar aparelho e gerenciar acessos"
+          icon="tablet"
+          tone="amber"
+          onPress={() => router.push("/devices")}
+        />
+        <Shortcut
+          title="Nova academia"
+          description="Cadastre outra unidade com alunos e financeiro próprios"
+          label="Nova academia. Cadastrar outra unidade"
+          icon="plus"
+          tone="blue"
+          onPress={() => router.push("/create-academy")}
+        />
+        <Card>
+          <Heading>Pagamentos Pix · Asaas</Heading>
+          {bank.isPending ? (
+            <Loading />
+          ) : (
+            <Badge
+              label={
+                bank.data?.connected
+                  ? bank.data.environment === "production"
+                    ? "Integração ativa"
+                    : "Ambiente de teste"
+                  : "Integração não configurada"
+              }
+              tone={bank.data?.connected ? "mint" : "amber"}
+            />
+          )}
+          <Notice message={bank.error?.message} />
+        </Card>
+      </ResponsiveGrid>
       <View style={{ alignItems: "flex-start" }}>
         <Button compact secondary onPress={() => void logout()}>
           Sair da conta

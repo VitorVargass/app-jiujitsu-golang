@@ -166,63 +166,69 @@ export function SwipeNavigator({
   const window = useWindowDimensions();
   const [width, setWidth] = useState(window.width);
   const [offset] = useState(() => new Animated.Value(0));
+  const enabled = !!pages;
   const responder = useMemo(
-    () => createResponder(offset, width, onSwipe),
-    [offset, width, onSwipe],
+    () => (enabled ? createResponder(offset, width, onSwipe) : undefined),
+    [offset, width, onSwipe, enabled],
   );
   useEffect(() => {
-    responder.activate();
-    return () => responder.dispose();
+    responder?.activate();
+    return () => responder?.dispose();
   }, [responder]);
-  if (!pages) return <View style={styles.frame}>{children}</View>;
   return (
     <View
-      testID="section-pager"
+      testID={pages ? "section-pager" : "page-content"}
       onLayout={(event) => {
         const measured = event.nativeEvent.layout.width;
         if (measured > 0) setWidth(measured);
       }}
       style={[
         styles.frame,
-        Platform.OS === "web" && {
-          touchAction: "pan-y",
-          overscrollBehaviorX: "none",
-        },
+        pages &&
+          Platform.OS === "web" && {
+            touchAction: "pan-y",
+            overscrollBehaviorX: "none",
+          },
       ]}
-      {...responder.panHandlers}
+      {...(responder?.panHandlers ?? {})}
     >
       <Animated.View
         testID="section-strip"
-        style={[styles.strip, { transform: [{ translateX: offset }] }]}
+        style={[styles.strip, pages && { transform: [{ translateX: offset }] }]}
       >
         <View
-          testID="section-preview-right"
-          pointerEvents="none"
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          {...(Platform.OS === "web" ? { inert: true } : {})}
-          aria-hidden
-          style={[styles.panel, { width, left: -width }]}
-        >
-          {pages.right}
-        </View>
-        <View
           testID="section-current"
-          style={[styles.panel, { width, left: 0 }]}
+          key="current"
+          style={pages ? [styles.panel, { width, left: 0 }] : styles.strip}
         >
           {children}
         </View>
-        <View
-          testID="section-preview-left"
-          pointerEvents="none"
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          {...(Platform.OS === "web" ? { inert: true } : {})}
-          aria-hidden
-          style={[styles.panel, { width, left: width }]}
-        >
-          {pages.left}
-        </View>
+        {pages ? (
+          <>
+            <View
+              testID="section-preview-right"
+              pointerEvents="none"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              {...(Platform.OS === "web" ? { inert: true } : {})}
+              aria-hidden
+              style={[styles.panel, { width, left: -width }]}
+            >
+              {pages.right}
+            </View>
+            <View
+              testID="section-preview-left"
+              pointerEvents="none"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              {...(Platform.OS === "web" ? { inert: true } : {})}
+              aria-hidden
+              style={[styles.panel, { width, left: width }]}
+            >
+              {pages.left}
+            </View>
+          </>
+        ) : null}
       </Animated.View>
     </View>
   );

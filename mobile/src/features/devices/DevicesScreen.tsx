@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useState } from "react";
 import { brand } from "../../theme/brand";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
@@ -82,164 +83,171 @@ function Content() {
       }
       swipeEnabled={!preparing && !revoking}
     >
-      <Card style={{ borderColor: accents.amber.border }}>
-        <View style={s.heading}>
-          <View style={s.icon}>
-            <Icon name="tablet" size={24} color={accents.amber.color} />
+      <ResponsiveGrid>
+        <Card style={{ borderColor: accents.amber.border }}>
+          <View style={s.heading}>
+            <View style={s.icon}>
+              <Icon name="tablet" size={24} color={accents.amber.color} />
+            </View>
+            <View style={{ flex: 1, gap: 5 }}>
+              <Heading>Um aparelho para a presença</Heading>
+              <Label muted>
+                Alunos digitam seus 5 números ou mostram o QR.
+              </Label>
+            </View>
           </View>
-          <View style={{ flex: 1, gap: 5 }}>
-            <Heading>Um aparelho para a presença</Heading>
-            <Label muted>Alunos digitam seus 5 números ou mostram o QR.</Label>
-          </View>
-        </View>
-        <Label>
-          O modo check-in identifica as aulas pela agenda e confirma a presença
-          dos alunos. O aparelho fica sem acesso à gestão e ao financeiro.
-        </Label>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded: help }}
-          onPress={() => setHelp(!help)}
-          style={{
-            minHeight: 44,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <Text
-            style={{
-              fontFamily: "Inter_600SemiBold",
-              fontSize: 13,
-              color: accents.amber.color,
-            }}
-          >
-            {help ? "Ocultar passo a passo" : "Como configurar o aparelho?"}
-          </Text>
-          <Icon name="chevron-right" size={14} color={accents.amber.color} />
-        </Pressable>
-        {help ? (
-          <View style={s.steps}>
-            {[
-              "No aparelho da recepção, abra o " +
-                brand.name +
-                " e entre como gestor.",
-              "Nesta tela, toque em Preparar este aparelho e dê um nome a ele.",
-              "Ative o check-in. A aula será identificada pelo horário; se houver mais de uma, o aluno escolhe.",
-            ].map((text, i) => (
-              <View key={text} style={s.step}>
-                <Text style={s.number}>{i + 1}</Text>
-                <Text style={s.stepText}>{text}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-        <View style={{ alignItems: "flex-start" }}>
-          <Button
-            compact
-            icon="tablet"
-            onPress={() => {
-              activate.reset();
-              setPreparing(true);
-            }}
-          >
-            Preparar este aparelho
-          </Button>
-        </View>
-        <Label muted>
-          Está no computador da gestão? Faça esses passos no tablet, celular ou
-          computador que ficará para os alunos.
-        </Label>
-      </Card>
-      <View style={{ gap: 8 }}>
-        <Heading>Acessos de check-in</Heading>
-        <Label muted>
-          Cada ativação cria um acesso. Autorizado significa que ele pode
-          registrar presença; não indica que o aparelho esteja ligado ou
-          conectado agora.
-        </Label>
-      </View>
-      <View style={s.tabs}>
-        {[
-          [false, "Autorizados", active.length],
-          [true, "Encerrados", ended.length],
-        ].map(([value, label, count]) => (
+          <Label>
+            O modo check-in identifica as aulas pela agenda e confirma a
+            presença dos alunos. O aparelho fica sem acesso à gestão e ao
+            financeiro.
+          </Label>
           <Pressable
-            key={String(value)}
-            accessibilityRole="tab"
-            accessibilityLabel={String(label)}
-            accessibilityState={{ selected: history === value }}
-            onPress={() => setHistory(Boolean(value))}
-            style={[s.tab, history === value && s.selected]}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: help }}
+            onPress={() => setHelp(!help)}
+            style={{
+              minHeight: 44,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
           >
             <Text
-              style={[
-                s.tabText,
-                history === value && { color: accents.amber.color },
-              ]}
+              style={{
+                fontFamily: "Inter_600SemiBold",
+                fontSize: 13,
+                color: accents.amber.color,
+              }}
             >
-              {label} · {count}
+              {help ? "Ocultar passo a passo" : "Como configurar o aparelho?"}
             </Text>
+            <Icon name="chevron-right" size={14} color={accents.amber.color} />
           </Pressable>
-        ))}
-      </View>
-      <Notice success message={message} />
-      {devices.isPending ? (
-        <Loading />
-      ) : devices.error ? (
-        <Notice message={devices.error.message} />
-      ) : visible.length ? (
-        <View style={s.list}>
-          {visible.map((d, i) => (
-            <View key={d.id} style={[s.device, i > 0 && s.divider]}>
-              <Icon
-                name="tablet"
-                color={d.active ? accents.amber.color : colors.muted}
-              />
-              <View style={{ flex: 1, gap: 6, minWidth: 0 }}>
-                <Text style={s.deviceName}>{d.name}</Text>
-                <Text style={s.date}>
-                  {d.created_at
-                    ? "Ativado em " +
-                      new Intl.DateTimeFormat("pt-BR", {
-                        timeZone: a.timezone,
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      }).format(new Date(d.created_at))
-                    : "Acesso anterior"}
-                </Text>
-                <Badge
-                  label={d.active ? "Autorizado" : "Encerrado"}
-                  tone={d.active ? "mint" : "amber"}
-                />
-              </View>
-              {d.active ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={"Encerrar acesso de " + d.name}
-                  onPress={() => {
-                    revoke.reset();
-                    setRevoking(d);
-                  }}
-                  style={s.stop}
-                >
-                  <Icon name="close" size={18} color={colors.danger} />
-                </Pressable>
-              ) : null}
+          {help ? (
+            <View style={s.steps}>
+              {[
+                "No aparelho da recepção, abra o " +
+                  brand.name +
+                  " e entre como gestor.",
+                "Nesta tela, toque em Preparar este aparelho e dê um nome a ele.",
+                "Ative o check-in. A aula será identificada pelo horário; se houver mais de uma, o aluno escolhe.",
+              ].map((text, i) => (
+                <View key={text} style={s.step}>
+                  <Text style={s.number}>{i + 1}</Text>
+                  <Text style={s.stepText}>{text}</Text>
+                </View>
+              ))}
             </View>
-          ))}
+          ) : null}
+          <View style={{ alignItems: "flex-start" }}>
+            <Button
+              compact
+              icon="tablet"
+              onPress={() => {
+                activate.reset();
+                setPreparing(true);
+              }}
+            >
+              Preparar este aparelho
+            </Button>
+          </View>
+          <Label muted>
+            Está no computador da gestão? Faça esses passos no tablet, celular
+            ou computador que ficará para os alunos.
+          </Label>
+        </Card>
+        <View style={{ gap: 20 }}>
+          <View style={{ gap: 8 }}>
+            <Heading>Acessos de check-in</Heading>
+            <Label muted>
+              Cada ativação cria um acesso. Autorizado significa que ele pode
+              registrar presença; não indica que o aparelho esteja ligado ou
+              conectado agora.
+            </Label>
+          </View>
+          <View style={s.tabs}>
+            {[
+              [false, "Autorizados", active.length],
+              [true, "Encerrados", ended.length],
+            ].map(([value, label, count]) => (
+              <Pressable
+                key={String(value)}
+                accessibilityRole="tab"
+                accessibilityLabel={String(label)}
+                accessibilityState={{ selected: history === value }}
+                onPress={() => setHistory(Boolean(value))}
+                style={[s.tab, history === value && s.selected]}
+              >
+                <Text
+                  style={[
+                    s.tabText,
+                    history === value && { color: accents.amber.color },
+                  ]}
+                >
+                  {label} · {count}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <Notice success message={message} />
+          {devices.isPending ? (
+            <Loading />
+          ) : devices.error ? (
+            <Notice message={devices.error.message} />
+          ) : visible.length ? (
+            <View style={s.list}>
+              {visible.map((d, i) => (
+                <View key={d.id} style={[s.device, i > 0 && s.divider]}>
+                  <Icon
+                    name="tablet"
+                    color={d.active ? accents.amber.color : colors.muted}
+                  />
+                  <View style={{ flex: 1, gap: 6, minWidth: 0 }}>
+                    <Text style={s.deviceName}>{d.name}</Text>
+                    <Text style={s.date}>
+                      {d.created_at
+                        ? "Ativado em " +
+                          new Intl.DateTimeFormat("pt-BR", {
+                            timeZone: a.timezone,
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          }).format(new Date(d.created_at))
+                        : "Acesso anterior"}
+                    </Text>
+                    <Badge
+                      label={d.active ? "Autorizado" : "Encerrado"}
+                      tone={d.active ? "mint" : "amber"}
+                    />
+                  </View>
+                  {d.active ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={"Encerrar acesso de " + d.name}
+                      onPress={() => {
+                        revoke.reset();
+                        setRevoking(d);
+                      }}
+                      style={s.stop}
+                    >
+                      <Icon name="close" size={18} color={colors.danger} />
+                    </Pressable>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Empty>
+              {history
+                ? "Nenhum acesso encerrado."
+                : "Nenhum aparelho autorizado. Prepare o aparelho da recepção para começar."}
+            </Empty>
+          )}
+          <Label muted>
+            Para trocar o aparelho, encerre o acesso antigo e ative o novo. As
+            presenças registradas ficam no histórico da academia.
+          </Label>
         </View>
-      ) : (
-        <Empty>
-          {history
-            ? "Nenhum acesso encerrado."
-            : "Nenhum aparelho autorizado. Prepare o aparelho da recepção para começar."}
-        </Empty>
-      )}
-      <Label muted>
-        Para trocar o aparelho, encerre o acesso antigo e ative o novo. As
-        presenças registradas ficam no histórico da academia.
-      </Label>
+      </ResponsiveGrid>
       {preparing ? (
         <EditorDialog
           title="Ativar check-in neste aparelho"

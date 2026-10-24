@@ -1,3 +1,5 @@
+import { useId, useRef } from "react";
+import { useDialogFocus } from "../hooks/useDialogFocus";
 import { Modal, ScrollView, View } from "react-native";
 import { colors } from "../theme";
 import { Button, Heading, Label, Notice } from "./ui";
@@ -23,6 +25,9 @@ export function ConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const panel = useRef<View>(null);
+  const titleId = useId();
+  useDialogFocus(panel, visible, !!pending, onCancel);
   return (
     <Modal
       visible={visible}
@@ -42,6 +47,11 @@ export function ConfirmDialog({
         }}
       >
         <View
+          ref={panel}
+          role="alertdialog"
+          tabIndex={-1}
+          aria-modal
+          aria-labelledby={titleId}
           accessibilityViewIsModal
           style={{
             width: "100%",
@@ -58,7 +68,9 @@ export function ConfirmDialog({
             contentContainerStyle={{ gap: 18 }}
             keyboardShouldPersistTaps="handled"
           >
-            <Heading>{title}</Heading>
+            <View nativeID={titleId}>
+              <Heading>{title}</Heading>
+            </View>
             <Label>{message}</Label>
             <Notice message={error} />
             <Button danger={danger} loading={pending} onPress={onConfirm}>

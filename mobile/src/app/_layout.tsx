@@ -1,3 +1,4 @@
+import { PlatformStyles } from "../components/PlatformStyles";
 import { Stack } from "expo-router";
 import Head from "expo-router/head";
 import { brand } from "../theme/brand";
@@ -16,6 +17,7 @@ export default function Layout() {
   const [loaded, error] = useFonts(fonts);
   return (
     <SafeAreaProvider>
+      <PlatformStyles />
       <Head>
         <title>{brand.name}</title>
       </Head>

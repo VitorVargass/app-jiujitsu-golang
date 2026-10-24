@@ -77,6 +77,7 @@ export default function EntryScreen() {
   const options = entryAccesses(academies, requestedRole);
   return (
     <Page
+      wide
       title={
         options.length
           ? new Set(options.map((option) => option.academy.id)).size > 1

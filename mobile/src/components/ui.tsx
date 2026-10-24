@@ -29,6 +29,7 @@ export function Page({
   swipePages,
   contentOnly = false,
   wide = false,
+  sidebar,
 }: {
   children: React.ReactNode;
   title?: string;
@@ -41,6 +42,7 @@ export function Page({
   swipePages?: SwipePages;
   contentOnly?: boolean;
   wide?: boolean;
+  sidebar?: React.ReactNode;
 }) {
   const scrollRef = useRef<ScrollView>(null);
   const resetScroll = useCallback(
@@ -56,10 +58,11 @@ export function Page({
           styles.page,
           header || contentOnly ? styles.appPage : null,
           wide && styles.widePage,
+          !!sidebar && styles.desktopPage,
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        {!header && !contentOnly ? (
+        {!header && !contentOnly && !sidebar ? (
           <View style={styles.brand}>
             <Brand />
             {action ? (
@@ -85,16 +88,19 @@ export function Page({
   );
   if (contentOnly) return content;
   return (
-    <SafeAreaView style={styles.safe}>
-      {header ? (
-        <View style={[styles.appHeader, wide && styles.widePage]}>
-          {header}
-        </View>
-      ) : null}
-      <SwipeNavigator onSwipe={onSwipe} pages={swipePages}>
-        {content}
-      </SwipeNavigator>
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
+    <SafeAreaView style={[styles.safe, { flexDirection: "row" }]}>
+      {sidebar}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        {header ? (
+          <View style={[styles.appHeader, wide && styles.widePage]}>
+            {header}
+          </View>
+        ) : null}
+        <SwipeNavigator onSwipe={onSwipe} pages={swipePages}>
+          {content}
+        </SwipeNavigator>
+        {footer ? <View style={styles.footer}>{footer}</View> : null}
+      </View>
     </SafeAreaView>
   );
 }
@@ -496,7 +502,8 @@ export const styles = StyleSheet.create({
     borderBottomColor: colors.borderSubtle,
   },
   appPage: { paddingHorizontal: 20, paddingTop: 24, gap: 20 },
-  widePage: { maxWidth: 1240 },
+  widePage: { maxWidth: 1440 },
+  desktopPage: { padding: 32, paddingBottom: 48, gap: 24 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   footer: {
     width: "100%",

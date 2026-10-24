@@ -1,4 +1,7 @@
+import { AccountMenu } from "../../components/AccountMenu";
 import React, { useCallback } from "react";
+import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
+import { DesktopSidebar } from "../../components/DesktopSidebar";
 import { Brand } from "../../components/Brand";
 import { Redirect, router, usePathname, Href } from "expo-router";
 import { View, Pressable, Text, StyleSheet, Keyboard } from "react-native";
@@ -12,7 +15,7 @@ import {
 import { Icon, IconName } from "../../components/Icon";
 import { useSession } from "../../services/session";
 import { Role } from "../../types";
-import { roleLabel, colors, accents, Accent } from "../../theme";
+import { colors, accents, Accent } from "../../theme";
 import { useClassSetup } from "../classes/useClassSetup";
 import { ClassSetupNotice } from "../classes/ClassSetupNotice";
 
@@ -59,6 +62,7 @@ const managerTabs: Tab[] = [
     tone: "brand",
     routes: [
       "/more",
+      "/managers",
       "/catalog",
       "/academy-history",
       "/devices",
@@ -155,8 +159,8 @@ export function AcademyShell({
 }) {
   const { academy, role, session } = useSession();
   const pathname = usePathname();
+  const { isWide } = useResponsiveLayout();
   const tabs = role === "student" ? studentTabs : managerTabs;
-  const name = session?.kind === "user" ? session.user.name : "";
   const currentIndex = tabs.findIndex((tab) => tab.url === pathname);
   const screens = useSectionPages();
   const preview = useSectionPreview();
@@ -204,10 +208,19 @@ export function AcademyShell({
       title={title}
       subtitle={subtitle || academy?.name}
       titleAction={titleAction}
-      wide={wide}
-      onSwipe={swipeEnabled && next && previous ? swipe : undefined}
+      wide={wide || isWide}
+      sidebar={
+        isWide ? (
+          <DesktopSidebar
+            items={tabs}
+            pathname={pathname}
+            needsSetup={setup.needsSetup}
+          />
+        ) : undefined
+      }
+      onSwipe={!isWide && swipeEnabled && next && previous ? swipe : undefined}
       swipePages={
-        next && previous
+        !isWide && swipeEnabled && next && previous
           ? {
               right: <SectionPreview screen={next} />,
               left: <SectionPreview screen={previous} />,
@@ -215,109 +228,92 @@ export function AcademyShell({
           : undefined
       }
       header={
-        <View style={styles.header}>
-          <Brand compact />
-          <View style={styles.account}>
-            <View
-              style={styles.identity}
-              accessible
-              accessibilityLabel={name + (role ? ", " + roleLabel[role] : "")}
-            >
-              <Text numberOfLines={1} style={styles.name}>
-                {name}
-              </Text>
-              <Text style={styles.role}>{role ? roleLabel[role] : ""}</Text>
+        !isWide ? (
+          <View style={styles.header}>
+            <Brand compact />
+            <View style={styles.account}>
+              <AccountMenu compact />
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Trocar academia ou perfil"
-              onPress={() => router.replace("/academies")}
-              style={({ pressed }) => [
-                styles.switch,
-                pressed && { opacity: 0.6 },
-              ]}
-            >
-              <Icon name="swap" size={16} color={colors.muted} />
-              <Text style={styles.switchText}>Trocar</Text>
-            </Pressable>
           </View>
-        </View>
+        ) : undefined
       }
       footer={
-        <View style={styles.dock}>
-          {tabs.map((tab) => {
-            const accent = accents[tab.tone];
-            const attention = tab.url === "/classes" && setup.needsSetup;
-            const selected = tab.routes.some(
-              (url) => pathname === url || pathname.startsWith(url + "/"),
-            );
-            return (
-              <Pressable
-                key={tab.url}
-                accessibilityRole="tab"
-                accessibilityLabel={tab.label}
-                accessibilityHint={
-                  attention
-                    ? "Configuração pendente. Cadastre ou ative uma turma com horários para liberar o check-in."
-                    : undefined
-                }
-                accessibilityState={{ selected }}
-                onPress={() => {
-                  if (pathname !== tab.url) {
-                    Keyboard.dismiss();
-                    router.replace(tab.url as Href);
+        !isWide ? (
+          <View style={styles.dock}>
+            {tabs.map((tab) => {
+              const accent = accents[tab.tone];
+              const attention = tab.url === "/classes" && setup.needsSetup;
+              const selected = tab.routes.some(
+                (url) => pathname === url || pathname.startsWith(url + "/"),
+              );
+              return (
+                <Pressable
+                  key={tab.url}
+                  accessibilityRole="tab"
+                  accessibilityLabel={tab.label}
+                  accessibilityHint={
+                    attention
+                      ? "Configuração pendente. Cadastre ou ative uma turma com horários para liberar o check-in."
+                      : undefined
                   }
-                }}
-                style={({ pressed }) => [
-                  styles.tab,
-                  pressed && { opacity: 0.65 },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.tabIcon,
-                    selected && {
-                      backgroundColor: accent.soft,
-                      borderColor: accent.border,
-                    },
-                    attention && styles.tabAttention,
-                  ]}
-                >
-                  <Icon
-                    name={tab.icon}
-                    size={22}
-                    color={
-                      attention
-                        ? accents.coral.color
-                        : selected
-                          ? accent.color
-                          : colors.muted
+                  accessibilityState={{ selected }}
+                  onPress={() => {
+                    if (pathname !== tab.url) {
+                      Keyboard.dismiss();
+                      router.navigate(tab.url as Href);
                     }
-                  />
-                  {attention ? (
-                    <View
-                      style={styles.pendingBadge}
-                      pointerEvents="none"
-                      aria-hidden
-                    >
-                      <Text style={styles.pendingBadgeText}>!</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.tabLabel,
-                    selected && { color: accent.color },
-                    attention && { color: accents.coral.color },
+                  }}
+                  style={({ pressed }) => [
+                    styles.tab,
+                    pressed && { opacity: 0.65 },
                   ]}
                 >
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <View
+                    style={[
+                      styles.tabIcon,
+                      selected && {
+                        backgroundColor: accent.soft,
+                        borderColor: accent.border,
+                      },
+                      attention && styles.tabAttention,
+                    ]}
+                  >
+                    <Icon
+                      name={tab.icon}
+                      size={22}
+                      color={
+                        attention
+                          ? accents.coral.color
+                          : selected
+                            ? accent.color
+                            : colors.muted
+                      }
+                    />
+                    {attention ? (
+                      <View
+                        style={styles.pendingBadge}
+                        pointerEvents="none"
+                        aria-hidden
+                      >
+                        <Text style={styles.pendingBadgeText}>!</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.tabLabel,
+                      selected && { color: accent.color },
+                      attention && { color: accents.coral.color },
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : undefined
       }
     >
       {showClassSetupNotice && setup.needsSetup ? (
@@ -341,34 +337,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 10,
-  },
-  identity: {
-    flexShrink: 1,
-    minWidth: 0,
-    maxWidth: 140,
-    gap: 3,
-    alignItems: "flex-end",
-  },
-  name: { color: colors.text, fontFamily: "Inter_600SemiBold", fontSize: 12 },
-  role: {
-    color: colors.primaryLight,
-    fontFamily: "Inter_400Regular",
-    fontSize: 11,
-  },
-  switch: {
-    minHeight: 44,
-    paddingHorizontal: 9,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-  },
-  switchText: {
-    color: colors.muted,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 11,
   },
   dock: {
     flexDirection: "row",

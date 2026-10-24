@@ -1,11 +1,6 @@
+import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { useContext, useMemo, useState } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Card, IconButton, Loading, Notice } from "../../components/ui";
 import { Icon } from "../../components/Icon";
@@ -39,7 +34,7 @@ export function StudentAttendanceOverview({
 }) {
   const { academy, role } = useSession(),
     a = academy!;
-  const { width } = useWindowDimensions();
+  const { isWide } = useResponsiveLayout();
   const resetScroll = useContext(FormScrollContext);
   const today = academyDate(a.timezone),
     currentMonth = today.slice(0, 7);
@@ -187,7 +182,7 @@ export function StudentAttendanceOverview({
           size={pageSize}
           onChange={(next) => {
             setPage(next);
-            if (width < 1000) resetScroll();
+            if (!isWide) resetScroll();
           }}
         />
       </Card>
@@ -323,8 +318,8 @@ export function StudentAttendanceOverview({
           </Button>
         </Card>
       ) : view === "calendar" && !all ? (
-        <View style={[s.body, width >= 1000 && s.desktop]}>
-          <Card style={[s.calendarCard, width >= 1000 && s.calendarDesktop]}>
+        <View style={[s.body, isWide && s.desktop]}>
+          <Card style={[s.calendarCard, isWide && s.calendarDesktop]}>
             <StudentAttendanceCalendar
               month={month}
               today={today}
@@ -332,7 +327,7 @@ export function StudentAttendanceOverview({
               onDay={setDay}
             />
           </Card>
-          {width >= 1000 ? (
+          {isWide ? (
             <View style={{ flex: 1, minWidth: 0 }}>{renderRows()}</View>
           ) : null}
         </View>
