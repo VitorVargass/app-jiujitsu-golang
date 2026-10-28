@@ -52,7 +52,17 @@ export type Catalog = {
   modality_ids?: string[];
   belt_options?: BeltOption[];
 };
+export type Checkout = {
+  id?: string;
+  status: "waiting" | "paid" | "review";
+  url?: string;
+  amount_cents: number;
+  expires_at?: string;
+  review_reason?: string;
+};
 export type Invoice = {
+  payment_provider?: "infinitepay" | "asaas";
+  payment_checkout?: Checkout;
   id: string;
   student_id: string;
   student_name: string;
@@ -62,7 +72,12 @@ export type Invoice = {
   original_amount_cents: number;
   discount_cents: number;
   discount_reason: string;
-  payment_method: "" | "asaas_pix" | ManualPaymentMethod;
+  payment_method:
+    | ""
+    | "asaas_pix"
+    | "infinitepay_pix"
+    | "infinitepay_card"
+    | ManualPaymentMethod;
   status: "open" | "overdue" | "paid" | "cancelled";
   paid_at: string | null;
 };
@@ -77,7 +92,7 @@ export const paymentMethodLabel: Record<ManualPaymentMethod, string> = {
 };
 export type InvoiceAdjustment = {
   id: string;
-  kind: "discount" | "manual_payment";
+  kind: "discount" | "manual_payment" | "bank_payment";
   actor_name: string;
   previous_amount_cents: number;
   amount_cents: number;

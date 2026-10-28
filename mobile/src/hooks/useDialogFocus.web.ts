@@ -1,9 +1,9 @@
-import { RefObject, useEffect, useRef } from "react";
+import { ComponentRef, RefObject, useEffect, useRef } from "react";
 import { View } from "react-native";
 const dialogs: symbol[] = [];
 const selector = "a[href],button,input,select,textarea,[tabindex]";
 export function useDialogFocus(
-  panel: RefObject<View | null>,
+  panel: RefObject<ComponentRef<typeof View> | null>,
   visible: boolean,
   pending: boolean,
   onClose: () => void,

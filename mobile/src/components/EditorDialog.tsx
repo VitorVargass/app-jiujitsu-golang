@@ -1,4 +1,4 @@
-import { ReactNode, useId, useRef } from "react";
+import { ComponentRef, ReactNode, useId, useRef } from "react";
 import {
   Modal,
   Pressable,
@@ -28,7 +28,7 @@ export function EditorDialog({
   pending?: boolean;
   wide?: boolean;
 }) {
-  const panel = useRef<View>(null);
+  const panel = useRef<ComponentRef<typeof View>>(null);
   const titleId = useId();
   const { isCompact } = useResponsiveLayout();
   useDialogFocus(panel, true, pending, onClose);

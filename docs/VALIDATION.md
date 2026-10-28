@@ -441,3 +441,12 @@ Conferência visual final em 1280 px, 390 px e 320 px: sem transbordamento horiz
 - Adicionado mobile/src/types/expo.d.ts, que importa expo/types durante a checagem. Os tipos oficiais web ficam disponíveis também na cópia limpa; comportamento e estilos dos gestos permanecem iguais e a verificação TypeScript do Dockerfile continua ativa.
 - TypeScript da cópia limpa passou antes da exportação, sem expo-env.d.ts e sem .expo. Exportação web com CI=1, EXPO_NO_DOTENV=1 e EXPO_PUBLIC_API_URL=same-origin seguida de TypeScript também passou na mesma cópia. Formatação, TypeScript e lint do projeto passaram.
 - O novo arquivo precisa ser incluído no commit enviado ao GitHub. Nenhum push ou deploy executado pelo agente; a imagem Docker completa continua sem execução local por ausência do Docker.
+
+## InfinitePay — 26/10/2026
+
+- Migracao 013 aplicada somente em um cluster PostgreSQL 18 temporario dedicado. Nenhuma alteracao no Neon ou no banco da academia.
+- TestInfinitePayFlow passou com API HTTP simulada: salvamento sem emitir cobranca, chave cifrada, aluno titular autorizado, outras contas e dispositivo recusados, notificacao falsa sem baixa, notificacao repetida sem duplicacao, troca de chave preservando a anterior, suspensao de emissoes, resposta perdida, valor divergente e concorrencia. Recibo automatico aparece no historico da mensalidade.
+- Suite HTTP existente completa passou no mesmo banco isolado. Testes Go, go vet, TypeScript, lint e testes Node passaram. Exportacao web e compilacao da API para Linux/amd64 passaram.
+- Navegador: Mais > Recebimentos, salvar conexao ficticia, recarregar sem revelar a chave, abrir mensalidade e gerar checkout simulado. Layout de checkout conferido em 390 px e desktop. Nao foi aberto o checkout externo nem realizado pagamento real.
+- Docker nao esta disponivel no PATH, portanto a imagem completa nao foi construida. Expo Go em aparelho fisico e contrato real InfinitePay continuam pendentes.
+- Producao permanece desabilitada por padrao (INFINITEPAY_ENABLED=false). Configurar segredos, validar contrato real e autorizar pagamento controlado antes de liberar alunos.

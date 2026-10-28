@@ -6,10 +6,14 @@ import { useSession } from "../../services/session";
 import { InvoiceContent } from "../finance/InvoiceScreen";
 
 export default function PaymentLinkScreen() {
-  const { academyId, invoiceId } = useLocalSearchParams<{
-    academyId: string;
-    invoiceId: string;
-  }>();
+  const { academyId, invoiceId, order_nsu, transaction_nsu, slug } =
+    useLocalSearchParams<{
+      academyId: string;
+      invoiceId: string;
+      order_nsu?: string;
+      transaction_nsu?: string;
+      slug?: string;
+    }>();
   const {
     ready,
     session,
@@ -27,6 +31,22 @@ export default function PaymentLinkScreen() {
   useEffect(() => {
     if (target && !atTarget) select(target.academy, target.role);
   }, [target, atTarget, select]);
+  const callback = new URLSearchParams();
+  if (
+    typeof order_nsu === "string" &&
+    typeof transaction_nsu === "string" &&
+    typeof slug === "string"
+  ) {
+    callback.set("order_nsu", order_nsu);
+    callback.set("transaction_nsu", transaction_nsu);
+    callback.set("slug", slug);
+  }
+  const next =
+    "/pay/" +
+    academyId +
+    "/" +
+    invoiceId +
+    (callback.size ? "?" + callback.toString() : "");
   if (!ready)
     return (
       <Page>
@@ -38,7 +58,7 @@ export default function PaymentLinkScreen() {
       <Redirect
         href={{
           pathname: "/login",
-          params: { next: "/pay/" + academyId + "/" + invoiceId },
+          params: { next },
         }}
       />
     );

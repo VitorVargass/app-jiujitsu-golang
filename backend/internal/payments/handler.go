@@ -67,7 +67,46 @@ func (h Handler) Get(w http.ResponseWriter, r *http.Request) {
 		core.Fail(w, e)
 		return
 	}
-	core.Write(w, 200, v)
+	provider := "infinitepay"
+	if _, ok := h.Manager.Clients[r.PathValue("academy")]; ok {
+		provider = "asaas"
+	}
+	if h.Manager.Infinite != nil {
+		var configured bool
+		err := h.Manager.Repo.DB.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM payment_connections WHERE academy_id=$1 AND current)", r.PathValue("academy")).Scan(&configured)
+		if err != nil {
+			core.Fail(w, err)
+			return
+		}
+		if configured {
+			provider = "infinitepay"
+		}
+	}
+	var legacy bool
+	if err := h.Manager.Repo.DB.QueryRow(r.Context(), "SELECT EXISTS(SELECT 1 FROM pix_charges WHERE academy_id=$1 AND invoice_id=$2 AND state<>'retired')", r.PathValue("academy"), r.PathValue("invoice")).Scan(&legacy); err != nil {
+		core.Fail(w, err)
+		return
+	}
+	if legacy || v.PaymentMethod == "asaas_pix" {
+		provider = "asaas"
+	}
+	var checkout *CheckoutResult
+	if h.Manager.Infinite != nil {
+		c, err := h.Manager.Infinite.attempt(r.Context(), r.PathValue("academy"), r.PathValue("invoice"))
+		if err == nil {
+			result := c.result()
+			checkout = &result
+			provider = "infinitepay"
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			core.Fail(w, err)
+			return
+		}
+	}
+	core.Write(w, 200, struct {
+		billing.Invoice
+		Checkout *CheckoutResult `json:"payment_checkout,omitempty"`
+		Provider string          `json:"payment_provider"`
+	}{v, checkout, provider})
 }
 func (h Handler) Pix(w http.ResponseWriter, r *http.Request) {
 	v, e := h.Manager.Pix(r.Context(), r.PathValue("academy"), r.PathValue("invoice"))
@@ -89,6 +128,17 @@ func (h Handler) Status(w http.ResponseWriter, r *http.Request) {
 	if _, e := h.Manager.Access.Require(r.Context(), a, "admin"); e != nil {
 		core.Fail(w, e)
 		return
+	}
+	if h.Manager.Infinite != nil {
+		status, e := h.Manager.integration(r.Context(), a)
+		if e != nil {
+			core.Fail(w, e)
+			return
+		}
+		if status.Connected || h.Manager.Clients[a].Connection.ID == "" {
+			core.Write(w, 200, status)
+			return
+		}
 	}
 	c, ok := h.Manager.Clients[a]
 	env := "disabled"

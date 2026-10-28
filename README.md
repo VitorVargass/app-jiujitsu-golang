@@ -31,6 +31,8 @@ Antes de rodar o backend, inicie o PostgreSQL em Servicos. Ao terminar de usar o
 
 ## Rodar o frontend
 
+O projeto usa **Expo SDK 58**, compativel com o Expo Go SDK 58. Use Node.js 24.3 ou superior na linha 24 (neste computador: 24.14). Apos atualizar dependencias, pare o Metro antigo e execute `npx expo start --clear`. Veja [a atualizacao para SDK 58](docs/EXPO-SDK58.md).
+
 Em outro terminal:
 
     cd /d C:\Users\vitor\Documents\App-jiujitsu\mobile

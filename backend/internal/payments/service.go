@@ -16,6 +16,7 @@ import (
 )
 
 type Manager struct {
+	Infinite    *InfinitePay
 	Repo        Repository
 	Access      access.Service
 	Connections map[string]Connection
@@ -101,6 +102,9 @@ func (m *Manager) Pix(ctx context.Context, a, id string) (PixResult, error) {
 		return PixResult{}, e
 	}
 	defer release()
+	if e = m.blockInfiniteAdjustment(ctx, a, id); e != nil {
+		return PixResult{}, e
+	}
 	return m.pix(ctx, a, id, true)
 }
 func (m *Manager) pix(ctx context.Context, a, id string, reissue bool) (PixResult, error) {
@@ -213,6 +217,9 @@ func (m *Manager) Cancel(ctx context.Context, a, id string) error {
 	if invoice.Status == "paid" {
 		return core.E(409, "invoice_paid", "Uma mensalidade paga não pode ser cancelada aqui.")
 	}
+	if e = m.blockInfiniteAdjustment(ctx, a, id); e != nil {
+		return e
+	}
 	rows, e := m.Repo.DB.Query(ctx, "SELECT "+chargeColumns+" FROM pix_charges WHERE academy_id=$1 AND invoice_id=$2 AND state<>'retired'", a, id)
 	if e != nil {
 		return e
@@ -270,6 +277,9 @@ func (m *Manager) Cancel(ctx context.Context, a, id string) error {
 	return e
 }
 func (m *Manager) Reconcile(ctx context.Context) error {
+	if e := m.reconcileInfinite(ctx); e != nil {
+		return e
+	}
 	for a, client := range m.Clients {
 		charges, e := m.Repo.Pending(ctx, a)
 		if e != nil {

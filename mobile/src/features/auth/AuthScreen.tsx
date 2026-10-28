@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { ComponentRef, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams, Href } from "expo-router";
 import { safeNext } from "../../services/links";
@@ -21,9 +21,9 @@ export default function AuthScreen({
   const destination = safeNext(next);
   const fromStudentLink =
     destination.startsWith("/invite/") || destination.startsWith("/pay/");
-  const nameInput = useRef<TextInput>(null),
-    emailInput = useRef<TextInput>(null),
-    passwordInput = useRef<TextInput>(null);
+  const nameInput = useRef<ComponentRef<typeof TextInput>>(null),
+    emailInput = useRef<ComponentRef<typeof TextInput>>(null),
+    passwordInput = useRef<ComponentRef<typeof TextInput>>(null);
   const submitting = useRef(false);
   const [name, setName] = useState(""),
     [email, setEmail] = useState(""),

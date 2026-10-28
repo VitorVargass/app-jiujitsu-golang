@@ -1,4 +1,4 @@
-import { ReactNode, Ref, useState } from "react";
+import { ComponentRef, ReactNode, Ref, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -20,7 +20,7 @@ export function AuthField({
 }: TextInputProps & {
   label: string;
   icon: IconName;
-  inputRef?: Ref<TextInput>;
+  inputRef?: Ref<ComponentRef<typeof TextInput>>;
   trailing?: ReactNode;
 }) {
   const [focused, setFocused] = useState(false);

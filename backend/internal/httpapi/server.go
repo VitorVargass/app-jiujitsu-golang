@@ -156,6 +156,11 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("POST "+base+"/invoices/{invoice}/manual-payment", bankHandler.ManualPayment)
 	protected("GET "+base+"/invoices/{invoice}/history", bankHandler.History)
 	protected("GET "+base+"/payment-integration", bankHandler.Status)
+	protected("PUT "+base+"/payment-integration", bankHandler.SaveIntegration)
+	protected("PATCH "+base+"/payment-integration", bankHandler.ToggleIntegration)
+	protected("POST "+base+"/invoices/{invoice}/checkout", bankHandler.Checkout)
+	protected("POST "+base+"/invoices/{invoice}/payment-check", bankHandler.PaymentCheck)
+	mux.HandleFunc("POST /v1/webhooks/infinitepay/{connection}", s.rate(bankHandler.InfiniteWebhook))
 	protected("GET "+base+"/attendances", p.All)
 	mux.HandleFunc("POST /v1/webhooks/asaas/{connection}/pix", bankHandler.Webhook)
 	mux.HandleFunc("GET /openapi.json", func(w http.ResponseWriter, r *http.Request) {

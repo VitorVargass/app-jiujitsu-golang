@@ -63,6 +63,7 @@ const managerTabs: Tab[] = [
     routes: [
       "/more",
       "/managers",
+      "/receipts",
       "/catalog",
       "/academy-history",
       "/devices",

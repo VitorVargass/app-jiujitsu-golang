@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { ComponentRef, useCallback, useRef, useState } from "react";
 import { Brand } from "./Brand";
 import { FormScrollContext } from "./FormScrollContext";
 import {
@@ -44,7 +44,7 @@ export function Page({
   wide?: boolean;
   sidebar?: React.ReactNode;
 }) {
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const resetScroll = useCallback(
     () => scrollRef.current?.scrollTo({ y: 0, animated: false }),
     [],

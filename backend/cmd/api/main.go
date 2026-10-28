@@ -38,6 +38,11 @@ func main() {
 		slog.Error("payment configuration failed", "error", e)
 		os.Exit(1)
 	}
+	bank.Infinite, e = payments.LoadInfinitePay(db)
+	if e != nil {
+		slog.Error("InfinitePay configuration failed", "error", e)
+		os.Exit(1)
+	}
 	server := &http.Server{Addr: cfg.Addr, Handler: httpapi.WithPortal(httpapi.NewWithPayments(db, cfg.AllowedOrigins, bank), os.Getenv("WEB_DIST_DIR")), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

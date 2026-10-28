@@ -177,3 +177,8 @@ Para publicar o frontend separado na Vercel, use Root Directory mobile e EXPO_PU
 A imagem Docker completa ainda precisa ser compilada e iniciada em um ambiente com Docker disponível. A validação local verificou as etapas de compilação e o portal exportado servido pelo Go, com API e banco isolado.
 
 Referências: [Docker multi-stage](https://docs.docker.com/build/building/multi-stage/), [Expo web](https://docs.expo.dev/guides/publishing-websites/), [Docker no Render](https://render.com/docs/docker), [Render Free](https://render.com/docs/free), [Neon Free](https://neon.com/pricing), [importação PostgreSQL](https://neon.com/docs/import/migrate-from-postgres).
+
+
+## Recebimentos InfinitePay
+
+A configuracao do checkout e por academia em Mais > Recebimentos. Antes de ativar, siga [INFINITEPAY.md](INFINITEPAY.md). Configure PAYMENTS_MASTER_KEY e PAYMENTS_PUBLIC_URL como segredos/variaveis do servidor e publique inicialmente com INFINITEPAY_ENABLED=false. A migracao 013 sera aplicada pela inicializacao da API: faca backup antes do deploy. Nao existe chave bancaria no Dockerfile ou no frontend; nao substitua a chave mestra depois de salvar conexoes sem um procedimento de recriptografia.

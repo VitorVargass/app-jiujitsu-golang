@@ -1,5 +1,6 @@
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { CheckoutPanel } from "../payments/CheckoutPanel";
 import { useLocalSearchParams } from "expo-router";
 import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import QRCode from "react-native-qrcode-svg";
@@ -40,6 +41,47 @@ export function InvoiceContent({ id }: { id: string }) {
   const [message, setMessage] = useState(""),
     [confirmCancel, setConfirmCancel] = useState(false),
     [showPix, setShowPix] = useState(false);
+  const returned = useLocalSearchParams<{
+    order_nsu?: string;
+    transaction_nsu?: string;
+    slug?: string;
+  }>();
+  const returnAttempt = useRef("");
+  const returnCheck = useMutation({
+    mutationFn: () =>
+      api(academyPath(a.id, "/invoices/" + id + "/payment-check"), {
+        method: "POST",
+        body: {
+          order_nsu: returned.order_nsu,
+          transaction_nsu: returned.transaction_nsu,
+          slug: returned.slug,
+        },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries();
+    },
+  });
+  useEffect(() => {
+    const reference = [
+      returned.order_nsu,
+      returned.transaction_nsu,
+      returned.slug,
+    ].join(":");
+    if (
+      returned.order_nsu &&
+      returned.transaction_nsu &&
+      returned.slug &&
+      returnAttempt.current !== reference
+    ) {
+      returnAttempt.current = reference;
+      returnCheck.mutate();
+    }
+  }, [
+    returned.order_nsu,
+    returned.transaction_nsu,
+    returned.slug,
+    returnCheck,
+  ]);
   const invoice = useQuery({
     queryKey: ["invoice", a.id, id],
     queryFn: () => api<Invoice>(academyPath(a.id, "/invoices/" + id)),
@@ -79,7 +121,7 @@ export function InvoiceContent({ id }: { id: string }) {
       pix.data?.amount_cents === i?.amount_cents ? pix.data : undefined;
   function openPix() {
     setShowPix(true);
-    pix.mutate();
+    if (i?.payment_provider !== "infinitepay") pix.mutate();
   }
   return (
     <AcademyShell
@@ -150,10 +192,14 @@ export function InvoiceContent({ id }: { id: string }) {
                   <Label muted>
                     {i.payment_method === "asaas_pix"
                       ? "Pix confirmado pelo Asaas"
-                      : "Registrado pela academia • " +
-                        paymentMethodLabel[
-                          i.payment_method as ManualPaymentMethod
-                        ]}
+                      : i.payment_method === "infinitepay_pix"
+                        ? "Pix confirmado pela InfinitePay"
+                        : i.payment_method === "infinitepay_card"
+                          ? "Cartão confirmado pela InfinitePay"
+                          : "Registrado pela academia • " +
+                            paymentMethodLabel[
+                              i.payment_method as ManualPaymentMethod
+                            ]}
                   </Label>
                 ) : null}
                 {i.paid_at ? (
@@ -193,7 +239,9 @@ export function InvoiceContent({ id }: { id: string }) {
               />
             ) : !paid && !closed ? (
               <Button icon="qr" loading={pix.isPending} onPress={openPix}>
-                Pagar com Pix
+                {i.payment_provider === "infinitepay"
+                  ? "Pagar mensalidade"
+                  : "Pagar com Pix"}
               </Button>
             ) : (
               <Label muted>Nenhuma ação pendente.</Label>
@@ -201,9 +249,29 @@ export function InvoiceContent({ id }: { id: string }) {
           </Card>
         </ResponsiveGrid>
       ) : null}
+      <Notice message={returnCheck.error?.message} />
+      {i?.payment_checkout?.status === "review" ? (
+        <Notice
+          message={
+            i.payment_checkout.review_reason ||
+            "Pagamento em conferência na InfinitePay."
+          }
+        />
+      ) : null}
       <Notice success message={message} />
       <Notice message={copy.error?.message} />
-      {showPix ? (
+      {showPix && i?.payment_provider === "infinitepay" ? (
+        <EditorDialog
+          title="Pagamento da mensalidade"
+          onClose={() => setShowPix(false)}
+        >
+          <CheckoutPanel
+            academyId={a.id}
+            invoiceId={id}
+            initial={i.payment_checkout}
+          />
+        </EditorDialog>
+      ) : showPix ? (
         <EditorDialog
           title={paid ? "Pagamento confirmado" : "Pagamento Pix"}
           pending={pix.isPending}
@@ -235,8 +303,8 @@ export function InvoiceContent({ id }: { id: string }) {
                 />
               </View>
               <Label muted>
-                Aguardando pagamento. A confirmação aparece após a consulta ao
-                Asaas.
+                Aguardando pagamento. A confirmação aparece após a consulta
+                ao Asaas.
               </Label>
               <Button
                 icon="qr"

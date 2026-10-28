@@ -59,8 +59,14 @@ func (m *Manager) History(ctx context.Context, a, id string) ([]Adjustment, erro
 	if _, e := m.Authorize(ctx, a, id); e != nil {
 		return nil, e
 	}
-	rows, e := m.Repo.DB.Query(ctx, `SELECT h.id,h.kind,u.name,h.previous_amount_cents,h.amount_cents,h.discount_cents,h.payment_method,h.note,h.created_at
- FROM invoice_adjustments h JOIN users u ON u.id=h.actor_user_id WHERE h.academy_id=$1 AND h.invoice_id=$2 ORDER BY h.created_at DESC,h.id DESC LIMIT 50`, a, id)
+	rows, e := m.Repo.DB.Query(ctx, `SELECT * FROM (
+ SELECT h.id,h.kind,u.name,h.previous_amount_cents,h.amount_cents,h.discount_cents,h.payment_method,h.note,h.created_at
+ FROM invoice_adjustments h JOIN users u ON u.id=h.actor_user_id WHERE h.academy_id=$1 AND h.invoice_id=$2
+ UNION ALL
+ SELECT r.attempt_id,'bank_payment','InfinitePay',r.amount_cents,r.amount_cents,0::bigint,
+ CASE WHEN r.capture_method='pix' THEN 'infinitepay_pix' ELSE 'infinitepay_card' END,
+ 'Confirmado por consulta bancária',r.confirmed_at FROM checkout_receipts r WHERE r.academy_id=$1 AND r.invoice_id=$2
+ ) history ORDER BY created_at DESC,id DESC LIMIT 50`, a, id)
 	if e != nil {
 		return nil, e
 	}
@@ -118,6 +124,9 @@ func (m *Manager) adjust(ctx context.Context, a, id string, expected int64, disc
 	}
 	// HTTP calls happen outside the short database transaction. The lease also
 	// serializes Pix issuance, webhooks and reconciliation for this invoice.
+	if e = m.blockInfiniteAdjustment(ctx, a, id); e != nil {
+		return invoice, e
+	}
 	if e = m.retireUnpaidPix(ctx, a, id); e != nil {
 		return invoice, e
 	}

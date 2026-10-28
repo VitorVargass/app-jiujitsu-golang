@@ -1,20 +1,10 @@
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { View } from "react-native";
 import { router } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
 import { Icon, IconName } from "../../components/Icon";
 import { accents, Accent } from "../../theme";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
-import {
-  Card,
-  Heading,
-  Label,
-  Button,
-  Notice,
-  Loading,
-  Badge,
-} from "../../components/ui";
-import { api, academyPath } from "../../services/api";
+import { Card, Heading, Label, Button } from "../../components/ui";
 import { useSession } from "../../services/session";
 
 function Shortcut({
@@ -55,15 +45,7 @@ function Shortcut({
   );
 }
 function Content() {
-  const { academy, logout } = useSession(),
-    a = academy!;
-  const bank = useQuery({
-    queryKey: ["bank", a.id],
-    queryFn: () =>
-      api<{ connected: boolean; environment: string }>(
-        academyPath(a.id, "/payment-integration"),
-      ),
-  });
+  const { logout } = useSession();
   return (
     <AcademyShell title="Mais">
       <Heading>Gestão e configurações</Heading>
@@ -116,24 +98,14 @@ function Content() {
           tone="blue"
           onPress={() => router.push("/create-academy")}
         />
-        <Card>
-          <Heading>Pagamentos Pix · Asaas</Heading>
-          {bank.isPending ? (
-            <Loading />
-          ) : (
-            <Badge
-              label={
-                bank.data?.connected
-                  ? bank.data.environment === "production"
-                    ? "Integração ativa"
-                    : "Ambiente de teste"
-                  : "Integração não configurada"
-              }
-              tone={bank.data?.connected ? "mint" : "amber"}
-            />
-          )}
-          <Notice message={bank.error?.message} />
-        </Card>
+        <Shortcut
+          title="Recebimentos"
+          description="Conectar InfinitePay e receber mensalidades"
+          label="Recebimentos. Configurar conta de pagamento"
+          icon="wallet"
+          tone="mint"
+          onPress={() => router.push("/receipts")}
+        />
       </ResponsiveGrid>
       <View style={{ alignItems: "flex-start" }}>
         <Button compact secondary onPress={() => void logout()}>

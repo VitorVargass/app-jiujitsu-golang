@@ -179,7 +179,11 @@ export function InvoiceActions({
             <>
               <ActionRow
                 icon="wallet"
-                label="Gerar ou consultar Pix"
+                label={
+                  invoice.payment_provider === "infinitepay"
+                    ? "Pagar pela InfinitePay"
+                    : "Gerar ou consultar Pix"
+                }
                 onPress={() => {
                   setMenu(false);
                   onPix();
@@ -243,10 +247,14 @@ export function InvoiceActions({
                 <Label>
                   {h.kind === "discount"
                     ? "Desconto: " + money(h.discount_cents)
-                    : "Pagamento registrado • " +
-                      paymentMethodLabel[
-                        h.payment_method as ManualPaymentMethod
-                      ]}
+                    : h.kind === "bank_payment"
+                      ? h.payment_method === "infinitepay_pix"
+                        ? "Pix confirmado pela InfinitePay"
+                        : "Cartão confirmado pela InfinitePay"
+                      : "Pagamento registrado • " +
+                        paymentMethodLabel[
+                          h.payment_method as ManualPaymentMethod
+                        ]}
                 </Label>
                 <Label muted>
                   {h.actor_name} •{" "}
@@ -263,7 +271,7 @@ export function InvoiceActions({
               </View>
             ))
           ) : (
-            <Label muted>Nenhum ajuste manual registrado.</Label>
+            <Label muted>Nenhuma movimentação registrada.</Label>
           )}
         </EditorDialog>
       ) : null}
