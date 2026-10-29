@@ -92,6 +92,8 @@ func TestStudentAgePayerAndProfileAttendance(t *testing.T) {
 	nextBirthday := now.AddDate(0, 1, 0)
 	teenBirth := nextBirthday.AddDate(-18, 0, 0).Format("2006-01-02")
 	teenBody := body(teenBirth)
+	// Emit this month on today, then test the separate birthday transition.
+	teenBody["billing"].(map[string]any)["due_day"] = now.Day()
 	teen := admin.ok("POST", prefix+"/students", teenBody)
 	teenID := teen["id"].(string)
 	tx, err := db.Begin(ctx)
@@ -169,7 +171,7 @@ func TestStudentAgePayerAndProfileAttendance(t *testing.T) {
 	inviteBody := body(adultBirth)
 	inviteBody["email"] = getEmail(t, db, owner.token)
 	inviteBody["reuse_existing_identity"] = true
-	inviteStudent := admin.ok("POST", prefix+"/students", inviteBody)
+	inviteStudent := legacyStudent(t, db, admin, a, inviteBody)
 	inv := admin.ok("POST", prefix+"/students/"+inviteStudent["id"].(string)+"/invitations", nil)
 	owner.ok("POST", "/v1/invitations/"+inv["token"].(string)+"/accept", nil)
 	if code, _ := owner.request("GET", history, nil, ""); code != 403 {

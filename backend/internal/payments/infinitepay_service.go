@@ -298,7 +298,7 @@ func (m *Manager) blockInfiniteAdjustment(ctx context.Context, a, id string) err
 		return e
 	}
 	if blocked {
-		return core.E(409, "checkout_review_required", "Esta mensalidade já tem um checkout. Você pode retomar ou copiar o link em Pagamento. Para mudar o valor, confira a inutilização na InfinitePay e registre a conferência em Gerenciar checkout.")
+		return core.E(409, "checkout_review_required", "O link de pagamento desta mensalidade já foi emitido e mantém o valor original. Descontos devem ser definidos antes da emissão. Use Pagar ou Copiar link para continuar o pagamento.")
 	}
 	return nil
 }

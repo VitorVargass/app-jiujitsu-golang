@@ -103,7 +103,10 @@ func TestPeopleAndUniversalAttendance(t *testing.T) {
 		t.Fatal("existing identity reused silently", code)
 	}
 	studentBody["use_my_account"] = true
-	st := admin.ok("POST", prefix+"/students", studentBody)
+	if code, _ := admin.request("POST", prefix+"/students", studentBody, ""); code != 409 {
+		t.Fatal("own-account flag bypassed duplicate email", code)
+	}
+	st := legacyStudent(t, db, admin, a, studentBody)
 	sid := st["id"].(string)
 	if st["participant_id"] != part || st["user_id"] == "" {
 		t.Fatal("self enrollment duplicated participation")
@@ -158,15 +161,14 @@ func TestPeopleAndUniversalAttendance(t *testing.T) {
 	if code, _ := owner.request("GET", prefix+"/attendances?participant_id="+part+"&page=1", nil, ""); code != 403 {
 		t.Fatal("student read staff history", code)
 	}
-	// Another academy may reuse the same identity explicitly, with its own participation and access.
+	// A second administrative registration cannot reuse an existing identity.
 	b := outsider.ok("POST", "/v1/academies", map[string]string{"name": "Segunda academia"})["id"].(string)
 	body["reuse_existing_identity"] = true
-	otherStudent := outsider.ok("POST", "/v1/academies/"+b+"/students", body)
-	if otherStudent["person_id"] != invited["person_id"] || otherStudent["participant_id"] == invited["participant_id"] {
-		t.Fatal("multi-academy identity model")
+	if code, _ := outsider.request("POST", "/v1/academies/"+b+"/students", body, ""); code != 409 {
+		t.Fatal("duplicate identity accepted", code)
 	}
 	if code, _ := owner.request("GET", "/v1/academies/"+b+"/me/participation", nil, ""); code != 403 {
-		t.Fatal("email reuse granted other academy access", code)
+		t.Fatal("duplicate email granted access", code)
 	}
 	// Database-level race protection: two creation attempts cannot store two identities.
 	raceEmail := core.ID() + "@race.test"

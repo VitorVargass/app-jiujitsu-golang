@@ -145,7 +145,7 @@ func Seed(ctx context.Context, db *pgxpool.Pool, academy, actor string, now time
 		for attempt := 0; attempt < 100; attempt++ {
 			candidate := CPF(876500000 + i*100 + attempt)
 			var used bool
-			if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM academy_participants WHERE academy_id=$1 AND cpf=$2)", academy, candidate).Scan(&used); err != nil {
+			if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM academy_participants WHERE cpf=$1)", candidate).Scan(&used); err != nil {
 				return out, err
 			}
 			if !used {

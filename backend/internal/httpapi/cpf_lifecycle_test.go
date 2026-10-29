@@ -73,7 +73,7 @@ func TestCPFArchiveRestoreAndClassDeletion(t *testing.T) {
 	if code, _ := admin.request("POST", prefix+"/students", invalid, ""); code != 422 {
 		t.Fatal("invalid CPF", code)
 	}
-	student := admin.ok("POST", prefix+"/students", body)
+	student := legacyStudent(t, db, admin, a, body)
 	sid, legacyCode := student["id"].(string), student["student_code"].(string)
 	if student["cpf"] != cpf {
 		t.Fatal("CPF not normalized")
@@ -81,7 +81,9 @@ func TestCPFArchiveRestoreAndClassDeletion(t *testing.T) {
 	if code, _ := admin.request("POST", prefix+"/students", body, ""); code != 409 {
 		t.Fatal("duplicate CPF", code)
 	}
-	outsider.ok("POST", "/v1/academies/"+other+"/students", map[string]any{"birth_date": "2012-04-12", "name": "Mesmo CPF outra academia", "cpf": cpf})
+	if code, _ := outsider.request("POST", "/v1/academies/"+other+"/students", map[string]any{"birth_date": "2012-04-12", "name": "Mesmo CPF outra academia", "cpf": cpf}, ""); code != 409 {
+		t.Fatal("global CPF duplicated", code)
+	}
 	inv := admin.ok("POST", prefix+"/students/"+sid+"/invitations", nil)
 	owner.ok("POST", "/v1/invitations/"+inv["token"].(string)+"/accept", nil)
 	credential := owner.ok("GET", prefix+"/me/student-credential", nil)

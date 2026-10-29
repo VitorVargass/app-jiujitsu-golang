@@ -99,7 +99,7 @@ func TestAcademyBillingAndAsaas(t *testing.T) {
 	mods := admin.list(prefix + "/modalities")
 	month := time.Now().In(time.FixedZone("BR", -3*3600)).Format("2006-01")
 	body := map[string]any{"birth_date": "2012-04-12", "cpf": testCPF(), "name": "Maria da Silva", "email": getEmail(t, db, student.token), "reuse_existing_identity": true, "phone": "11999999999", "status": "active", "belt": "Faixa Azul", "modality_ids": []string{mods[0]["id"].(string), mods[1]["id"].(string)}, "billing": map[string]any{"enabled": true, "amount_cents": 20050, "due_day": 31, "first_month": month, "payer_name": "Maria da Silva", "payer_document": "52998224725"}}
-	st := admin.ok("POST", prefix+"/students", body)
+	st := legacyStudent(t, db, admin, aid, body)
 	sid := st["id"].(string)
 	if st["user_id"] != "" {
 		t.Fatal("student unexpectedly owns account")

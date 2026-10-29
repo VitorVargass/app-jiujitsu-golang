@@ -35,7 +35,7 @@ func TestFiveDigitStudentNumbers(t *testing.T) {
 	admin, outsider, student := register("Gestor Numeros"), register("Outra Conta"), register("Aluno Numeros")
 	academy := admin.ok("POST", "/v1/academies", map[string]string{"name": "Academia Numeros"})
 	prefix := "/v1/academies/" + academy["id"].(string)
-	created := admin.ok("POST", prefix+"/students", map[string]any{"name": "Aluno Numeros", "email": getEmail(t, db, student.token), "reuse_existing_identity": true, "birth_date": "2012-04-12", "cpf": testCPF()})
+	created := legacyStudent(t, db, admin, academy["id"].(string), map[string]any{"name": "Aluno Numeros", "email": getEmail(t, db, student.token), "reuse_existing_identity": true, "birth_date": "2012-04-12", "cpf": testCPF()})
 	code, id := created["student_code"].(string), created["id"].(string)
 	if !core.ValidStudentCode(code) {
 		t.Fatal("new student does not have five digits")

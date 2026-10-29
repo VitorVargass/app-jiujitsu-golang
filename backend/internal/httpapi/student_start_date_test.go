@@ -48,7 +48,7 @@ func TestStudentStartDate(t *testing.T) {
 	body := map[string]any{"name": "Faixa preta", "email": getEmail(t, db, student.token), "reuse_existing_identity": true, "cpf": cpf, "birth_date": "1990-04-12", "started_on": "2015-03-10", "status": "active",
 		"modality_details": []any{map[string]any{"modality_id": jj, "belt": "Faixa Preta", "degrees": 2, "amount_cents": 20000}},
 		"billing":          map[string]any{"enabled": true, "amount_cents": 20000, "due_day": 10, "first_month": first.Format("2006-01"), "payer_name": "Faixa preta", "payer_document": cpf}}
-	created := admin.ok("POST", prefix+"/students", body)
+	created := legacyStudent(t, db, admin, aid, body)
 	path := prefix + "/students/" + created["id"].(string)
 	if created["started_on"] != "2015-03-10" {
 		t.Fatal("start date not saved", created)

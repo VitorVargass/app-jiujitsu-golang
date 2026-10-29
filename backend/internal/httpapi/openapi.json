@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Tatame API",
-    "version": "2.16.0",
+    "version": "2.18.0",
     "description": "Gestao multiacademia, mensalidades e Checkout InfinitePay com conexao propria por academia; Pix Asaas legado preservado. Assinatura TatameMix separada: R$450 por academia/mês, sem descontos, Pix/cartão avulso e restrição de escrita após tolerância."
   },
   "servers": [
@@ -840,11 +840,13 @@
         "properties": {
           "reuse_existing_identity": {
             "type": "boolean",
-            "description": "Confirma explicitamente a mesma identidade já existente para este e-mail. Não concede acesso: o titular ainda aceita o convite."
+            "description": "Campo legado. Não permite reutilizar e-mail na criação administrativa.",
+            "deprecated": true
           },
           "use_my_account": {
             "type": "boolean",
-            "description": "Usa a conta autenticada do próprio gestor para matrícula opcional. Exige seu e-mail, reaproveita CPF/QR e histórico, sem criar cobrança automaticamente."
+            "description": "Campo legado. Não permite contornar duplicidade no cadastro administrativo.",
+            "deprecated": true
           },
           "name": {
             "type": "string"
@@ -6111,7 +6113,7 @@
       },
       "post": {
         "summary": "Cadastrar matrícula opcional de aluno",
-        "description": "E-mail é canônico e único em people. Identidade existente exige reuse_existing_identity ou use_my_account; sem confirmação retorna 409 identity_exists. Já matriculado retorna 409 already_enrolled. Não concede acesso por coincidência de e-mail.",
+        "description": "Criação administrativa bloqueia CPF de outra identidade e e-mail existente, mesmo com flags antigas de reutilização. Edição do próprio cadastro é permitida; telefone compartilhado também.",
         "parameters": [
           {
             "name": "academy_id",
@@ -14002,6 +14004,82 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/students/check-identity": {
+      "post": {
+        "summary": "Conferir duplicidade antes de salvar o cadastro (gestor ativo)",
+        "description": "Confere CPF e e-mail globalmente sem revelar dados da identidade existente. Exclui o próprio aluno em edições. Telefone compartilhado gera somente aviso. Exige gestor ativo.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "academy_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "student_id": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "cpf": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "alternate_phone": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultado da conferência",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "email_exists": {
+                      "type": "boolean"
+                    },
+                    "cpf_exists": {
+                      "type": "boolean"
+                    },
+                    "phone_exists": {
+                      "type": "boolean"
+                    },
+                    "alternate_phone_exists": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sem permissão nesta academia"
+          },
+          "422": {
+            "description": "Dados inválidos"
           }
         }
       }

@@ -1,3 +1,6 @@
+import { academyDate } from "../../types/attendance";
+import { firstBillingMonth } from "./billing-dates";
+import { useIdentityCheck } from "./useIdentityCheck";
 import { MonthPicker, DueDayPicker } from "../../components/BillingDatePicker";
 import { dueDateLabel } from "../../types/month";
 import { useState } from "react";
@@ -76,6 +79,11 @@ export function StudentSectionEditor({
     [phone, setPhone] = useState(student.phone),
     [alternate, setAlternate] = useState(student.alternate_phone);
   const [status, setStatus] = useState(student.status);
+  const identity = useIdentityCheck(
+    academyId,
+    { student_id: student.id, email, cpf, phone, alternate_phone: alternate },
+    section === "personal",
+  );
   const [birth, setBirth] = useState(formatBirth(student.birth_date));
   const birthISO = birthToISO(birth),
     age = ageOn(birthISO, timezone),
@@ -129,6 +137,11 @@ export function StudentSectionEditor({
       );
       const body = payload(latest);
       if (section === "personal") {
+        if (identity.pending)
+          throw new Error("Aguarde a conferência dos dados.");
+        if (identity.error) throw new Error(identity.error);
+        if (identity.cpf_exists) throw new Error(identity.cpfMessage);
+        if (identity.email_exists) throw new Error(identity.emailMessage);
         if (name.trim().length < 2 || name.trim().length > 100)
           throw new Error("Informe o nome completo.");
         if ((cpf.trim() || latest.cpf) && !validCPF(cpf))
@@ -224,7 +237,9 @@ export function StudentSectionEditor({
             enabled,
             amount_cents: cents,
             due_day: Number(day),
-            first_month: month,
+            first_month: !student.billing?.enabled
+              ? firstBillingMonth(month, Number(day), academyDate(timezone))
+              : month,
           });
           if (latest.charge_mode === "modalities")
             body.modality_details = latest.modality_details.map((d) => ({
@@ -346,6 +361,7 @@ export function StudentSectionEditor({
             maxLength={14}
             editable={!save.isPending}
           />
+          <Notice message={identity.cpfMessage} />
           <Field
             label="Data de nascimento"
             value={birth}
@@ -369,6 +385,7 @@ export function StudentSectionEditor({
             keyboardType="email-address"
             editable={!save.isPending && !student.email_locked}
           />
+          <Notice message={identity.emailMessage} />
           {student.email_locked ? (
             <Label muted>
               E-mail da identidade: sua alteração não é feita pela matrícula.
@@ -381,6 +398,7 @@ export function StudentSectionEditor({
             keyboardType="phone-pad"
             editable={!save.isPending}
           />
+          <Notice message={identity.phoneMessage} />
           <Field
             label="Telefone alternativo (opcional)"
             value={alternate}
@@ -388,6 +406,7 @@ export function StudentSectionEditor({
             keyboardType="phone-pad"
             editable={!save.isPending}
           />
+          <Notice message={identity.alternateMessage} />
           <Row>
             <Chip
               selected={status === "active"}
@@ -493,7 +512,12 @@ export function StudentSectionEditor({
               {student?.billing?.enabled
                 ? "Próxima emissão prevista: "
                 : "Primeiro vencimento: "}
-              {dueDateLabel(month, Number(day))}
+              {dueDateLabel(
+                !student.billing?.enabled
+                  ? firstBillingMonth(month, Number(day), academyDate(timezone))
+                  : month,
+                Number(day),
+              )}
             </Label>
           </View>
           <Label muted>

@@ -65,3 +65,8 @@ A migração 016 conserva as tentativas antigas, adiciona autor/data/evidência 
 Após a conferência registrada, o gestor edita o desconto e solicita novo checkout. O novo link usa o novo valor e outra referência. Notificações antigas continuam rastreáveis: se aparecer pagamento em link substituído, o sistema avisa o gestor sem dar baixa indevida na mensalidade atual. Gestores veem esse alerta na mensalidade e no histórico de checkouts.
 
 A API pública consultada não documenta cancelamento/inutilização de checkout. Expiração, exclusão local e uma resposta paid=false não são prova de inutilização. Emissões sem URL por perda de resposta continuam em conferência; não inventamos uma URL nem uma API de busca por referência.
+
+
+## Interface simplificada de pagamento
+
+A interface de gerenciamento e a confirmacao manual de inutilizacao de checkout foram removidas. A mensalidade conserva Pagar/Continuar pagamento e Copiar link. Descontos devem ser definidos antes da emissao; links emitidos mantem o valor original e nao sao substituidos automaticamente. As rotas e os registros anteriores de conferencia permanecem por compatibilidade e auditoria. Esta orientacao substitui as instrucoes anteriores de acessar Gerenciar checkout.

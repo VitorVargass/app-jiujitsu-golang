@@ -68,6 +68,12 @@ func (s Service) Save(ctx context.Context, a, id string, in Input) (Student, err
 			return Student{}, core.E(422, "invalid_modality", "Modalidade inválida.")
 		}
 	}
+	// Administrative creation cannot reuse another account, even with legacy flags.
+	in.RejectExistingIdentity = id == ""
+	if id == "" {
+		in.ReuseIdentity = false
+		in.UseMyAccount = false
+	}
 	return s.Repo.Save(ctx, a, id, in)
 }
 func (s Service) SaveCatalog(ctx context.Context, a, id string, in Catalog, plans bool) (Catalog, error) {

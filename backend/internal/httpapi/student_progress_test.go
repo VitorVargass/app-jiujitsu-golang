@@ -46,7 +46,7 @@ func TestStudentProgressAndFutureFirstInvoice(t *testing.T) {
 	first := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, loc)
 	contract := map[string]any{"enabled": true, "amount_cents": 21000, "due_day": 10, "first_month": first.Format("2006-01"), "payer_name": "Responsável", "payer_document": "52998224725"}
 	body := map[string]any{"name": "Aluno da evolução", "email": getEmail(t, db, owner.token), "reuse_existing_identity": true, "cpf": testCPF(), "birth_date": "2012-04-12", "status": "active", "modality_details": []any{map[string]any{"modality_id": jj, "belt": "Faixa Branca", "degrees": 0, "amount_cents": 0}}, "billing": contract}
-	s := admin.ok("POST", prefix+"/students", body)
+	s := legacyStudent(t, db, admin, aid, body)
 	id := s["id"].(string)
 	studentPath := prefix + "/students/" + id
 	page := admin.ok("GET", prefix+"/invoices?month="+first.Format("2006-01"), nil)

@@ -54,3 +54,162 @@ export const bjjAdultBelts = bjjBelts.filter((b) =>
   ].includes(b.label),
 );
 export const bjjKidsBelts = bjjBelts.slice(0, 13);
+
+export type GraduationPreset = {
+  id: string;
+  name: string;
+  modalityName: string;
+  note: string;
+  belts: BeltOption[];
+};
+const color = Object.fromEntries(beltPalette.map((c) => [c.name, c.color]));
+function bands(labels: string[], prefix = "Faixa"): BeltOption[] {
+  return labels.map((label) => ({
+    label: prefix + " " + label,
+    colors: label.split(" e ").map((name) => color[name] ?? "#E8DCC0"),
+  }));
+}
+export const graduationPresets: GraduationPreset[] = [
+  {
+    id: "bjj-adult",
+    name: "Jiu-Jitsu adulto",
+    modalityName: "Jiu-Jitsu",
+    note: "Faixas adultas e superiores. Confira as regras da sua equipe.",
+    belts: bjjAdultBelts,
+  },
+  {
+    id: "bjj-kids",
+    name: "Jiu-Jitsu infantil",
+    modalityName: "Jiu-Jitsu infantil",
+    note: "Branca e grupos cinza, amarelo, laranja e verde.",
+    belts: bjjKidsBelts,
+  },
+  {
+    id: "bjj-all",
+    name: "Jiu-Jitsu completo",
+    modalityName: "Jiu-Jitsu",
+    note: "Faixas infantis e adultas no mesmo cadastro.",
+    belts: bjjBelts,
+  },
+  {
+    id: "judo",
+    name: "Judô",
+    modalityName: "Judô",
+    note: "Cores de referência da CBJ; ajuste faixas intermediárias da sua academia.",
+    belts: bands([
+      "Branca",
+      "Cinza",
+      "Azul",
+      "Amarela",
+      "Laranja",
+      "Verde",
+      "Roxa",
+      "Marrom",
+      "Preta",
+      "Vermelha e Branca",
+      "Vermelha",
+    ]),
+  },
+  {
+    id: "karate-shorin",
+    name: "Karatê · Shorin-ryu",
+    modalityName: "Karatê",
+    note: "Modelo Shidokan do Brasil. Outros estilos podem usar outra sequência.",
+    belts: bands([
+      "Branca",
+      "Amarela",
+      "Laranja",
+      "Azul",
+      "Verde",
+      "Roxa",
+      "Marrom",
+      "Preta",
+    ]),
+  },
+  {
+    id: "taekwondo",
+    name: "Taekwondo · cores básicas",
+    modalityName: "Taekwondo",
+    note: "Cores agrupadas da CBTKD. Adicione pontas e Gubs conforme sua escola.",
+    belts: bands(["Branca", "Amarela", "Verde", "Azul", "Vermelha", "Preta"]),
+  },
+  {
+    id: "kickboxing",
+    name: "Kickboxing",
+    modalityName: "Kickboxing",
+    note: "Faixas coloridas da CBKB e faixa preta.",
+    belts: bands([
+      "Branca",
+      "Amarela",
+      "Laranja",
+      "Verde",
+      "Azul",
+      "Marrom",
+      "Preta",
+    ]),
+  },
+  {
+    id: "muay-boran",
+    name: "Muay Thai Boran · FPMTB",
+    modalityName: "Muay Thai",
+    note: "Prajieds do 1º ao 10º Khan da FPMTB. Outras equipes podem usar cores diferentes.",
+    belts: bands(
+      [
+        "Branca",
+        "Amarela",
+        "Amarela e Branca",
+        "Verde",
+        "Verde e Branca",
+        "Azul",
+        "Azul e Branca",
+        "Marrom",
+        "Marrom e Branca",
+        "Vermelha",
+      ],
+      "Prajied",
+    ).map((b, i) => ({ ...b, label: i + 1 + "º Khan · " + b.label })),
+  },
+  {
+    id: "capoeira-abada",
+    name: "Capoeira · ABADÁ adulto",
+    modalityName: "Capoeira",
+    note: "Cordas do sistema adulto ABADÁ; adapte ao grupo da academia.",
+    belts: bands(
+      [
+        "Crua",
+        "Crua e Amarela",
+        "Amarela",
+        "Amarela e Laranja",
+        "Laranja",
+        "Laranja e Azul",
+        "Azul",
+        "Azul e Verde",
+        "Verde",
+        "Verde e Roxa",
+        "Roxa",
+        "Roxa e Marrom",
+        "Marrom",
+        "Marrom e Vermelha",
+        "Vermelha",
+        "Vermelha e Branca",
+        "Branca",
+      ],
+      "Corda",
+    ),
+  },
+  {
+    id: "none",
+    name: "Sem faixas",
+    modalityName: "",
+    note: "Para modalidades cadastradas sem sistema de graduação, como Boxe ou MMA.",
+    belts: [],
+  },
+];
+export function graduationPresetFor(options: BeltOption[]) {
+  return graduationPresets.find(
+    (p) => JSON.stringify(p.belts) === JSON.stringify(options),
+  );
+}
+export function copyPresetBelts(preset: GraduationPreset): BeltOption[] {
+  return preset.belts.map((b) => ({ label: b.label, colors: [...b.colors] }));
+}

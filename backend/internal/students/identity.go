@@ -85,5 +85,8 @@ func resolveIdentity(ctx context.Context, tx pgx.Tx, a, id string, in *Input, ol
 	if b.Enabled && !oldEnabled && b.FirstMonth < now.Format("2006-01") {
 		return false, core.E(422, "past_start", "O mês de início da cobrança deve ser o atual ou um mês futuro.")
 	}
+	if b.Enabled && !oldEnabled {
+		b.FirstMonth = billing.FirstBillingMonth(b.FirstMonth, b.DueDay, now)
+	}
 	return adult, nil
 }

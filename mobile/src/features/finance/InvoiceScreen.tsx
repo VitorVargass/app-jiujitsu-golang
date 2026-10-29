@@ -1,10 +1,9 @@
-import { CheckoutRecovery } from "../payments/CheckoutRecovery";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { beginInvoiceCheckout } from "../../services/checkout-flow";
 import { openPaymentURL } from "../../services/open-payment";
 import { useState, useEffect, useRef } from "react";
 import { CheckoutPanel } from "../payments/CheckoutPanel";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from "expo-clipboard";
@@ -43,7 +42,6 @@ export function InvoiceContent({ id }: { id: string }) {
     a = academy!,
     { width } = useWindowDimensions();
   const { isWide } = useResponsiveLayout();
-  const [manageCheckout, setManageCheckout] = useState(false);
   const [message, setMessage] = useState(""),
     [confirmCancel, setConfirmCancel] = useState(false),
     [showPix, setShowPix] = useState(false);
@@ -197,6 +195,21 @@ export function InvoiceContent({ id }: { id: string }) {
             </View>
             <Text style={s.amount}>{money(i.amount_cents)}</Text>
             <Text style={s.student}>{i.student_name}</Text>
+            {role === "admin" ? (
+              <Button
+                compact
+                secondary
+                icon="users"
+                onPress={() =>
+                  router.push({
+                    pathname: "/students/[id]",
+                    params: { id: i.student_id },
+                  })
+                }
+              >
+                Ver aluno
+              </Button>
+            ) : null}
             <View style={s.due}>
               <Icon name="calendar" color={colors.muted} size={16} />
               <Label muted>
@@ -272,7 +285,6 @@ export function InvoiceContent({ id }: { id: string }) {
                   copy.mutate(portalLink("/pay/" + a.id + "/" + id))
                 }
                 onPay={openPayment}
-                onManageCheckout={() => setManageCheckout(true)}
                 paymentPending={onlinePayment.isPending || pix.isPending}
                 onCancel={() => {
                   cancel.reset();
@@ -414,13 +426,6 @@ export function InvoiceContent({ id }: { id: string }) {
           <Notice message={copy.error?.message} />
           <Notice success message={message === "Copiado." ? message : ""} />
         </EditorDialog>
-      ) : null}
-      {manageCheckout ? (
-        <CheckoutRecovery
-          academyId={a.id}
-          invoiceId={id}
-          onClose={() => setManageCheckout(false)}
-        />
       ) : null}
       <ConfirmDialog
         visible={confirmCancel}

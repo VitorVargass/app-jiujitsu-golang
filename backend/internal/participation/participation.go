@@ -76,7 +76,7 @@ func (h Handler) Own(w http.ResponseWriter, r *http.Request) {
 		_, err = h.Repo.DB.Exec(r.Context(), "UPDATE academy_participants SET cpf=$3 WHERE academy_id=$1 AND id=$2", a, v.ID, cpf)
 		var pe *pgconn.PgError
 		if errors.As(err, &pe) && pe.Code == "23505" {
-			err = core.E(409, "cpf_already_registered", "Este CPF já pertence a outra participação nesta academia.")
+			err = core.E(409, "cpf_already_registered", "Este CPF já está cadastrado no sistema. Use o cadastro atual ou peça ao gestor para corrigir os dados.")
 		}
 		if err != nil {
 			core.Fail(w, err)

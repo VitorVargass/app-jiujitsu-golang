@@ -14,15 +14,16 @@ import {
   Row,
   Loading,
 } from "../../components/ui";
+import { EditorDialog } from "../../components/EditorDialog";
 import { FormWizard } from "../../components/FormWizard";
 import { BeltSwatch } from "../../components/BeltPicker";
 import { api, academyPath } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
 import { BeltOption, Catalog, money, parseMoney } from "../../types/billing";
 import {
-  bjjBelts,
-  bjjAdultBelts,
-  bjjKidsBelts,
+  graduationPresets,
+  graduationPresetFor,
+  copyPresetBelts,
   beltPalette,
 } from "../../types/graduation";
 import { colors } from "../../theme";
@@ -47,6 +48,8 @@ function Editor({
   const [mods, setMods] = useState(initial?.modality_ids ?? []);
   const [belts, setBelts] = useState<BeltOption[]>(initial?.belt_options ?? []);
   const [custom, setCustom] = useState(false);
+  const [modelPicker, setModelPicker] = useState(false);
+  const model = graduationPresetFor(belts);
   const [showBelts, setShowBelts] = useState(false);
   const [beltName, setBeltName] = useState("");
   const [firstColor, setFirstColor] = useState("#F5F5F5");
@@ -145,6 +148,37 @@ function Editor({
                 onChangeText={setName}
                 autoCapitalize="words"
               />
+              {!plans && !initial ? (
+                <>
+                  <Label muted>Começar com uma modalidade pronta</Label>
+                  <Row>
+                    {graduationPresets
+                      .filter(
+                        (p) =>
+                          p.modalityName &&
+                          !["bjj-adult", "bjj-kids"].includes(p.id),
+                      )
+                      .map((p) => (
+                        <Chip
+                          key={p.id}
+                          selected={
+                            name === p.modalityName && model?.id === p.id
+                          }
+                          onPress={() => {
+                            setName(p.modalityName);
+                            preset(copyPresetBelts(p));
+                          }}
+                        >
+                          {p.modalityName}
+                        </Chip>
+                      ))}
+                  </Row>
+                  <Label muted>
+                    O modelo preenche as faixas; valor e nome podem ser
+                    ajustados nas próximas etapas.
+                  </Label>
+                </>
+              ) : null}
               <Row>
                 <Chip selected={active} onPress={() => setActive(true)}>
                   Ativo
@@ -160,6 +194,10 @@ function Editor({
               {plans ? (
                 <>
                   <Heading>Modalidades incluídas</Heading>
+                  <Label muted>
+                    As faixas pertencem a cada modalidade. O plano reúne as
+                    atividades e define o valor total.
+                  </Label>
                   <Row>
                     {modalities
                       .filter((m) => m.active || mods.includes(m.id))
@@ -180,6 +218,20 @@ function Editor({
                       ))}
                   </Row>
                 </>
+              ) : null}
+              {plans && mods.length ? (
+                <View style={{ gap: 8 }}>
+                  {modalities
+                    .filter((m) => mods.includes(m.id))
+                    .map((m) => (
+                      <Label key={m.id} muted>
+                        {m.name} ·{" "}
+                        {m.belt_options?.length
+                          ? m.belt_options.length + " graduações disponíveis"
+                          : "Sem faixas"}
+                      </Label>
+                    ))}
+                </View>
               ) : null}
               <Field
                 label={
@@ -203,30 +255,111 @@ function Editor({
               <Card>
                 <Heading>Sistema de graduação</Heading>
                 <Label muted>
-                  Escolha um modelo ou configure as faixas usadas nesta
-                  modalidade. Jiu-Jitsu e No-Gi podem ter graduações
-                  independentes.
+                  Use um modelo pronto e ajuste às regras da sua academia. A
+                  seleção não promove alunos nem muda suas graduações atuais.
                 </Label>
+                <Button
+                  secondary
+                  icon="sliders"
+                  onPress={() => setModelPicker(true)}
+                >
+                  {model ? model.name : "Escolher modelo de graduação"}
+                </Button>
+                {model ? (
+                  <Label muted>{model.note}</Label>
+                ) : (
+                  <Label muted>Modelo personalizado da academia.</Label>
+                )}
                 <Row>
-                  <Chip onPress={() => preset(bjjAdultBelts)}>
-                    Jiu-Jitsu adulto
-                  </Chip>
-                  <Chip onPress={() => preset(bjjKidsBelts)}>
-                    Jiu-Jitsu infantil
-                  </Chip>
-                  <Chip onPress={() => preset(bjjBelts)}>
-                    Jiu-Jitsu completo
-                  </Chip>
                   <Chip
                     selected={!belts.length && !custom}
                     onPress={() => preset([])}
                   >
                     Sem faixas
                   </Chip>
-                  <Chip selected={custom} onPress={() => setCustom(true)}>
-                    Personalizar
+                  <Chip
+                    selected={custom}
+                    onPress={() => {
+                      setCustom(true);
+                      setShowBelts(true);
+                    }}
+                  >
+                    Personalizar faixas
                   </Chip>
                 </Row>
+                {modelPicker ? (
+                  <EditorDialog
+                    title="Modelos de graduação"
+                    onClose={() => setModelPicker(false)}
+                  >
+                    <Label muted>
+                      Escolha a modalidade e confirme a sequência utilizada pela
+                      sua equipe.
+                    </Label>
+                    {graduationPresets.map((p) => (
+                      <Pressable
+                        key={p.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={"Usar modelo " + p.name}
+                        accessibilityState={{ selected: model?.id === p.id }}
+                        onPress={() => {
+                          preset(copyPresetBelts(p));
+                          setModelPicker(false);
+                        }}
+                        style={({ pressed }) => ({
+                          gap: 8,
+                          padding: 14,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor:
+                            model?.id === p.id ? colors.primary : colors.border,
+                          opacity: pressed ? 0.6 : 1,
+                        })}
+                      >
+                        <Row>
+                          <View style={{ flex: 1 }}>
+                            <Label>{p.name}</Label>
+                          </View>
+                          <Label muted>
+                            {p.belts.length
+                              ? p.belts.length + " graduações"
+                              : "Sem faixas"}
+                          </Label>
+                        </Row>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            flexWrap: "wrap",
+                            gap: 5,
+                          }}
+                        >
+                          {p.belts.slice(0, 8).map((b) => (
+                            <View
+                              key={b.label}
+                              style={{
+                                width: 30,
+                                height: 10,
+                                flexDirection: "row",
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                                borderRadius: 2,
+                                overflow: "hidden",
+                              }}
+                            >
+                              {b.colors.map((c, i) => (
+                                <View
+                                  key={i}
+                                  style={{ flex: 1, backgroundColor: c }}
+                                />
+                              ))}
+                            </View>
+                          ))}
+                        </View>
+                        <Label muted>{p.note}</Label>
+                      </Pressable>
+                    ))}
+                  </EditorDialog>
+                ) : null}
                 <Label>
                   {belts.length
                     ? belts.length + " graduações configuradas"

@@ -49,7 +49,6 @@ export function InvoiceActions({
   onPay,
   paymentPending = false,
   onCancel,
-  onManageCheckout,
 }: {
   academyId: string;
   invoice: Invoice;
@@ -58,7 +57,6 @@ export function InvoiceActions({
   onPay: () => void;
   paymentPending?: boolean;
   onCancel: () => void;
-  onManageCheckout: () => void;
 }) {
   const [edit, setEdit] = useState<Edit | null>(null);
   const [discount, setDiscount] = useState("");
@@ -95,13 +93,7 @@ export function InvoiceActions({
       onSaved(value);
     },
   });
-  const lockedByCheckout =
-    !!invoice.payment_checkout && !invoice.payment_checkout.retryable;
   function open(kind: Edit["kind"]) {
-    if (lockedByCheckout) {
-      onManageCheckout();
-      return;
-    }
     change.reset();
     setError("");
     setEdit({ kind, invoice });
@@ -185,16 +177,6 @@ export function InvoiceActions({
           title="Ações da mensalidade"
           onClose={() => setMenu(false)}
         >
-          {invoice.payment_provider === "infinitepay" ? (
-            <ActionRow
-              icon="wallet"
-              label="Gerenciar checkout e links"
-              onPress={() => {
-                setMenu(false);
-                onManageCheckout();
-              }}
-            />
-          ) : null}
           {openInvoice ? (
             <>
               <ActionRow
@@ -234,8 +216,7 @@ export function InvoiceActions({
               danger
               onPress={() => {
                 setMenu(false);
-                if (lockedByCheckout) onManageCheckout();
-                else onCancel();
+                onCancel();
               }}
             />
           ) : null}
@@ -385,7 +366,7 @@ export function InvoiceActions({
           )}
           <Label muted>
             {invoice.payment_provider === "infinitepay"
-              ? "Se houver um checkout emitido, a alteração depende da conferência da cobrança na InfinitePay."
+              ? "Descontos devem ser definidos antes de gerar o link de pagamento. Um link já emitido mantém o valor original."
               : "Se houver Pix emitido, vamos conferir o pagamento e encerrar a cobrança pendente no Asaas antes de concluir."}
           </Label>
           <Notice message={error || change.error?.message} />

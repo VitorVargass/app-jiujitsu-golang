@@ -150,6 +150,7 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("DELETE "+base+"/students/{student}/portal-access/{user}", st.RevokeFamily)
 	protected("GET "+base+"/students", st.List)
 	protected("POST "+base+"/students", st.Save)
+	protected("POST "+base+"/students/check-identity", st.CheckIdentity)
 	protected("GET "+base+"/students/{student}", st.Get)
 	protected("GET "+base+"/students/{student}/credential", p.Credential)
 	protected("PATCH "+base+"/students/{student}", st.Save)

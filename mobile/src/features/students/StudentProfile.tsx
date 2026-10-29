@@ -1,3 +1,4 @@
+import { StudentInvoices } from "./StudentInvoices";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useContext, useEffect, useState } from "react";
 import { FormScrollContext } from "../../components/FormScrollContext";
@@ -72,7 +73,7 @@ export default function StudentProfile({
   const { academy } = useSession(),
     a = academy!;
   const [tab, setTab] = useState<
-    "enrollment" | "attendance" | "progress" | "personal"
+    "enrollment" | "attendance" | "progress" | "personal" | "invoices"
   >("enrollment");
   const [editor, setEditor] = useState<StudentSection | null>(null),
     [full, setFull] = useState<number | null>(null);
@@ -253,6 +254,7 @@ export default function StudentProfile({
         {(
           [
             { id: "enrollment", label: "Matrícula", icon: "wallet" },
+            { id: "invoices", label: "Mensalidades", icon: "wallet" },
             { id: "attendance", label: "Presenças", icon: "calendar" },
             { id: "progress", label: "Evolução", icon: "check-circle" },
             { id: "personal", label: "Dados", icon: "users" },
@@ -287,6 +289,9 @@ export default function StudentProfile({
           onEdit={edit}
           onContract={() => setFull(student.birth_date ? 1 : 0)}
         />
+      ) : null}
+      {tab === "invoices" ? (
+        <StudentInvoices key={student.id} academyId={a.id} student={student} />
       ) : null}
       {tab === "progress" ? (
         <StudentProgress
@@ -484,6 +489,7 @@ export default function StudentProfile({
 const s = StyleSheet.create({
   tabs: {
     flexDirection: "row",
+    flexWrap: "wrap",
     backgroundColor: colors.surface,
     padding: 5,
     borderRadius: 16,
@@ -493,6 +499,7 @@ const s = StyleSheet.create({
   },
   tab: {
     flex: 1,
+    minWidth: 90,
     minHeight: 56,
     flexDirection: "column",
     gap: 7,

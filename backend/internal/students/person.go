@@ -13,9 +13,9 @@ func identityError(err error) error {
 	if errors.As(err, &pe) && pe.Code == "23505" {
 		switch pe.ConstraintName {
 		case "people_email_key":
-			return core.E(409, "identity_exists", "Este e-mail já pertence a uma identidade. Confirme se é a mesma pessoa antes de reutilizá-la.")
-		case "participants_academy_cpf_unique":
-			return core.E(409, "cpf_already_registered", "Este CPF já está cadastrado nesta academia, inclusive entre arquivados. Busque pelo CPF antes de continuar.")
+			return core.E(409, "identity_exists", "Este e-mail já está cadastrado no sistema. Use a conta atual ou peça ao gestor para corrigir os dados.")
+		case "participants_global_cpf_identity", "participants_academy_cpf_unique":
+			return core.E(409, "cpf_already_registered", "Este CPF já está cadastrado no sistema. Use o cadastro atual ou peça ao gestor para corrigir os dados.")
 		case "students_academy_id_participant_id_key":
 			return core.E(409, "already_enrolled", "Esta pessoa já possui matrícula nesta academia. Abra ou restaure o cadastro existente.")
 		}
@@ -63,8 +63,8 @@ func resolvePerson(ctx context.Context, tx pgx.Tx, a, id, person string, in Inpu
 			person = ""
 		}
 	}
-	if person != "" && !in.ReuseIdentity && !in.UseMyAccount {
-		return "", "", core.E(409, "identity_exists", "Este e-mail já tem identidade no sistema. Confirme a reutilização ou use sua própria conta.")
+	if person != "" && (in.RejectExistingIdentity || (!in.ReuseIdentity && !in.UseMyAccount)) {
+		return "", "", core.E(409, "identity_exists", "Este e-mail já está cadastrado no sistema. Use a conta atual ou peça ao gestor para corrigir os dados.")
 	}
 	if person == "" {
 		person = core.ID()

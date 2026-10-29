@@ -124,7 +124,12 @@ func TestInvoiceAdjustments(t *testing.T) {
 	month := time.Now().In(loc).Format("2006-01")
 	fixture := func(email string) (string, string) {
 		body := map[string]any{"name": "Aluno " + core.ID(), "email": email, "reuse_existing_identity": email != "", "birth_date": "2012-04-12", "cpf": testCPF(), "status": "active", "modality_ids": []string{mod}, "billing": map[string]any{"enabled": true, "amount_cents": 20050, "due_day": 10, "first_month": month, "payer_name": "Responsável", "payer_document": "52998224725"}}
-		s := admin.ok("POST", prefix+"/students", body)
+		var s map[string]any
+		if email != "" {
+			s = legacyStudent(t, db, admin, a, body)
+		} else {
+			s = admin.ok("POST", prefix+"/students", body)
+		}
 		sid := s["id"].(string)
 		page := admin.ok("GET", prefix+"/invoices?student_id="+sid, nil)
 		return page["items"].([]any)[0].(map[string]any)["id"].(string), sid
@@ -150,10 +155,8 @@ func TestInvoiceAdjustments(t *testing.T) {
 			t.Fatal("unexpected invoice", v)
 		}
 	}
+	// New contracts no longer create overdue invoices on activation.
 	currentStatus := "open"
-	if time.Now().In(loc).Day() > 10 {
-		currentStatus = "overdue"
-	}
 	iid, sid := fixture(getEmail(t, db, student.token))
 	invite := admin.ok("POST", prefix+"/students/"+sid+"/invitations", nil)
 	student.ok("POST", "/v1/invitations/"+invite["token"].(string)+"/accept", nil)
@@ -184,7 +187,7 @@ func TestInvoiceAdjustments(t *testing.T) {
 	}
 	tx, e := db.Begin(ctx)
 	must(e)
-	must(billing.GenerateTx(ctx, tx, a, sid, time.Now().AddDate(0, 1, 0)))
+	must(billing.GenerateTx(ctx, tx, a, sid, time.Now().AddDate(0, 2, 0)))
 	must(tx.Commit(ctx))
 	var nextAmount int64
 	must(db.QueryRow(ctx, "SELECT amount_cents FROM invoices WHERE academy_id=$1 AND student_id=$2 AND id<>$3", a, sid, iid).Scan(&nextAmount))
