@@ -1,4 +1,7 @@
-import { ResponsiveGrid } from "../../components/ResponsiveGrid";
+import { CheckoutRecovery } from "../payments/CheckoutRecovery";
+import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
+import { beginInvoiceCheckout } from "../../services/checkout-flow";
+import { openPaymentURL } from "../../services/open-payment";
 import { useState, useEffect, useRef } from "react";
 import { CheckoutPanel } from "../payments/CheckoutPanel";
 import { useLocalSearchParams } from "expo-router";
@@ -26,6 +29,7 @@ import { queryClient, useSession } from "../../services/session";
 import { portalLink } from "../../services/links";
 import {
   Invoice,
+  Checkout,
   Pix,
   money,
   statusLabel,
@@ -38,6 +42,8 @@ export function InvoiceContent({ id }: { id: string }) {
   const { academy, role } = useSession(),
     a = academy!,
     { width } = useWindowDimensions();
+  const { isWide } = useResponsiveLayout();
+  const [manageCheckout, setManageCheckout] = useState(false);
   const [message, setMessage] = useState(""),
     [confirmCancel, setConfirmCancel] = useState(false),
     [showPix, setShowPix] = useState(false);
@@ -87,6 +93,20 @@ export function InvoiceContent({ id }: { id: string }) {
     queryFn: () => api<Invoice>(academyPath(a.id, "/invoices/" + id)),
     refetchInterval: 10000,
   });
+  const onlinePayment = useMutation({
+    mutationFn: () =>
+      beginInvoiceCheckout(
+        () =>
+          api<Checkout>(academyPath(a.id, "/invoices/" + id + "/checkout"), {
+            method: "POST",
+          }),
+        openPaymentURL,
+      ),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ["invoice", a.id, id] });
+      if (result.status !== "waiting" || !result.url) setShowPix(true);
+    },
+  });
   const pix = useMutation({
     mutationFn: () =>
       api<Pix>(academyPath(a.id, "/invoices/" + id + "/pix"), {
@@ -119,9 +139,23 @@ export function InvoiceContent({ id }: { id: string }) {
     closed = i?.status === "cancelled",
     currentPix =
       pix.data?.amount_cents === i?.amount_cents ? pix.data : undefined;
-  function openPix() {
+  function openPayment() {
+    if (!i || paid || closed || onlinePayment.isPending || pix.isPending)
+      return;
+    setMessage("");
+    if (i.payment_provider === "infinitepay") {
+      if (
+        i.payment_checkout?.status === "review" &&
+        !i.payment_checkout.retryable
+      ) {
+        setShowPix(true);
+        return;
+      }
+      onlinePayment.mutate();
+      return;
+    }
     setShowPix(true);
-    if (i?.payment_provider !== "infinitepay") pix.mutate();
+    pix.mutate();
   }
   return (
     <AcademyShell
@@ -144,8 +178,8 @@ export function InvoiceContent({ id }: { id: string }) {
       ) : invoice.error ? (
         <Notice message={invoice.error.message} />
       ) : i ? (
-        <ResponsiveGrid>
-          <Card>
+        <View style={[s.layout, isWide && s.desktopLayout]}>
+          <Card style={[s.summaryCard, isWide && { flex: 1.4 }]}>
             <View style={s.top}>
               <Label muted>{formatMonth(i.competence)}</Label>
               <Badge
@@ -211,8 +245,24 @@ export function InvoiceContent({ id }: { id: string }) {
               </View>
             ) : null}
           </Card>
-          <Card>
-            <Label>Ações da mensalidade</Label>
+          <Card style={[s.paymentCard, isWide && { flex: 1 }]}>
+            <View style={s.paymentHeading}>
+              <View style={s.walletIcon}>
+                <Icon name="wallet" size={22} color={colors.primaryLight} />
+              </View>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={s.paymentTitle}>Pagamento</Text>
+                <Label muted>
+                  {paid
+                    ? "Recebimento confirmado"
+                    : closed
+                      ? "Mensalidade cancelada"
+                      : i.payment_provider === "infinitepay"
+                        ? "Pix ou cartão pela InfinitePay"
+                        : "Pix da academia"}
+                </Label>
+              </View>
+            </View>
             {role === "admin" ? (
               <InvoiceActions
                 key={id}
@@ -221,7 +271,9 @@ export function InvoiceContent({ id }: { id: string }) {
                 onCopy={() =>
                   copy.mutate(portalLink("/pay/" + a.id + "/" + id))
                 }
-                onPix={openPix}
+                onPay={openPayment}
+                onManageCheckout={() => setManageCheckout(true)}
+                paymentPending={onlinePayment.isPending || pix.isPending}
                 onCancel={() => {
                   cancel.reset();
                   setConfirmCancel(true);
@@ -233,31 +285,58 @@ export function InvoiceContent({ id }: { id: string }) {
                       ? "Pagamento registrado."
                       : "Desconto atualizado.",
                   );
-                  queryClient.setQueryData(["invoice", a.id, id], updated);
+                  queryClient.setQueryData<Invoice>(
+                    ["invoice", a.id, id],
+                    (previous) => ({
+                      ...updated,
+                      payment_provider:
+                        previous?.payment_provider || "infinitepay",
+                    }),
+                  );
                   void queryClient.invalidateQueries();
                 }}
               />
             ) : !paid && !closed ? (
-              <Button icon="qr" loading={pix.isPending} onPress={openPix}>
-                {i.payment_provider === "infinitepay"
-                  ? "Pagar mensalidade"
-                  : "Pagar com Pix"}
+              <Button
+                icon="wallet"
+                loading={onlinePayment.isPending || pix.isPending}
+                onPress={openPayment}
+              >
+                Pagar
               </Button>
             ) : (
               <Label muted>Nenhuma ação pendente.</Label>
             )}
+            <Notice message={onlinePayment.error?.message} />
+            {!paid &&
+            !closed &&
+            i.payment_provider === "infinitepay" &&
+            i.payment_checkout ? (
+              <CheckoutPanel
+                inline
+                key={i.payment_checkout.id}
+                academyId={a.id}
+                invoiceId={id}
+                initial={i.payment_checkout}
+              />
+            ) : null}
+            {role === "admin" ? (
+              <Notice message={i.checkout_history_warning} />
+            ) : null}
+            {!paid && !closed ? (
+              <View style={s.paymentHint}>
+                <Icon name="lock" size={16} color={colors.muted} />
+                <Text style={s.hintText}>
+                  {i.payment_provider === "infinitepay"
+                    ? "Você escolhe como pagar no checkout. A confirmação aparece aqui automaticamente."
+                    : "A presença de uma mensalidade em aberto não confirma recebimento."}
+                </Text>
+              </View>
+            ) : null}
           </Card>
-        </ResponsiveGrid>
+        </View>
       ) : null}
       <Notice message={returnCheck.error?.message} />
-      {i?.payment_checkout?.status === "review" ? (
-        <Notice
-          message={
-            i.payment_checkout.review_reason ||
-            "Pagamento em conferência na InfinitePay."
-          }
-        />
-      ) : null}
       <Notice success message={message} />
       <Notice message={copy.error?.message} />
       {showPix && i?.payment_provider === "infinitepay" ? (
@@ -268,7 +347,11 @@ export function InvoiceContent({ id }: { id: string }) {
           <CheckoutPanel
             academyId={a.id}
             invoiceId={id}
-            initial={i.payment_checkout}
+            initial={
+              i.payment_checkout?.status === "paid"
+                ? i.payment_checkout
+                : (onlinePayment.data ?? i.payment_checkout)
+            }
           />
         </EditorDialog>
       ) : showPix ? (
@@ -303,8 +386,8 @@ export function InvoiceContent({ id }: { id: string }) {
                 />
               </View>
               <Label muted>
-                Aguardando pagamento. A confirmação aparece após a consulta
-                ao Asaas.
+                Aguardando pagamento. A confirmação aparece após a consulta ao
+                Asaas.
               </Label>
               <Button
                 icon="qr"
@@ -332,10 +415,17 @@ export function InvoiceContent({ id }: { id: string }) {
           <Notice success message={message === "Copiado." ? message : ""} />
         </EditorDialog>
       ) : null}
+      {manageCheckout ? (
+        <CheckoutRecovery
+          academyId={a.id}
+          invoiceId={id}
+          onClose={() => setManageCheckout(false)}
+        />
+      ) : null}
       <ConfirmDialog
         visible={confirmCancel}
         title="Cancelar mensalidade?"
-        message="A mensalidade será cancelada após conferir e encerrar seu Pix pendente. O histórico será preservado."
+        message="O histórico será preservado. Se houver uma cobrança emitida, será necessário conferir seu estado antes de concluir o cancelamento."
         confirmLabel="Confirmar cancelamento"
         pending={cancel.isPending}
         error={cancel.error?.message}
@@ -355,6 +445,38 @@ export default function InvoiceScreen() {
   );
 }
 const s = StyleSheet.create({
+  layout: { gap: 20 },
+  desktopLayout: { flexDirection: "row", alignItems: "flex-start" },
+  summaryCard: { minWidth: 0, padding: 26, gap: 20 },
+  paymentCard: { minWidth: 0, padding: 24, gap: 20 },
+  paymentHeading: { flexDirection: "row", alignItems: "center", gap: 12 },
+  walletIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#2B171B",
+  },
+  paymentTitle: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 19,
+    color: colors.text,
+  },
+  paymentHint: {
+    flexDirection: "row",
+    gap: 9,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  hintText: {
+    flex: 1,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 19,
+    color: colors.muted,
+  },
   top: {
     flexDirection: "row",
     justifyContent: "space-between",

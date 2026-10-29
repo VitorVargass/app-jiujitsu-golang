@@ -130,6 +130,8 @@ func (m *Manager) enableIntegration(ctx context.Context, a string, enabled bool)
 }
 
 type CheckoutResult struct {
+	Expired   bool       `json:"expired,omitempty"`
+	Retryable bool       `json:"retryable,omitempty"`
 	ID        string     `json:"id,omitempty"`
 	Status    string     `json:"status"`
 	URL       string     `json:"url,omitempty"`
@@ -151,23 +153,34 @@ func scanAttempt(row pgx.Row) (checkoutAttempt, error) {
 	return c, e
 }
 func (p *InfinitePay) attempt(ctx context.Context, a, id string) (checkoutAttempt, error) {
-	return scanAttempt(p.DB.QueryRow(ctx, "SELECT "+attemptColumns+" FROM checkout_attempts WHERE academy_id=$1 AND invoice_id=$2", a, id))
+	return scanAttempt(p.DB.QueryRow(ctx, "SELECT "+attemptColumns+" FROM checkout_attempts WHERE academy_id=$1 AND invoice_id=$2 AND retired_at IS NULL", a, id))
 }
 func (c checkoutAttempt) result() CheckoutResult {
-	status := "waiting"
-	raw := c.URL
-	reason := c.Reason
+	v := CheckoutResult{ID: c.ID, Status: "waiting", URL: c.URL, Amount: c.Amount, ExpiresAt: &c.Expires, Reason: c.Reason}
+	if !validCheckoutURL(v.URL) {
+		v.URL = ""
+	}
 	if c.State == "paid" {
-		status = "paid"
-		raw = ""
-	} else if c.State != "ready" || !time.Now().Before(c.Expires) {
-		status = "review"
-		raw = ""
-		if reason == "" {
-			reason = "A emissão precisa ser conferida antes de gerar outro link."
+		v.Status = "paid"
+		v.URL = ""
+		return v
+	}
+	v.Expired = !time.Now().Before(c.Expires)
+	if c.State != "ready" || v.Expired {
+		v.Status = "review"
+		if v.Reason == "" {
+			if v.Expired && v.URL != "" {
+				v.Reason = "O prazo previsto deste link terminou. O link original continua disponível para consulta; a InfinitePay informa se ainda aceita pagamento. Não emitimos outro automaticamente."
+			} else {
+				v.Reason = "Confira o checkout antes de emitir outro link. Se o link foi recebido, você pode abri-lo ou copiá-lo abaixo."
+			}
 		}
 	}
-	return CheckoutResult{ID: c.ID, Status: status, URL: raw, Amount: c.Amount, ExpiresAt: &c.Expires, Reason: reason}
+	if c.State == "rejected" {
+		v.Retryable = true
+		v.Reason = "A emissão foi recusada. Confira a configuração e tente novamente."
+	}
+	return v
 }
 func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, error) {
 	invoice, e := m.Authorize(ctx, a, id)
@@ -224,6 +237,12 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 	if e != nil {
 		return CheckoutResult{}, core.E(503, "credential_unavailable", "Não foi possível acessar a chave de integração.")
 	}
+	// Resolve contact before persisting an emission attempt: a local read failure
+	// must not leave a phantom "creating" checkout that was never sent.
+	customer, e := p.customerForInvoice(ctx, a, invoice)
+	if e != nil {
+		return CheckoutResult{}, e
+	}
 	if c.ID == "" {
 		c = checkoutAttempt{ID: core.ID(), Academy: a, Invoice: id, Connection: conn.ID, Reference: core.ID(), Amount: invoice.AmountCents, Expires: time.Now().Add(24 * time.Hour), State: "creating"}
 		_, e = p.DB.Exec(ctx, `INSERT INTO checkout_attempts(id,academy_id,invoice_id,connection_id,reference,amount_cents,expires_at,state) VALUES($1,$2,$3,$4,$5,$6,$7,'creating')`, c.ID, a, id, c.Connection, c.Reference, c.Amount, c.Expires)
@@ -238,6 +257,9 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 		return CheckoutResult{}, e
 	}
 	input := map[string]any{"order_nsu": c.Reference, "redirect_url": p.PublicURL + "/pay/" + a + "/" + id, "items": []map[string]any{{"quantity": 1, "price": c.Amount, "description": "Mensalidade TatameMix • " + invoice.Competence}}, "options": map[string]any{"single_payment": true, "valid_until": c.Expires.Format(time.RFC3339), "require_delivery_address": false}, "webhook": map[string]any{"url": p.PublicURL + "/v1/webhooks/infinitepay/" + conn.ID, "events": []string{"paid", "refunded", "canceled"}}}
+	if customer != nil {
+		input["customer"] = customer
+	}
 	var out struct {
 		URL string `json:"url"`
 	}
@@ -254,12 +276,14 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 	// Persist even when the request context was canceled: an accepted request must not be reissued.
 	persist, done := context.WithTimeout(context.Background(), 5*time.Second)
 	defer done()
-	_, saveErr := p.DB.Exec(persist, `UPDATE checkout_attempts SET state=$2,checkout_url=$3,updated_at=now() WHERE id=$1`, c.ID, state, out.URL)
+	_, saveErr := p.DB.Exec(persist, `UPDATE checkout_attempts SET state=$2,checkout_url=$3,updated_at=now() WHERE id=$1 AND state='creating'`, c.ID, state, out.URL)
 	if saveErr != nil {
 		return CheckoutResult{}, saveErr
 	}
-	c.State = state
-	c.URL = out.URL
+	c, e = scanAttempt(p.DB.QueryRow(persist, "SELECT "+attemptColumns+" FROM checkout_attempts WHERE id=$1", c.ID))
+	if e != nil {
+		return CheckoutResult{}, e
+	}
 	if state == "rejected" {
 		return CheckoutResult{}, core.E(502, "checkout_rejected", "A InfinitePay recusou a emissão. Confira a configuração antes de tentar novamente.")
 	}
@@ -269,12 +293,12 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 // There is no documented API to invalidate an outstanding InfinitePay link. Expiry alone is not proof.
 func (m *Manager) blockInfiniteAdjustment(ctx context.Context, a, id string) error {
 	var blocked bool
-	e := m.Repo.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM checkout_attempts WHERE academy_id=$1 AND invoice_id=$2 AND state<>'rejected')`, a, id).Scan(&blocked)
+	e := m.Repo.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM checkout_attempts WHERE academy_id=$1 AND invoice_id=$2 AND retired_at IS NULL AND state<>'rejected')`, a, id).Scan(&blocked)
 	if e != nil {
 		return e
 	}
 	if blocked {
-		return core.E(409, "checkout_review_required", "Existe um checkout InfinitePay emitido ou em conferência. Confira o recebimento e a inutilização do link na InfinitePay antes de alterar esta mensalidade. A expiração local não garante o cancelamento.")
+		return core.E(409, "checkout_review_required", "Esta mensalidade já tem um checkout. Você pode retomar ou copiar o link em Pagamento. Para mudar o valor, confira a inutilização na InfinitePay e registre a conferência em Gerenciar checkout.")
 	}
 	return nil
 }

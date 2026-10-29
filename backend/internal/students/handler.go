@@ -147,7 +147,7 @@ func (h Handler) Own(w http.ResponseWriter, r *http.Request) {
 		core.Fail(w, core.E(403, "forbidden", "Conta pessoal necessária."))
 		return
 	}
-	id, e := h.Service.Repo.OwnID(r.Context(), a, u)
+	id, e := h.Service.Access.Student(r.Context(), a, r.URL.Query().Get("student_id"))
 	if e != nil {
 		core.Fail(w, e)
 		return

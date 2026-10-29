@@ -1,6 +1,6 @@
 # InfinitePay — mensalidades
 
-Cada academia conecta a propria conta em **Mais > Recebimentos**. O aluno paga no checkout hospedado da InfinitePay; o TatameMix nunca recebe para depois repassar. A assinatura do software nao faz parte desta entrega.
+Cada academia conecta a propria conta em **Mais > Recebimentos**. O aluno paga no checkout hospedado da InfinitePay; o TatameMix nunca recebe para depois repassar. A assinatura do software tem implementação separada; consulte [SUBSCRIPTIONS.md](SUBSCRIPTIONS.md).
 
 ## Configuracao do servidor
 
@@ -37,3 +37,31 @@ Cobranças Asaas existentes mantem o fluxo antigo; as tentativas InfinitePay nao
 Testes Go unitarios de AES-GCM, isolamento da credencial e contrato HTTP; TestInfinitePayFlow com PostgreSQL real dedicado via TEST_DATABASE_URL e servidor bancario simulado. Nao usar a URL do banco da academia para esses testes. Cobrir notificacao falsa/repetida, credencial antiga, concorrencia, expiracao, divergencia e emissoes incertas. Validar web/celular e a abertura do checkout; sem credenciais reais, a ativacao bancaria continua pendente.
 
 Referencias: https://ajuda.infinitepay.io/pt-BR/articles/10766888-como-usar-o-checkout-integrado-da-infinitepay e https://www.infinitepay.io/checkout-documentacao.
+
+## Preenchimento dos dados do comprador
+
+Ao emitir **novos links**, o backend envia `customer.name`, `customer.email` e `customer.phone_number` quando esses dados estão disponíveis e correspondem ao pagador da mensalidade. O nome vem da mensalidade. Para pagamento do próprio aluno, usa o e-mail da identidade do aluno e os contatos do cadastro. Para outro pagador, usa o e-mail de um responsável com vínculo de acesso ativo e CPF correspondente ao pagador da mensalidade; o telefone é o contato informado no cadastro do aluno. Não usa o e-mail do gestor que clicou em pagar.
+
+Em cadastros antigos de menores sem vínculo confirmado do responsável, envia apenas o nome do pagador conhecido. Não combina o nome do responsável com e-mail/telefone da criança. Nesse caso, os dados faltantes ainda serão pedidos no checkout. Telefones brasileiros são normalizados para `+55DDDNUMERO`; telefone alternativo válido é usado se o principal for inválido. E-mail e telefone inválidos são omitidos, sem impedir o pagamento.
+
+Não envia CPF nem endereço nesta alteração. A opção de endereço de entrega continua desativada. Esses dados são enviados somente no corpo da requisição do servidor à InfinitePay, nunca como parâmetros públicos do link. Não há novas variáveis de ambiente nem nova migração específica para este preenchimento; o código utiliza os vínculos familiares da migração 014 já incluída no projeto.
+
+A InfinitePay documenta o preenchimento antecipado, sem garantir que a etapa de contato será completamente pulada. Links emitidos anteriormente continuam sendo reutilizados para evitar cobrança duplicada: publicar esta atualização não modifica os dados desses links. Teste a melhoria com uma mensalidade que ainda não tenha checkout emitido. A suíte utiliza um servidor bancário simulado, sem emitir cobranças reais.
+
+## Ação Pagar na mensalidade
+
+O botão principal **Pagar** emite ou recupera o checkout e abre diretamente a InfinitePay, tanto para gestor quanto para aluno. No navegador, o checkout abre na mesma aba para evitar bloqueio de pop-up após a resposta da API. Erros permanecem visíveis na mensalidade e casos em conferência abrem os detalhes, sem confirmar recebimento antecipadamente.
+
+A opção **Registrar pagamento recebido por fora** fica no menu de três pontos, junto de desconto, histórico e cancelamento. Ela continua sendo uma baixa manual, sujeita às proteções de cobranças já emitidas. Abrir ou voltar do checkout não marca a mensalidade como paga.
+
+## Retomar pagamento e alterar mensalidade após checkout emitido
+
+A mensalidade exibe o link emitido, com Continuar pagamento e Copiar link. Reabrir a tela ou copiar não emite outro checkout. Se a validade local terminou, o endereço original continua disponível para consulta, com aviso de que o provedor determina se ainda aceita pagamento. Não há promessa de reemissão automática.
+
+Em Mais ações → Gerenciar checkout, gestores consultam URLs e referências antigas. Antes de alterar desconto, cancelar ou registrar recebimento externo, devem conferir no provedor que não houve pagamento e que o link antigo foi inutilizado. A ação Registrar conferência exige confirmação explícita e evidência/protocolo de 10 a 500 caracteres. Ela não cancela um link na InfinitePay. Se o painel não permitir inutilizar, é necessário confirmar com o suporte do provedor; não marque a confirmação apenas porque não houve pagamento.
+
+A migração 016 conserva as tentativas antigas, adiciona autor/data/evidência da conferência e permite uma tentativa atual por mensalidade. Não foi aplicada pela assistência no banco local de uso nem no Neon; a API a aplica na próxima inicialização normal após atualização. Faça backup antes de publicar.
+
+Após a conferência registrada, o gestor edita o desconto e solicita novo checkout. O novo link usa o novo valor e outra referência. Notificações antigas continuam rastreáveis: se aparecer pagamento em link substituído, o sistema avisa o gestor sem dar baixa indevida na mensalidade atual. Gestores veem esse alerta na mensalidade e no histórico de checkouts.
+
+A API pública consultada não documenta cancelamento/inutilização de checkout. Expiração, exclusão local e uma resposta paid=false não são prova de inutilização. Emissões sem URL por perda de resposta continuam em conferência; não inventamos uma URL nem uma API de busca por referência.

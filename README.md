@@ -2,6 +2,14 @@
 
 API Go, PostgreSQL e aplicativo React Native/Expo com portal web do aluno. Esta versão inclui alunos independentes de contas, modalidades, planos opcionais, geração mensal, Pix Asaas e presenças pelo tablet ou lançadas pelo gestor. A identidade TatameMix usa preto, branco e vermelho, com tipografia Inter. Os fluxos da academia, do aluno e do tablet são compartilhados entre o aplicativo e a versão web.
 
+## Assinatura do software
+
+O gestor acessa **Mais → Assinatura TatameMix** para pagar R$ 450/mês por academia, sem descontos. A cobrança usa a conta InfinitePay da TatameMix, separada das mensalidades dos alunos. Consulte [configuração e regras da assinatura](docs/SUBSCRIPTIONS.md) antes de habilitar TATAMEMIX_BILLING_ENABLED. Por padrão, a cobrança e a restrição ficam desativadas. Esta versão usa pagamento mensal por Pix/cartão no checkout, sem débito automático.
+
+## Produção no Azure e estudo do código
+
+A mesma imagem da raiz atende Azure Container Apps e Render. Consulte [Azure em produção e Render em teste](docs/AZURE.md) e o [mapa visual do código, rotas e desempenho](docs/CODE-MAP.md). O mapa explica os módulos e o caminho de uma ação até o banco; consumo de memória precisa ser medido em execução.
+
 ## Hospedar a demonstração
 
 O Dockerfile da raiz compila site Expo web e API Go em uma única imagem. O Go serve os dois no mesmo endereço; o PostgreSQL fica separado no Neon. O render.yaml prepara um único serviço Free no Render, sem precisar de Vercel. Consulte o [passo a passo de deploy](docs/DEPLOY.md), incluindo importação dos dados de exemplo e limites do plano gratuito. Publicar e importar a base são etapas separadas.
@@ -264,3 +272,7 @@ Reinicie a API para aplicar a migração 011 e recarregue o aplicativo. O esquem
 backend/cmd/demo é uma ferramenta local que consulta as academias e, com -apply, cria um conjunto fictício na academia indicada por -academy. Exige um novo arquivo -backup e o caminho do pg_dump quando ele não estiver no PATH. O backup é salvo antes da transação. O comando sem -apply apenas consulta dados; não migra o banco, cria outra academia nem chama serviços bancários.
 
 O conjunto inclui 18 alunos identificados com Demo •, contatos em example.test, documentos sintéticos, responsáveis de menores, planos Essencial/Combinado, mensalidades locais de quatro meses, descontos e recebimentos manuais fictícios, evolução e presenças nos horários existentes. Conserva as turmas e preços do catálogo. Repetições preservam os exemplos já encontrados e não duplicam registros; confira sempre a academia e utilize somente bancos de demonstração.
+
+### Matrículas pelo link da academia
+
+Veja [matrículas por link](docs/matriculas-por-link.md) para publicação das ofertas, acesso do responsável e aprovação de cadastros existentes. A atualização adiciona a migração 014; faça backup antes de reiniciar uma API conectada ao banco existente.

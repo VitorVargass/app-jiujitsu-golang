@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestInfiniteCredentialEncryption(t *testing.T) {
@@ -75,5 +76,22 @@ func TestInfinitePaySafeHTTP(t *testing.T) {
 	}
 	if !validCheckoutURL("https://checkout.infinitepay.io/test") {
 		t.Fatal("valid checkout rejected")
+	}
+}
+
+func TestCheckoutRecoveryResult(t *testing.T) {
+	c := checkoutAttempt{ID: "test", State: "ready", URL: "https://checkout.infinitepay.io/original", Amount: 18000, Expires: time.Now().Add(-time.Hour)}
+	v := c.result()
+	if v.Status != "review" || v.URL != c.URL || !v.Expired {
+		t.Fatal(v)
+	}
+	c.State = "paid"
+	if v = c.result(); v.URL != "" || v.Status != "paid" {
+		t.Fatal(v)
+	}
+	c.State = "uncertain"
+	c.URL = ""
+	if v = c.result(); v.URL != "" || v.Status != "review" {
+		t.Fatal(v)
 	}
 }

@@ -12,15 +12,17 @@ import (
 	"tatame/backend/internal/access"
 	"tatame/backend/internal/billing"
 	"tatame/backend/internal/core"
+	"tatame/backend/internal/subscriptions"
 	"time"
 )
 
 type Manager struct {
-	Infinite    *InfinitePay
-	Repo        Repository
-	Access      access.Service
-	Connections map[string]Connection
-	Clients     map[string]Asaas
+	Subscriptions *subscriptions.Manager
+	Infinite      *InfinitePay
+	Repo          Repository
+	Access        access.Service
+	Connections   map[string]Connection
+	Clients       map[string]Asaas
 }
 
 func New(db *pgxpool.Pool, configs []Connection) *Manager {
@@ -71,13 +73,8 @@ func (m *Manager) Authorize(ctx context.Context, a, id string) (billing.Invoice,
 	if _, e = m.Access.Require(ctx, a, "admin"); e == nil {
 		return invoice, nil
 	}
-	var own bool
-	e = m.Repo.DB.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM students WHERE academy_id=$1 AND id=$2 AND user_id=$3)", a, invoice.StudentID, core.P(ctx).UserID).Scan(&own)
-	if e != nil {
+	if _, e = m.Access.Student(ctx, a, invoice.StudentID); e != nil {
 		return invoice, e
-	}
-	if !own {
-		return invoice, core.E(403, "forbidden", "Você não tem acesso a esta mensalidade.")
 	}
 	return invoice, nil
 }
@@ -320,6 +317,11 @@ func (m *Manager) Reconcile(ctx context.Context) error {
 }
 func (m *Manager) Run(ctx context.Context) {
 	cycle := func() {
+		if m.Subscriptions != nil {
+			if e := m.Subscriptions.RunCycle(ctx); e != nil && ctx.Err() == nil {
+				slog.Error("subscription reconciliation failed", "error", e)
+			}
+		}
 		if e := (billing.Repository{DB: m.Repo.DB}).Generate(ctx); e != nil && ctx.Err() == nil {
 			slog.Error("billing generation failed", "error", e)
 		}

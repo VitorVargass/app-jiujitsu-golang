@@ -150,7 +150,7 @@ export function DueDayPicker({
     <>
       <PickerField
         label="Dia do vencimento"
-        value={"Todo dia " + value}
+        value={value ? "Todo dia " + value : "Selecionar dia do vencimento"}
         disabled={disabled}
         onPress={() => setOpen(true)}
       />

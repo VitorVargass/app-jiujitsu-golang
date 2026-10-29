@@ -58,6 +58,15 @@ func (h Handler) Own(w http.ResponseWriter, r *http.Request) {
 		core.Fail(w, core.E(403, "forbidden", "Conta pessoal necessária."))
 		return
 	}
+	if id := r.URL.Query().Get("student_id"); id != "" {
+		sid, err := h.Service.Access.Student(r.Context(), r.PathValue("academy"), id)
+		if err != nil {
+			core.Fail(w, err)
+			return
+		}
+		h.history(w, r, "", sid, "")
+		return
+	}
 	own, e := (participation.Repository{DB: h.Service.Repo.DB}).Own(r.Context(), r.PathValue("academy"), u)
 	if e != nil {
 		core.Fail(w, e)
@@ -121,7 +130,7 @@ func (h Handler) Credential(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		own, err := repo.OwnID(r.Context(), a, u)
+		own, err := h.Service.Access.Student(r.Context(), a, r.URL.Query().Get("student_id"))
 		if err != nil {
 			core.Fail(w, err)
 			return

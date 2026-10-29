@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Tatame API",
-    "version": "2.14.0",
-    "description": "Gestao multiacademia, mensalidades e Checkout InfinitePay com conexao propria por academia; Pix Asaas legado preservado."
+    "version": "2.16.0",
+    "description": "Gestao multiacademia, mensalidades e Checkout InfinitePay com conexao propria por academia; Pix Asaas legado preservado. Assinatura TatameMix separada: R$450 por academia/mês, sem descontos, Pix/cartão avulso e restrição de escrita após tolerância."
   },
   "servers": [
     {
@@ -169,7 +169,8 @@
               "enum": [
                 "student",
                 "teacher",
-                "admin"
+                "admin",
+                "guardian"
               ]
             }
           },
@@ -316,7 +317,8 @@
               "enum": [
                 "student",
                 "teacher",
-                "admin"
+                "admin",
+                "guardian"
               ]
             }
           }
@@ -1984,6 +1986,420 @@
           },
           "review_reason": {
             "type": "string"
+          },
+          "expired": {
+            "type": "boolean"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EnrollmentLink": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "readOnly": true
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "due_day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 31
+          },
+          "modality_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "plan_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "rotate": {
+            "type": "boolean"
+          },
+          "updated_by": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "EnrollmentPayload": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "cpf",
+          "birth_date",
+          "phone",
+          "modality_details",
+          "expected_amount_cents"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "cpf": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          },
+          "birth_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "alternate_phone": {
+            "type": "string"
+          },
+          "guardian_cpf": {
+            "type": "string"
+          },
+          "guardian_birth_date": {
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "modality_details": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 30,
+            "items": {
+              "type": "object",
+              "required": [
+                "modality_id",
+                "belt",
+                "degrees"
+              ],
+              "properties": {
+                "modality_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "belt": {
+                  "type": "string"
+                },
+                "degrees": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4
+                }
+              }
+            }
+          },
+          "expected_amount_cents": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000
+          },
+          "due_day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 31,
+            "description": "Dia escolhido pelo aluno para a cobrança mensal. O novo formulário exige a escolha; clientes antigos que omitirem o campo usam o dia de compatibilidade da academia."
+          }
+        }
+      },
+      "EnrollmentPreview": {
+        "type": "object",
+        "properties": {
+          "academy_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "academy_name": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "due_day": {
+            "type": "integer"
+          },
+          "first_due": {
+            "type": "string",
+            "format": "date"
+          },
+          "available_modality_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "modalities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Catalog"
+            }
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Catalog"
+            }
+          }
+        }
+      },
+      "EnrollmentResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "academy_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "student_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "first_due": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "FamilyStudent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          }
+        }
+      },
+      "EnrollmentRequestPage": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "No endpoint pessoal: id, status, academia e nome informado. No endpoint do gestor: inclui identidade do solicitante, cadastro atual e payload para revisão."
+            }
+          }
+        }
+      },
+      "PortalAccessPage": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "student_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "user_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "student_name": {
+                  "type": "string"
+                },
+                "account_name": {
+                  "type": "string"
+                },
+                "account_email": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PlatformSubscription": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "amount_cents",
+          "status",
+          "restricted",
+          "renewal_enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "enum": [
+              45000
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "active",
+              "grace",
+              "overdue",
+              "cancelled"
+            ]
+          },
+          "restricted": {
+            "type": "boolean"
+          },
+          "renewal_enabled": {
+            "type": "boolean"
+          },
+          "paid_until": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "grace_until": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "cycle": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlatformSubscriptionCycle"
+              }
+            ],
+            "nullable": true
+          },
+          "checkout": {
+            "$ref": "#/components/schemas/PlatformSubscriptionCheckout"
+          },
+          "renewal_soon": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PlatformSubscriptionCycle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "enum": [
+              45000
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "paid"
+            ]
+          },
+          "paid_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "checkout_state": {
+            "type": "string"
+          },
+          "review_reason": {
+            "type": "string"
+          }
+        }
+      },
+      "PlatformSubscriptionCheckout": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "waiting",
+              "paid",
+              "review"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "enum": [
+              45000
+            ]
+          },
+          "review_reason": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean",
+            "description": "Somente recusas definitivas permitem nova tentativa de emissão."
           }
         }
       }
@@ -4674,7 +5090,7 @@
     "/v1/academies/{academy_id}/me/attendances": {
       "get": {
         "summary": "Histórico pessoal de presenças",
-        "description": "Usar page=1 para formato paginado. Sem filtros/page mantém array legado. Disponível a toda conta vinculada à academia, inclusive gestor sem matrícula e vínculos inativos. Parâmetros de outra pessoa são ignorados: consulta sempre a própria participação.",
+        "description": "Usar page=1 para formato paginado. Sem filtros/page mantém array legado. Disponível a toda conta vinculada à academia, inclusive gestor sem matrícula e vínculos inativos. Parâmetros de outra pessoa são ignorados: consulta sempre a própria participação. Responsáveis usam student_id e só acessam alunos com vínculo ativo. Sem seleção, usa um aluno autorizado por padrão (histórico sem seleção mantém a participação própria legada).",
         "parameters": [
           {
             "name": "academy_id",
@@ -4712,6 +5128,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "student_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Matrícula própria ou aluno com acesso familiar autorizado. Outro aluno retorna 403."
           }
         ],
         "responses": {
@@ -4850,6 +5276,16 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "student_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Matrícula própria ou aluno com acesso familiar autorizado. Outro aluno retorna 403."
           }
         ],
         "responses": {
@@ -4943,7 +5379,8 @@
               }
             }
           }
-        }
+        },
+        "description": " Responsáveis usam student_id e só acessam alunos com vínculo ativo. Sem seleção, usa um aluno autorizado por padrão (histórico sem seleção mantém a participação própria legada)."
       }
     },
     "/v1/academies/{academy_id}/devices": {
@@ -6509,7 +6946,7 @@
     "/v1/academies/{academy_id}/me/student": {
       "get": {
         "summary": "Consultar seu próprio cadastro de aluno",
-        "description": "Permite consultar cadastro inativo, sem acesso administrativo.",
+        "description": "Permite consultar cadastro inativo, sem acesso administrativo. Responsáveis usam student_id e só acessam alunos com vínculo ativo. Sem seleção, usa um aluno autorizado por padrão (histórico sem seleção mantém a participação própria legada).",
         "parameters": [
           {
             "name": "academy_id",
@@ -6519,6 +6956,16 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "student_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Matrícula própria ou aluno com acesso familiar autorizado. Outro aluno retorna 403."
           }
         ],
         "responses": {
@@ -7630,7 +8077,7 @@
     "/v1/academies/{academy_id}/me/invoices": {
       "get": {
         "summary": "Consultar suas mensalidades",
-        "description": "Valores em centavos. Competência YYYY-MM. Em aberto exclui vencidas. Alunos só consultam suas cobranças, inclusive após inativação.",
+        "description": "Valores em centavos. Competência YYYY-MM. Em aberto exclui vencidas. Alunos só consultam suas cobranças, inclusive após inativação. Responsáveis usam student_id e só acessam alunos com vínculo ativo. Sem seleção, usa um aluno autorizado por padrão (histórico sem seleção mantém a participação própria legada).",
         "parameters": [
           {
             "name": "academy_id",
@@ -7668,6 +8115,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "student_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Matrícula própria ou aluno com acesso familiar autorizado. Outro aluno retorna 403."
           }
         ],
         "responses": {
@@ -11824,6 +12281,1727 @@
           },
           "503": {
             "description": "Tente novamente"
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/enrollment-link": {
+      "get": {
+        "summary": "Consultar link compartilhado",
+        "description": "Somente gestor ativo. Nenhum link fica ativo por padrão.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentLink"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Publicar ou suspender matrícula por link",
+        "description": "Somente gestor ativo. Rotacionar o token invalida o link anterior. Somente planos e modalidades ativos e com preço podem ser publicados.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentLink"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentLink"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/enrollment-links/{token}": {
+      "get": {
+        "summary": "Consultar ofertas públicas da academia",
+        "description": "Catálogo público sem dados pessoais. Com due_day, calcula o próximo vencimento estritamente futuro escolhido pelo aluno. Dias 29–31 são ajustados ao último dia do mês.",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          {
+            "name": "due_day",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 31
+            },
+            "description": "Calcula first_due para o dia escolhido, no fuso da academia. Sem informar, retorna o dia de compatibilidade para clientes anteriores."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/enrollment-links/{token}/enroll": {
+      "post": {
+        "summary": "Matricular aluno ou solicitar acesso",
+        "description": "Exige conta pessoal. Novo aluno é ativado com cobrança no próximo vencimento escolhido em due_day (1–31). No próprio dia escolhido, começa no mês seguinte. A gestora pode corrigir o dia para próximas emissões no cadastro; mensalidades já emitidas não são reescritas. Para menor, CPF e nascimento do responsável adulto e CPF do aluno são obrigatórios. A conta autenticada é a do responsável. Preços são calculados pelo servidor. CPF existente cria pedido pendente sem expor nem alterar dados. Reenvios são idempotentes.",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/enrollment-requests": {
+      "get": {
+        "summary": "Listar pedidos de acesso pendentes",
+        "description": "Somente gestor ativo da academia.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentRequestPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/enrollment-requests": {
+      "get": {
+        "summary": "Acompanhar minhas matrículas",
+        "description": "Retorna somente envios da conta autenticada. Não expõe o cadastro existente enquanto aguarda análise.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentRequestPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/enrollment-requests/{request_id}": {
+      "patch": {
+        "summary": "Aprovar ou recusar acesso",
+        "description": "Somente gestor ativo. Confirme a identidade externamente. A aprovação não muda identidade canônica, plano, cobrança ou situação do aluno; cadastros inativos precisam ser reativados antes.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "approve"
+                ],
+                "properties": {
+                  "approve": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/me/students": {
+      "get": {
+        "summary": "Listar alunos acessíveis à conta",
+        "description": "Inclui matrícula própria e vínculos explicitamente aprovados de responsáveis. O acesso de responsável exige vínculo e matrícula de acesso ativos.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FamilyStudent"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/portal-access": {
+      "get": {
+        "summary": "Consultar acessos adicionais liberados",
+        "description": "Somente gestor ativo.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalAccessPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/students/{student_id}/portal-access/{user_id}": {
+      "delete": {
+        "summary": "Revogar acesso adicional ao aluno",
+        "description": "Somente gestor ativo. Preserva matrícula, presenças e financeiro.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Erro de autenticação, autorização, dados ou conflito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/subscription": {
+      "get": {
+        "tags": [
+          "Assinatura TatameMix"
+        ],
+        "summary": "Consultar assinatura TatameMix",
+        "description": "Exige gestor ativo da academia. Cobrança separada das mensalidades dos alunos. Valor fixo 45000 centavos; sem descontos e sem débito automático.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSubscription"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão"
+          },
+          "403": {
+            "description": "Sem permissão"
+          },
+          "503": {
+            "description": "Cobrança ou provedor indisponível"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Assinatura TatameMix"
+        ],
+        "summary": "Encerrar ou retomar renovação",
+        "description": "Exige gestor ativo da academia. Cobrança separada das mensalidades dos alunos. Valor fixo 45000 centavos; sem descontos e sem débito automático.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado"
+          },
+          "401": {
+            "description": "Sem sessão"
+          },
+          "403": {
+            "description": "Sem permissão"
+          },
+          "503": {
+            "description": "Cobrança ou provedor indisponível"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/subscription/history": {
+      "get": {
+        "tags": [
+          "Assinatura TatameMix"
+        ],
+        "summary": "Histórico paginado da assinatura",
+        "description": "Exige gestor ativo da academia. Cobrança separada das mensalidades dos alunos. Valor fixo 45000 centavos; sem descontos e sem débito automático.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlatformSubscriptionCycle"
+                      }
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "page_size": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão"
+          },
+          "403": {
+            "description": "Sem permissão"
+          },
+          "503": {
+            "description": "Cobrança ou provedor indisponível"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/academies/{academy_id}/subscription/checkout": {
+      "post": {
+        "tags": [
+          "Assinatura TatameMix"
+        ],
+        "summary": "Pagar R$450 à TatameMix",
+        "description": "Exige gestor ativo da academia. Cobrança separada das mensalidades dos alunos. Valor fixo 45000 centavos; sem descontos e sem débito automático.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSubscriptionCheckout"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão"
+          },
+          "403": {
+            "description": "Sem permissão"
+          },
+          "503": {
+            "description": "Cobrança ou provedor indisponível"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "cycle_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "cycle_id"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/subscription/payment-check": {
+      "post": {
+        "tags": [
+          "Assinatura TatameMix"
+        ],
+        "summary": "Conferir pagamento no provedor",
+        "description": "Exige gestor ativo da academia. Cobrança separada das mensalidades dos alunos. Valor fixo 45000 centavos; sem descontos e sem débito automático.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSubscriptionCheckout"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sem sessão"
+          },
+          "403": {
+            "description": "Sem permissão"
+          },
+          "503": {
+            "description": "Cobrança ou provedor indisponível"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "attempt_id": {
+                    "type": "string"
+                  },
+                  "event": {
+                    "type": "object",
+                    "properties": {
+                      "order_nsu": {
+                        "type": "string"
+                      },
+                      "transaction_nsu": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/tatamemix/infinitepay": {
+      "post": {
+        "tags": [
+          "Assinatura TatameMix"
+        ],
+        "summary": "Receber aviso persistente, sem dar baixa por confiança no webhook",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "order_nsu": {
+                    "type": "string"
+                  },
+                  "transaction_nsu": {
+                    "type": "string"
+                  },
+                  "invoice_slug": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "event": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "order_nsu",
+                  "transaction_nsu"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Evento inválido"
+          },
+          "404": {
+            "description": "Referência desconhecida"
+          },
+          "503": {
+            "description": "Cobrança desabilitada"
+          },
+          "200": {
+            "description": "Persistido; confirmação exige consulta autenticada ao provedor"
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/invoices/{invoice_id}/checkouts": {
+      "get": {
+        "tags": [
+          "Pagamentos"
+        ],
+        "summary": "Histórico de checkouts da mensalidade",
+        "description": "Somente gestor ativo. A conferência registra a declaração do gestor; não cancela o link na InfinitePay. URLs e referências antigas são preservadas.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado"
+          },
+          "403": {
+            "description": "Gestor necessário"
+          },
+          "409": {
+            "description": "Pagamento confirmado ou checkout alterado/em emissão"
+          },
+          "422": {
+            "description": "Confirmação/evidência ausente"
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/invoices/{invoice_id}/checkout-retirement": {
+      "post": {
+        "tags": [
+          "Pagamentos"
+        ],
+        "summary": "Registrar conferência externa e liberar edição",
+        "description": "Somente gestor ativo. A conferência registra a declaração do gestor; não cancela o link na InfinitePay. URLs e referências antigas são preservadas.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado"
+          },
+          "403": {
+            "description": "Gestor necessário"
+          },
+          "409": {
+            "description": "Pagamento confirmado ou checkout alterado/em emissão"
+          },
+          "422": {
+            "description": "Confirmação/evidência ausente"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "attempt_id",
+                  "confirmed_invalidated",
+                  "note"
+                ],
+                "properties": {
+                  "attempt_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "confirmed_invalidated": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
           }
         }
       }

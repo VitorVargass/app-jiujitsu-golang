@@ -1,3 +1,4 @@
+import { useStudentScope, StudentSelector } from "../student/useStudentScope";
 import { InvoicesTable } from "./InvoicesTable";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { formatMonth } from "../../types/month";
@@ -37,17 +38,22 @@ function InvoiceResults({ student }: { student: boolean }) {
   const { isWide } = useResponsiveLayout();
   const { academy } = useSession();
   const a = academy!;
-  const [filters, setFilters] = useState(() =>
-    defaultFinanceFilters(a.timezone),
-  );
+  const [filters, setFilters] = useState(() => ({
+    ...defaultFinanceFilters(a.timezone),
+    ...(student ? { month: "" } : {}),
+  }));
   const { month, status } = filters;
-  const sid = filters.student?.id ?? "";
+  const scope = useStudentScope(student);
+  const sid = student ? scope.id : (filters.student?.id ?? "");
   const currentMonth = defaultFinanceFilters(a.timezone).month;
   const filterCount =
-    Number(month !== currentMonth) + Number(!!status) + Number(!!sid);
+    Number(month !== (student ? "" : currentMonth)) +
+    Number(!!status) +
+    Number(!student && !!sid);
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const invoices = useQuery({
+    enabled: !student || !!scope.id,
     queryKey: ["invoices", a.id, student, status, month, sid, page],
     queryFn: () =>
       api<Page<Invoice>>(
@@ -65,8 +71,17 @@ function InvoiceResults({ student }: { student: boolean }) {
         ),
       ),
   });
+  if (student && scope.data && !scope.data.length)
+    return (
+      <AcademyShell title="Mensalidades">
+        <StudentSelector scope={scope} />
+      </AcademyShell>
+    );
   return (
     <AcademyShell title={student ? "Minhas mensalidades" : "Financeiro"}>
+      {student ? (
+        <StudentSelector scope={scope} onChange={() => setPage(1)} />
+      ) : null}
       <Card style={styles.filterCard}>
         <View style={[styles.toolbar, { flexWrap: "wrap" }]}>
           <View style={styles.period}>

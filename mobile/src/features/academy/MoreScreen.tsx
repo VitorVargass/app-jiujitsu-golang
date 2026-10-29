@@ -1,6 +1,6 @@
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { View } from "react-native";
-import { router } from "expo-router";
+import { router, Href } from "expo-router";
 import { Icon, IconName } from "../../components/Icon";
 import { accents, Accent } from "../../theme";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
@@ -50,6 +50,23 @@ function Content() {
     <AcademyShell title="Mais">
       <Heading>Gestão e configurações</Heading>
       <ResponsiveGrid>
+        <Shortcut
+          title="Assinatura TatameMix"
+          description="Seu plano de R$ 450/mês e histórico de pagamentos"
+          label="Assinatura TatameMix. Pagar ou renovar o sistema"
+          icon="wallet"
+          tone="brand"
+          onPress={() => router.push("/subscription" as Href)}
+        />
+        <Shortcut
+          title="Matrículas pelo link"
+          description="Publique ofertas e confirme acesso a cadastros existentes"
+          label="Matrículas pelo link da academia"
+          icon="users"
+          tone="mint"
+          onPress={() => router.push("/enrollment-settings")}
+        />
+
         <Shortcut
           title="Gestores"
           description="Pessoas que administram esta academia"

@@ -138,3 +138,10 @@ test("conta nova ou apenas professor legado não recebe um perfil inventado", ()
   assert.equal(automaticAccess([], "admin"), undefined);
   assert.equal(academyAccesses([academy("a", ["teacher"])]).length, 0);
 });
+
+test("responsável ativo usa o portal do aluno sem virar gestor",()=>{
+ assert.deepEqual(academyAccesses([academy("family",["guardian"])]).map(x=>x.role),["student"]);
+ assert.equal(automaticAccess([academy("family",["guardian"])])?.role,"student");
+ assert.equal(academyAccesses([academy("family",["guardian"],"blocked")]).length,0);
+ assert.deepEqual(academyAccesses([academy("family",["student","guardian"])]).map(x=>x.role),["student"]);
+});

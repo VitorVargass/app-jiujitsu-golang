@@ -175,7 +175,11 @@ func TestStudentAgePayerAndProfileAttendance(t *testing.T) {
 	if code, _ := owner.request("GET", history, nil, ""); code != 403 {
 		t.Fatal("student got other student history", code)
 	}
-	own := owner.ok("GET", prefix+"/me/attendances?page=1&student_id="+sid, nil)
+	// Family selection is now supported, but an unrelated student remains forbidden.
+	if code, _ := owner.request("GET", prefix+"/me/attendances?page=1&student_id="+sid, nil, ""); code != 403 {
+		t.Fatal("own history accepted forged student id", code)
+	}
+	own := owner.ok("GET", prefix+"/me/attendances?page=1", nil)
 	if own["total"] != float64(0) {
 		t.Fatal("own history honored forged student id")
 	}

@@ -20,7 +20,9 @@ export default function AuthScreen({
   const { next } = useLocalSearchParams<{ next?: string }>();
   const destination = safeNext(next);
   const fromStudentLink =
-    destination.startsWith("/invite/") || destination.startsWith("/pay/");
+    destination.startsWith("/enroll/") ||
+    destination.startsWith("/invite/") ||
+    destination.startsWith("/pay/");
   const nameInput = useRef<ComponentRef<typeof TextInput>>(null),
     emailInput = useRef<ComponentRef<typeof TextInput>>(null),
     passwordInput = useRef<ComponentRef<typeof TextInput>>(null);
@@ -186,7 +188,7 @@ export default function AuthScreen({
         <Icon name="users" size={17} color={brand.muted} />
         <Text style={s.note}>
           {fromStudentLink
-            ? "Use o mesmo e-mail cadastrado pela sua academia."
+            ? "Use seu próprio e-mail. Para matricular uma criança, entre com a conta do responsável."
             : "Seu perfil é identificado automaticamente após o login."}
         </Text>
       </View>

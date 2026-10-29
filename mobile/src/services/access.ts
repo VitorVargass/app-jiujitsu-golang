@@ -15,7 +15,8 @@ export function academyAccesses(academies: Academy[]): AcademyAccess[] {
     ...(academy.roles.includes("admin") && academy.status === "active"
       ? [{ academy, role: "admin" as const }]
       : []),
-    ...(academy.roles.includes("student")
+    ...(academy.roles.includes("student") ||
+    (academy.roles.includes("guardian") && academy.status === "active")
       ? [{ academy, role: "student" as const }]
       : []),
   ]);

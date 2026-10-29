@@ -52,3 +52,7 @@ O antigo botão de troca foi substituído por `AccountMenu`, compartilhado entre
 As tabelas de alunos e mensalidades usam `onRowPress` no componente compartilhado DataTable. Toda a largura da linha, inclusive valor, situação e espaços vazios, abre o detalhe. Há realce no hover/pressionamento; o cabeçalho não navega. Os links dos nomes continuam funcionando pelo teclado e não geram navegação duplicada. Controles interativos internos mantêm suas ações e selecionar texto fora dos links não abre o registro. Os cards de modalidades e planos também abrem a edição pelo corpo inteiro.
 
 Verificação em navegador com dados sintéticos: clique no espaço vazio da linha de aluno, situação do aluno, valor e situação de mensalidade; clique/Enter no nome, com um único voltar para retornar à lista; cabeçalho sem navegação; edição de modalidade/plano pelo título do card. TypeScript, lint e exportação web passaram. Nenhum banco foi alterado.
+
+## Turmas no celular
+
+Abaixo de 768px, WeeklyTimetable apresenta MobileClassAgenda: seleção do dia, quantidade de horários, abertura no dia atual e cartões ordenados por horário. Em telas menores que 380px, o seletor de dias ocupa duas linhas. O toque em um cartão preserva as opções existentes da turma e a configuração de horários. Tablet e computador conservam a grade semanal anterior. Não há alteração de API ou banco. A seleção do dia permanece ao redimensionar a tela.

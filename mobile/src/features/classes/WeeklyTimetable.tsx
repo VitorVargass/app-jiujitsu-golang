@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
+import { MobileClassAgenda } from "./MobileClassAgenda";
+import { modalityColor } from "./weekly-colors";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../../components/Icon";
 import type { Class, Schedule } from "../../types";
-import { accents, colors } from "../../theme";
+import { colors } from "../../theme";
 import { dayNames, fullDays, scheduleRange } from "./weekly";
 
 type Entry = { item: Class; schedule: Schedule };
@@ -13,22 +16,6 @@ const EVENT_HEIGHT = 100;
 const GUTTER = 8;
 const RULER_WIDTH = 48;
 const MIN_DAY_WIDTH = 136;
-const tones = [
-  accents.brand,
-  accents.slate,
-  accents.blue,
-  accents.lavender,
-  accents.amber,
-];
-function modalityColor(item: Class) {
-  const name = item.modality_name || "Modalidade";
-  if (name.toLowerCase().includes("jiu")) return accents.brand;
-  const hash = Array.from(name.toLowerCase()).reduce(
-    (sum, c) => sum + c.charCodeAt(0),
-    0,
-  );
-  return tones[hash % tones.length];
-}
 function timeRows(items: Class[]): TimeRow[] {
   const byTime = new Map<string, Entry[][]>();
   for (const item of items) {
@@ -52,7 +39,29 @@ function timeRows(items: Class[]): TimeRow[] {
     }));
 }
 
-export function WeeklyTimetable({
+export function WeeklyTimetable(
+  props: Parameters<typeof DesktopWeeklyTimetable>[0],
+) {
+  const { isCompact } = useResponsiveLayout();
+  const [selectedDay, setSelectedDay] = useState(() =>
+    props.today >= 0 && props.today < 7 ? props.today : 0,
+  );
+  return isCompact ? (
+    <MobileClassAgenda
+      items={props.items}
+      today={props.today}
+      selectedDay={selectedDay}
+      onDayChange={setSelectedDay}
+      emptyMessage={props.emptyMessage}
+      onInteractionChange={props.onInteractionChange}
+      onSelect={props.onSelect}
+    />
+  ) : (
+    <DesktopWeeklyTimetable {...props} />
+  );
+}
+
+function DesktopWeeklyTimetable({
   items,
   today,
   emptyMessage,

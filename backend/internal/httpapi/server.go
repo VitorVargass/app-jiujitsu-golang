@@ -20,6 +20,7 @@ import (
 	"tatame/backend/internal/participation"
 	"tatame/backend/internal/payments"
 	"tatame/backend/internal/students"
+	"tatame/backend/internal/subscriptions"
 	"time"
 )
 
@@ -88,7 +89,12 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	})
 	mux.HandleFunc("POST /v1/auth/register", s.rate(a.Register))
 	mux.HandleFunc("POST /v1/auth/login", s.rate(a.Login))
-	protected := func(path string, h http.HandlerFunc) { mux.Handle(path, a.Middleware(h)) }
+	platform := bank.Subscriptions
+	if platform == nil {
+		platform = subscriptions.New(db, subscriptions.Config{})
+	}
+	subscriptionHandler := subscriptions.Handler{Manager: platform}
+	protected := func(path string, h http.HandlerFunc) { mux.Handle(path, a.Middleware(platform.Gate(h))) }
 	protected("POST /v1/auth/logout", a.Logout)
 	protected("GET /v1/me", a.Me)
 	protected("POST /v1/academies", ac.Create)
@@ -96,6 +102,12 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("POST /v1/membership-requests", m.Request)
 	protected("GET /v1/me/membership-requests", m.OwnRequests)
 	base := "/v1/academies/{academy}"
+	protected("GET "+base+"/subscription", subscriptionHandler.Status)
+	protected("GET "+base+"/subscription/history", subscriptionHandler.History)
+	protected("PATCH "+base+"/subscription", subscriptionHandler.Renewal)
+	protected("POST "+base+"/subscription/checkout", subscriptionHandler.Checkout)
+	protected("POST "+base+"/subscription/payment-check", subscriptionHandler.Check)
+	mux.HandleFunc("POST /v1/webhooks/tatamemix/infinitepay", s.rate(subscriptionHandler.Webhook))
 	protected("GET "+base+"/membership-requests", m.Requests)
 	protected("PATCH "+base+"/membership-requests/{request}", m.Decide)
 	protected("GET "+base+"/members", m.Members)
@@ -126,6 +138,16 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("DELETE "+base+"/devices/{device}", d.Revoke)
 	protected("DELETE "+base+"/devices/current", d.Exit)
 	protected("GET "+base+"/dashboard", s.dashboard)
+	mux.HandleFunc("GET /v1/enrollment-links/{token}", s.rate(st.PublicPreview))
+	protected("POST /v1/enrollment-links/{token}/enroll", s.rate(st.PublicEnroll))
+	protected("GET /v1/me/enrollment-requests", st.EnrollmentRequests)
+	protected("GET "+base+"/enrollment-link", st.SharedLink)
+	protected("PUT "+base+"/enrollment-link", st.SharedLink)
+	protected("GET "+base+"/enrollment-requests", st.EnrollmentRequests)
+	protected("PATCH "+base+"/enrollment-requests/{request}", st.DecideEnrollment)
+	protected("GET "+base+"/me/students", st.Family)
+	protected("GET "+base+"/portal-access", st.PortalAccess)
+	protected("DELETE "+base+"/students/{student}/portal-access/{user}", st.RevokeFamily)
 	protected("GET "+base+"/students", st.List)
 	protected("POST "+base+"/students", st.Save)
 	protected("GET "+base+"/students/{student}", st.Get)
@@ -159,6 +181,8 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("PUT "+base+"/payment-integration", bankHandler.SaveIntegration)
 	protected("PATCH "+base+"/payment-integration", bankHandler.ToggleIntegration)
 	protected("POST "+base+"/invoices/{invoice}/checkout", bankHandler.Checkout)
+	protected("GET "+base+"/invoices/{invoice}/checkouts", bankHandler.CheckoutHistory)
+	protected("POST "+base+"/invoices/{invoice}/checkout-retirement", bankHandler.RetireCheckout)
 	protected("POST "+base+"/invoices/{invoice}/payment-check", bankHandler.PaymentCheck)
 	mux.HandleFunc("POST /v1/webhooks/infinitepay/{connection}", s.rate(bankHandler.InfiniteWebhook))
 	protected("GET "+base+"/attendances", p.All)
@@ -187,6 +211,9 @@ func (s *Server) middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
 		path := r.URL.Path
+		if strings.Contains(path, "/enrollment-links/") {
+			path = "/v1/enrollment-links/[redacted]"
+		}
 		if strings.Contains(path, "/invitations/") {
 			path = "/v1/invitations/[redacted]"
 		}
@@ -204,7 +231,7 @@ func (s *Server) middleware(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 			w.Header().Set("Access-Control-Allow-Headers", "Authorization,Content-Type,Idempotency-Key")
-			w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
 		}
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(204)

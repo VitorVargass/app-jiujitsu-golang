@@ -15,7 +15,7 @@ func TestPortalDeepLinksAndAPIBoundary(t *testing.T) {
 		t.Fatal(e)
 	}
 	handler := WithPortal(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "API route missing", 404) }), root)
-	for _, path := range []string{"/invite/token", "/pay/academy/invoice"} {
+	for _, path := range []string{"/invite/token", "/pay/academy/invoice", "/enroll/token", "/enrollment-settings", "/enrollment-status", "/subscription?academy_id=test"} {
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 		if w.Code != 200 || !strings.Contains(w.Body.String(), "Tatame portal") {

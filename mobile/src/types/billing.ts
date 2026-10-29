@@ -53,6 +53,8 @@ export type Catalog = {
   belt_options?: BeltOption[];
 };
 export type Checkout = {
+  expired?: boolean;
+  retryable?: boolean;
   id?: string;
   status: "waiting" | "paid" | "review";
   url?: string;
@@ -61,6 +63,7 @@ export type Checkout = {
   review_reason?: string;
 };
 export type Invoice = {
+  checkout_history_warning?: string;
   payment_provider?: "infinitepay" | "asaas";
   payment_checkout?: Checkout;
   id: string;
@@ -92,7 +95,7 @@ export const paymentMethodLabel: Record<ManualPaymentMethod, string> = {
 };
 export type InvoiceAdjustment = {
   id: string;
-  kind: "discount" | "manual_payment" | "bank_payment";
+  kind: "discount" | "manual_payment" | "bank_payment" | "checkout_retired";
   actor_name: string;
   previous_amount_cents: number;
   amount_cents: number;

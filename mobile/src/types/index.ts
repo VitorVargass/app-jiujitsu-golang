@@ -1,5 +1,5 @@
 export type { AttendanceOptions, LessonOption } from "./attendance";
-export type Role = "student" | "teacher" | "admin";
+export type Role = "student" | "teacher" | "admin" | "guardian";
 export type User = {
   id: string;
   name: string;

@@ -1,3 +1,4 @@
+import { useStudentScope, StudentSelector } from "../student/useStudentScope";
 import { useContext, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
@@ -47,6 +48,7 @@ function RemoveFilter({
 function Content({ admin }: { admin: boolean }) {
   const { academy } = useSession();
   const a = academy!;
+  const scope = useStudentScope(!admin);
   const [page, setPage] = useState(1);
   const [thisMonth, setThisMonth] = useState(() =>
     academyDate(a.timezone).slice(0, 7),
@@ -62,6 +64,7 @@ function Content({ admin }: { admin: boolean }) {
       "history",
       a.id,
       admin,
+      scope.id,
       page,
       month,
       filters.classroom?.id ?? "",
@@ -69,6 +72,7 @@ function Content({ admin }: { admin: boolean }) {
     ],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), month });
+      if (!admin && scope.id) params.set("student_id", scope.id);
       if (admin && filters.classroom)
         params.set("class_id", filters.classroom.id);
       if (admin && filters.student)
@@ -102,6 +106,9 @@ function Content({ admin }: { admin: boolean }) {
           : "Seus treinos, organizados por dia."
       }
     >
+      {!admin ? (
+        <StudentSelector scope={scope} onChange={() => setPage(1)} />
+      ) : null}
       <Card style={s.filters}>
         <View style={s.filterRow}>
           <View style={s.month}>

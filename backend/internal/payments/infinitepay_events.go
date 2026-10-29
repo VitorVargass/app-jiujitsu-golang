@@ -77,6 +77,13 @@ func (m *Manager) checkInfinite(ctx context.Context, c checkoutAttempt, event In
 	if event.Event != "" && event.Event != "paid" && event.Event != "settled" {
 		return m.reviewInfinite(ctx, c, "Notificação de cancelamento ou estorno. Confira a transação na InfinitePay.")
 	}
+	var retired bool
+	if e = p.DB.QueryRow(ctx, "SELECT retired_at IS NOT NULL FROM checkout_attempts WHERE id=$1", c.ID).Scan(&retired); e != nil {
+		return e
+	}
+	if retired {
+		return m.reviewInfinite(ctx, c, "Pagamento recebido em checkout substituído após conferência manual. Confira o valor recebido antes de registrar a baixa; a mensalidade atual foi preservada.")
+	}
 	tx, e := p.DB.Begin(ctx)
 	if e != nil {
 		return e

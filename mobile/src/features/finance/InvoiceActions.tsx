@@ -46,15 +46,19 @@ export function InvoiceActions({
   invoice,
   onSaved,
   onCopy,
-  onPix,
+  onPay,
+  paymentPending = false,
   onCancel,
+  onManageCheckout,
 }: {
   academyId: string;
   invoice: Invoice;
   onSaved: (invoice: Invoice) => void;
   onCopy: () => void;
-  onPix: () => void;
+  onPay: () => void;
+  paymentPending?: boolean;
   onCancel: () => void;
+  onManageCheckout: () => void;
 }) {
   const [edit, setEdit] = useState<Edit | null>(null);
   const [discount, setDiscount] = useState("");
@@ -91,7 +95,13 @@ export function InvoiceActions({
       onSaved(value);
     },
   });
+  const lockedByCheckout =
+    !!invoice.payment_checkout && !invoice.payment_checkout.retryable;
   function open(kind: Edit["kind"]) {
+    if (lockedByCheckout) {
+      onManageCheckout();
+      return;
+    }
     change.reset();
     setError("");
     setEdit({ kind, invoice });
@@ -148,8 +158,8 @@ export function InvoiceActions({
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <View style={{ flex: 1 }}>
           {openInvoice ? (
-            <Button compact icon="check-circle" onPress={() => open("payment")}>
-              Marcar como paga
+            <Button icon="wallet" loading={paymentPending} onPress={onPay}>
+              {invoice.payment_checkout?.url ? "Continuar pagamento" : "Pagar"}
             </Button>
           ) : (
             <Button compact secondary icon="mail" onPress={onCopy}>
@@ -175,18 +185,24 @@ export function InvoiceActions({
           title="Ações da mensalidade"
           onClose={() => setMenu(false)}
         >
+          {invoice.payment_provider === "infinitepay" ? (
+            <ActionRow
+              icon="wallet"
+              label="Gerenciar checkout e links"
+              onPress={() => {
+                setMenu(false);
+                onManageCheckout();
+              }}
+            />
+          ) : null}
           {openInvoice ? (
             <>
               <ActionRow
-                icon="wallet"
-                label={
-                  invoice.payment_provider === "infinitepay"
-                    ? "Pagar pela InfinitePay"
-                    : "Gerar ou consultar Pix"
-                }
+                icon="check-circle"
+                label="Registrar pagamento recebido por fora"
                 onPress={() => {
                   setMenu(false);
-                  onPix();
+                  open("payment");
                 }}
               />
               <ActionRow
@@ -218,7 +234,8 @@ export function InvoiceActions({
               danger
               onPress={() => {
                 setMenu(false);
-                onCancel();
+                if (lockedByCheckout) onManageCheckout();
+                else onCancel();
               }}
             />
           ) : null}
@@ -245,16 +262,18 @@ export function InvoiceActions({
                 }}
               >
                 <Label>
-                  {h.kind === "discount"
-                    ? "Desconto: " + money(h.discount_cents)
-                    : h.kind === "bank_payment"
-                      ? h.payment_method === "infinitepay_pix"
-                        ? "Pix confirmado pela InfinitePay"
-                        : "Cartão confirmado pela InfinitePay"
-                      : "Pagamento registrado • " +
-                        paymentMethodLabel[
-                          h.payment_method as ManualPaymentMethod
-                        ]}
+                  {h.kind === "checkout_retired"
+                    ? "Conferência do checkout"
+                    : h.kind === "discount"
+                      ? "Desconto: " + money(h.discount_cents)
+                      : h.kind === "bank_payment"
+                        ? h.payment_method === "infinitepay_pix"
+                          ? "Pix confirmado pela InfinitePay"
+                          : "Cartão confirmado pela InfinitePay"
+                        : "Pagamento registrado • " +
+                          paymentMethodLabel[
+                            h.payment_method as ManualPaymentMethod
+                          ]}
                 </Label>
                 <Label muted>
                   {h.actor_name} •{" "}
@@ -280,7 +299,7 @@ export function InvoiceActions({
           title={
             edit.kind === "discount"
               ? "Desconto nesta mensalidade"
-              : "Registrar pagamento"
+              : "Pagamento recebido por fora"
           }
           pending={change.isPending}
           onClose={() => setEdit(null)}
@@ -365,8 +384,9 @@ export function InvoiceActions({
             </>
           )}
           <Label muted>
-            Se houver Pix emitido, vamos conferir o pagamento e encerrar a
-            cobrança pendente no Asaas antes de concluir.
+            {invoice.payment_provider === "infinitepay"
+              ? "Se houver um checkout emitido, a alteração depende da conferência da cobrança na InfinitePay."
+              : "Se houver Pix emitido, vamos conferir o pagamento e encerrar a cobrança pendente no Asaas antes de concluir."}
           </Label>
           <Notice message={error || change.error?.message} />
         </EditorDialog>

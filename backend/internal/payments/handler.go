@@ -24,8 +24,10 @@ func (h Handler) List(w http.ResponseWriter, r *http.Request) {
 			core.Fail(w, core.E(403, "forbidden", "Conta pessoal necessária."))
 			return
 		}
-		if e := h.Manager.Repo.DB.QueryRow(r.Context(), "SELECT id FROM students WHERE academy_id=$1 AND user_id=$2", a, u).Scan(&sid); e != nil {
-			core.Fail(w, core.E(403, "forbidden", "Aluno não vinculado."))
+		var err error
+		sid, err = h.Manager.Access.Student(r.Context(), a, sid)
+		if err != nil {
+			core.Fail(w, err)
 			return
 		}
 	} else {
@@ -102,11 +104,20 @@ func (h Handler) Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	var historicalReview string
+	if _, err := h.Manager.Access.Require(r.Context(), r.PathValue("academy"), "admin"); err == nil {
+		err = h.Manager.Repo.DB.QueryRow(r.Context(), "SELECT review_reason FROM checkout_attempts WHERE academy_id=$1 AND invoice_id=$2 AND retired_at IS NOT NULL AND state='review' AND review_reason<>'' ORDER BY updated_at DESC LIMIT 1", r.PathValue("academy"), r.PathValue("invoice")).Scan(&historicalReview)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			core.Fail(w, err)
+			return
+		}
+	}
 	core.Write(w, 200, struct {
 		billing.Invoice
-		Checkout *CheckoutResult `json:"payment_checkout,omitempty"`
-		Provider string          `json:"payment_provider"`
-	}{v, checkout, provider})
+		Checkout         *CheckoutResult `json:"payment_checkout,omitempty"`
+		Provider         string          `json:"payment_provider"`
+		HistoricalReview string          `json:"checkout_history_warning,omitempty"`
+	}{v, checkout, provider, historicalReview})
 }
 func (h Handler) Pix(w http.ResponseWriter, r *http.Request) {
 	v, e := h.Manager.Pix(r.Context(), r.PathValue("academy"), r.PathValue("invoice"))

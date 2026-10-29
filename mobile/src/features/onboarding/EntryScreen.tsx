@@ -106,7 +106,7 @@ export default function EntryScreen() {
           <Label muted>
             {academies.length
               ? "Nenhum acesso disponível para esta conta. Converse com o responsável pela academia."
-              : "Para acessar como aluno, abra o convite enviado pela academia usando o mesmo e-mail do seu cadastro."}
+              : "Para acessar como aluno ou responsável, abra o link de matrícula enviado pela academia. Se já tiver enviado, acompanhe seu pedido abaixo."}
           </Label>
           {!academies.length ? (
             <>
@@ -121,6 +121,9 @@ export default function EntryScreen() {
           ) : null}
         </>
       )}
+      <Button secondary onPress={() => router.push("/enrollment-status")}>
+        Minhas matrículas e pedidos
+      </Button>
       <Button secondary icon="swap" onPress={reloadAcademies}>
         Atualizar acessos
       </Button>

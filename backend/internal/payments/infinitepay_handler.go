@@ -76,6 +76,9 @@ func (h Handler) PaymentCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c, e := p.attempt(r.Context(), a, id)
+	if event.Order != "" && core.ValidID(event.Order) {
+		c, e = scanAttempt(p.DB.QueryRow(r.Context(), "SELECT "+attemptColumns+" FROM checkout_attempts WHERE academy_id=$1 AND invoice_id=$2 AND reference=$3", a, id, event.Order))
+	}
 	if errors.Is(e, pgx.ErrNoRows) {
 		core.Write(w, 200, CheckoutResult{Status: "waiting", Amount: invoice.AmountCents})
 		return
@@ -111,7 +114,7 @@ func (h Handler) PaymentCheck(w http.ResponseWriter, r *http.Request) {
 		core.Fail(w, e)
 		return
 	}
-	c, e = p.attempt(r.Context(), a, id)
+	c, e = scanAttempt(p.DB.QueryRow(r.Context(), "SELECT "+attemptColumns+" FROM checkout_attempts WHERE id=$1", c.ID))
 	if e != nil {
 		core.Fail(w, e)
 		return

@@ -31,6 +31,8 @@ func TestInfinitePayFlow(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer db.Close()
+	var expectedPrice atomic.Int64
+	expectedPrice.Store(18000)
 	var creates atomic.Int32
 	var amount atomic.Int64
 	amount.Store(18000)
@@ -54,7 +56,7 @@ func TestInfinitePayFlow(t *testing.T) {
 				t.Error("incomplete checkout contract")
 			}
 			items := payload["items"].([]any)
-			if items[0].(map[string]any)["price"] != float64(18000) {
+			if items[0].(map[string]any)["price"] != float64(expectedPrice.Load()) {
 				t.Error("incorrect amount")
 			}
 			if fail.Load() {
@@ -261,4 +263,93 @@ func TestInfinitePayFlow(t *testing.T) {
 	if result = owner.ok("POST", prefix+"/invoices/"+id4+"/checkout", nil); result["status"] != "review" {
 		t.Fatal("expired link reissued")
 	}
+	// Recover the same stored link, without emitting another charge, including after local expiry.
+	expired := owner.ok("GET", prefix+"/invoices/"+id4, nil)["payment_checkout"].(map[string]any)
+	if expired["url"] != "https://checkout.infinitepay.io/test-fixture" || expired["expired"] != true {
+		t.Fatal("Stored link hidden after expiry", expired)
+	}
+	amount.Store(18000)
+	paid.Store(false)
+	id5 := newInvoice()
+	path5 := prefix + "/invoices/" + id5
+	issued := owner.ok("POST", path5+"/checkout", nil)
+	oldID := issued["id"].(string)
+	before = creates.Load()
+	for i := 0; i < 2; i++ {
+		v := studentClient.ok("GET", path5, nil)
+		if v["payment_checkout"].(map[string]any)["url"] != issued["url"] {
+			t.Fatal("Lost stored link")
+		}
+	}
+	if creates.Load() != before {
+		t.Fatal("Reading invoice created another checkout")
+	}
+	var oldRef string
+	db.QueryRow(ctx, "SELECT reference FROM checkout_attempts WHERE id=$1", oldID).Scan(&oldRef)
+	if code, _ := owner.request("POST", path5+"/payment-check", map[string]any{"order_nsu": oldRef, "transaction_nsu": "old-recovery-txn", "slug": "old-recovery-slug"}, ""); code != 409 {
+		t.Fatal(code)
+	}
+	resolution := map[string]any{"attempt_id": oldID, "confirmed_invalidated": false, "note": "Protocolo ficticio: link inutilizado no provedor"}
+	if code, _ := owner.request("POST", path5+"/checkout-retirement", resolution, ""); code != 422 {
+		t.Fatal("Missing acknowledgment accepted", code)
+	}
+	resolution["confirmed_invalidated"] = true
+	if code, _ := studentClient.request("POST", path5+"/checkout-retirement", resolution, ""); code != 403 {
+		t.Fatal("Student retired checkout", code)
+	}
+	if code, _ := outsider.request("GET", path5+"/checkouts", nil, ""); code != 403 {
+		t.Fatal("Foreign checkout history", code)
+	}
+	owner.ok("POST", path5+"/checkout-retirement", resolution)
+	if len(owner.list(path5+"/checkouts")) != 1 {
+		t.Fatal("Previous link deleted")
+	}
+	owner.ok("PATCH", path5+"/discount", map[string]any{"discount_cents": 1000, "expected_amount_cents": 18000, "reason": "Desconto após conferência registrada"})
+	expectedPrice.Store(17000)
+	next := owner.ok("POST", path5+"/checkout", nil)
+	if next["id"] == oldID || next["amount_cents"] != float64(17000) {
+		t.Fatal("Old checkout reused after price change", next)
+	}
+	audit := owner.list(path5 + "/history")
+	if len(audit) != 2 {
+		t.Fatal("Resolution/discount audit missing", audit)
+	}
+	var newRef string
+	db.QueryRow(ctx, "SELECT reference FROM checkout_attempts WHERE id=$1", next["id"]).Scan(&newRef)
+	// Late payment of an old link is never posted against the changed monthly amount.
+	paid.Store(true)
+	amount.Store(18000)
+	if code, _ := owner.request("POST", path5+"/payment-check", map[string]any{"order_nsu": oldRef, "transaction_nsu": "old-recovery-txn", "slug": "old-recovery-slug"}, ""); code != 409 {
+		t.Fatal("Old payment posted", code)
+	}
+	changed := owner.ok("GET", path5, nil)
+	if changed["status"] == "paid" || changed["checkout_history_warning"] == nil {
+		t.Fatal("Late receipt hidden or posted", changed)
+	}
+	if changed["payment_checkout"].(map[string]any)["id"] != next["id"] {
+		t.Fatal("Old callback replaced current attempt")
+	}
+	amount.Store(17000)
+	owner.ok("POST", path5+"/payment-check", map[string]any{"order_nsu": newRef, "transaction_nsu": "new-recovery-txn", "slug": "new-recovery-slug"})
+	if owner.ok("GET", path5, nil)["status"] != "paid" {
+		t.Fatal("New checkout did not settle")
+	}
+	// A fresh provider check prevents manually retiring a payment that just arrived.
+	expectedPrice.Store(18000)
+	amount.Store(18000)
+	paid.Store(false)
+	id6 := newInvoice()
+	path6 := prefix + "/invoices/" + id6
+	current := owner.ok("POST", path6+"/checkout", nil)
+	var ref6 string
+	db.QueryRow(ctx, "SELECT reference FROM checkout_attempts WHERE id=$1", current["id"]).Scan(&ref6)
+	owner.request("POST", path6+"/payment-check", map[string]any{"order_nsu": ref6, "transaction_nsu": "paid-before-resolution", "slug": "known-slug"}, "")
+	paid.Store(true)
+	if code, _ := owner.request("POST", path6+"/checkout-retirement", map[string]any{"attempt_id": current["id"], "confirmed_invalidated": true, "note": "Tentativa de conferência já superada pelo recebimento"}, ""); code != 409 {
+		t.Fatal("Paid checkout retired", code)
+	}
+	if owner.ok("GET", path6, nil)["status"] != "paid" {
+		t.Fatal("Bank confirmation not applied")
+	}
+
 }

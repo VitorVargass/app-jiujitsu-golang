@@ -31,6 +31,7 @@ export const colors = {
 };
 export const roleLabel = {
   student: "Aluno",
+  guardian: "Responsável",
   teacher: "Professor",
   admin: "Gestor",
 };

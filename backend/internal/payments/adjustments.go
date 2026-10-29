@@ -66,6 +66,9 @@ func (m *Manager) History(ctx context.Context, a, id string) ([]Adjustment, erro
  SELECT r.attempt_id,'bank_payment','InfinitePay',r.amount_cents,r.amount_cents,0::bigint,
  CASE WHEN r.capture_method='pix' THEN 'infinitepay_pix' ELSE 'infinitepay_card' END,
  'Confirmado por consulta bancária',r.confirmed_at FROM checkout_receipts r WHERE r.academy_id=$1 AND r.invoice_id=$2
+ UNION ALL
+ SELECT c.id,'checkout_retired',u.name,c.amount_cents,c.amount_cents,0::bigint,'',c.retirement_note,c.retired_at
+ FROM checkout_attempts c JOIN users u ON u.id=c.retired_by WHERE c.academy_id=$1 AND c.invoice_id=$2 AND c.retired_at IS NOT NULL
  ) history ORDER BY created_at DESC,id DESC LIMIT 50`, a, id)
 	if e != nil {
 		return nil, e

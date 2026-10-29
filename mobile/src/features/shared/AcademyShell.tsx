@@ -1,3 +1,4 @@
+import { SubscriptionNotice } from "../subscription/SubscriptionNotice";
 import { AccountMenu } from "../../components/AccountMenu";
 import React, { useCallback } from "react";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
@@ -64,6 +65,8 @@ const managerTabs: Tab[] = [
       "/more",
       "/managers",
       "/receipts",
+      "/subscription",
+      "/enrollment-settings",
       "/catalog",
       "/academy-history",
       "/devices",
@@ -132,7 +135,12 @@ export function RoleGate({
   if (session?.kind === "device") return <Redirect href="/kiosk" />;
   if (
     !academy ||
-    !academy.roles.includes(role) ||
+    !(
+      academy.roles.includes(role) ||
+      (role === "student" &&
+        academy.roles.includes("guardian") &&
+        academy.status === "active")
+    ) ||
     (role !== "student" && academy.status !== "active")
   )
     return <Redirect href="/entry" />;
@@ -320,6 +328,7 @@ export function AcademyShell({
       {showClassSetupNotice && setup.needsSetup ? (
         <ClassSetupNotice hasClasses={setup.hasClasses} />
       ) : null}
+      <SubscriptionNotice />
       {children}
     </Page>
   );

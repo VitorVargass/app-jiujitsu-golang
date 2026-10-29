@@ -194,7 +194,7 @@ function Editor({
               <Label muted>
                 {plans
                   ? "Este valor preenche a mensalidade quando o aluno escolhe o plano."
-                  : "Este valor será sugerido quando o aluno contratar por modalidade. Zero permite definir o valor individual no cadastro."}
+                  : "Este valor será sugerido quando o aluno contratar por modalidade. Com zero, a atividade pode fazer parte de um plano ou ter valor definido pelo gestor no cadastro, mas não será vendida separadamente pelo link."}
               </Label>
             </Card>
           ) : null}

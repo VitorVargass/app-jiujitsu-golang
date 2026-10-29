@@ -1,3 +1,4 @@
+import { useStudentScope, StudentSelector } from "./useStudentScope";
 import { useQuery } from "@tanstack/react-query";
 import { StudentNumberCard } from "./StudentNumberCard";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
@@ -9,16 +10,19 @@ import { InvoiceList } from "../finance/FinanceScreen";
 export function QRScreen() {
   const { academy } = useSession();
   const a = academy!;
+  const scope = useStudentScope();
   const credential = useQuery({
-    queryKey: ["credential", a.id],
+    enabled: !!scope.id,
+    queryKey: ["credential", a.id, scope.id],
     queryFn: () =>
       api<Credential & { status: string }>(
-        academyPath(a.id, "/me/student-credential"),
+        academyPath(a.id, "/me/student-credential?student_id=" + scope.id),
       ),
   });
   return (
     <AcademyShell title="Meu número e QR">
-      {credential.isPending ? (
+      <StudentSelector scope={scope} />
+      {scope.id && credential.isPending ? (
         <Loading />
       ) : credential.error ? (
         <Notice message={credential.error.message} />
