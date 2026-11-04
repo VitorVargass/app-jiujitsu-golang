@@ -90,7 +90,7 @@ func TestInfinitePaySafeHTTP(t *testing.T) {
 func TestCheckoutRecoveryResult(t *testing.T) {
 	c := checkoutAttempt{ID: "test", State: "ready", URL: "https://checkout.infinitepay.io/original", Amount: 18000, Expires: time.Now().Add(-time.Hour)}
 	v := c.result()
-	if v.Status != "review" || v.URL != c.URL || !v.Expired {
+	if v.Status != "review" || v.URL != "" || !v.Expired || v.Retryable {
 		t.Fatal(v)
 	}
 	c.State = "paid"

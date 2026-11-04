@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { checkoutExpired } from "../../services/checkout-flow";
 import { View, Pressable, Text } from "react-native";
 import { Icon, IconName } from "../../components/Icon";
 import { colors } from "../../theme";
@@ -151,7 +152,13 @@ export function InvoiceActions({
         <View style={{ flex: 1 }}>
           {openInvoice ? (
             <Button icon="wallet" loading={paymentPending} onPress={onPay}>
-              {invoice.payment_checkout?.url ? "Continuar pagamento" : "Pagar"}
+              {invoice.payment_checkout && checkoutExpired(invoice.payment_checkout)
+                ? "Link expirado · conferir"
+                : invoice.payment_checkout?.status === "review"
+                  ? "Conferir pagamento"
+                  : invoice.payment_checkout?.url
+                    ? "Continuar pagamento"
+                    : "Pagar"}
             </Button>
           ) : (
             <Button compact secondary icon="mail" onPress={onCopy}>

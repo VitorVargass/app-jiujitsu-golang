@@ -166,11 +166,14 @@ func (c checkoutAttempt) result() CheckoutResult {
 		return v
 	}
 	v.Expired = !time.Now().Before(c.Expires)
+	if v.Expired {
+		v.URL = ""
+	}
 	if c.State != "ready" || v.Expired {
 		v.Status = "review"
 		if v.Reason == "" {
-			if v.Expired && v.URL != "" {
-				v.Reason = "O prazo previsto deste link terminou. O link original continua disponível para consulta; a InfinitePay informa se ainda aceita pagamento. Não emitimos outro automaticamente."
+			if v.Expired {
+				v.Reason = "Este link expirou. Confira o pagamento antes de solicitar uma nova emissão à academia."
 			} else {
 				v.Reason = "Confira o checkout antes de emitir outro link. Se o link foi recebido, você pode abri-lo ou copiá-lo abaixo."
 			}

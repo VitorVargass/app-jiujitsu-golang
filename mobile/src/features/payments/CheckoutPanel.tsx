@@ -6,7 +6,7 @@ import { Button, Label, Loading, Notice, Row } from "../../components/ui";
 import { api, academyPath } from "../../services/api";
 import { queryClient } from "../../services/session";
 import { openPaymentURL } from "../../services/open-payment";
-import { checkoutURL } from "../../services/checkout-flow";
+import { checkoutExpired, checkoutURL } from "../../services/checkout-flow";
 import { Checkout, money } from "../../types/billing";
 import { colors } from "../../theme";
 
@@ -43,10 +43,16 @@ export function CheckoutPanel({
     onSuccess: () => void queryClient.invalidateQueries(),
   });
   const open = useMutation({
-    mutationFn: (url: string) => openPaymentURL(checkoutURL(url)),
+    mutationFn: (url: string) => {
+      if (result && checkoutExpired(result))
+        throw new Error("Este link expirou. Confira o pagamento.");
+      return openPaymentURL(checkoutURL(url));
+    },
   });
   const copy = useMutation({
     mutationFn: async (url: string) => {
+      if (result && checkoutExpired(result))
+        throw new Error("Este link expirou. Confira o pagamento.");
       if (!(await Clipboard.setStringAsync(checkoutURL(url))))
         throw new Error("Não foi possível copiar o link.");
       setCopied(true);
@@ -56,6 +62,7 @@ export function CheckoutPanel({
     initial?.status === "paid"
       ? initial
       : check.data || checkout.data || initial;
+  const expired = result ? checkoutExpired(result) : false;
   return (
     <>
       {checkout.isPending ? <Loading /> : null}
@@ -71,7 +78,9 @@ export function CheckoutPanel({
         <Notice success message="Pagamento confirmado pela InfinitePay." />
       ) : (
         <>
-          {result?.status === "review" ? (
+          {expired ? (
+            <Notice message="Este link expirou e não pode ser usado para pagar. Confira o pagamento antes de solicitar uma nova emissão à academia." />
+          ) : result?.status === "review" ? (
             <Notice
               message={
                 result.review_reason ||
@@ -79,7 +88,7 @@ export function CheckoutPanel({
               }
             />
           ) : null}
-          {result?.url ? (
+          {result?.url && !expired ? (
             <>
               <Label>
                 {inline
@@ -119,7 +128,7 @@ export function CheckoutPanel({
                   : "Você pode voltar e usar este mesmo link depois. A abertura do checkout não registra pagamento."}
               </Label>
             </>
-          ) : result ? (
+          ) : result && !expired ? (
             <Label muted>
               O provedor não devolveu um link recuperável. A academia precisa
               conferir a emissão na InfinitePay; não vamos gerar outra cobrança

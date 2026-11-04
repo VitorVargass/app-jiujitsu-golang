@@ -3,7 +3,27 @@ import assert from "node:assert/strict";
 import {
   beginInvoiceCheckout,
   checkoutURL,
+  checkoutExpired,
 } from "../src/services/checkout-flow.ts";
+
+test("link vencido nunca abre o checkout mesmo com status waiting em cache", async () => {
+  for (const expiry of [
+    { expired: true },
+    { expires_at: "2000-01-01T00:00:00Z" },
+    { expires_at: "invalid" },
+  ]) {
+    let opened = false;
+    await beginInvoiceCheckout(
+      async () => ({ status: "waiting", url: "https://checkout.infinitepay.io/old", amount_cents: 100, ...expiry }),
+      async () => { opened = true; },
+    );
+    assert.equal(opened, false);
+  }
+  const checkout = { status: "waiting", amount_cents: 100, expires_at: "2030-01-01T00:00:00Z" };
+  const deadline = Date.parse(checkout.expires_at);
+  assert.equal(checkoutExpired(checkout, deadline - 1), false);
+  assert.equal(checkoutExpired(checkout, deadline), true);
+});
 
 test("Pagar pede um checkout e abre a InfinitePay sem registrar baixa manual", async () => {
   const calls = [];
