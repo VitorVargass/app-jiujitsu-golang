@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { useContext, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -305,17 +306,14 @@ export function StudentAttendanceOverview({
         ) : null}
       </View>
       <Notice success message={message} />
-      {summary.error ? <Notice message={summary.error.message} /> : null}
+      {summary.error ? <QueryError query={summary} /> : null}
       {query.isPending ? (
         <Card>
           <Loading />
         </Card>
       ) : query.error ? (
         <Card>
-          <Notice message={query.error.message} />
-          <Button secondary compact onPress={() => void query.refetch()}>
-            Tentar novamente
-          </Button>
+          <QueryError query={query} />
         </Card>
       ) : view === "calendar" && !all ? (
         <View style={[s.body, isWide && s.desktop]}>

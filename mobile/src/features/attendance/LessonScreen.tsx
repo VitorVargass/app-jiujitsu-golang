@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
@@ -64,7 +65,7 @@ function Content() {
       {lessons.isPending ? (
         <Loading />
       ) : lessons.error ? (
-        <Notice message={lessons.error.message} />
+        <QueryError query={lessons} />
       ) : !lesson ? (
         <Notice message="Este horário não está disponível para este dia. Confira a agenda em Turmas." />
       ) : (
@@ -89,7 +90,7 @@ function Content() {
             />
           </Card>
           {list.error ? (
-            <Notice message={list.error.message} />
+            <QueryError query={list} />
           ) : lesson.session_id && list.isPending ? (
             <Loading />
           ) : list.data?.length ? (

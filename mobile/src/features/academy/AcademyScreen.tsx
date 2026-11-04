@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { Href, router } from "expo-router";
@@ -6,14 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, academyPath } from "../../services/api";
 import { useSession } from "../../services/session";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
-import {
-  Card,
-  Heading,
-  Label,
-  Notice,
-  Loading,
-  Badge,
-} from "../../components/ui";
+import { Card, Heading, Label, Loading, Badge } from "../../components/ui";
 import { Icon, IconName } from "../../components/Icon";
 import { Dashboard, AttendanceOptions } from "../../types";
 import { money } from "../../types/billing";
@@ -144,7 +138,7 @@ function Content() {
       {dash.isPending ? (
         <Loading />
       ) : dash.error ? (
-        <Notice message={dash.error.message} />
+        <QueryError query={dash} />
       ) : (
         <View style={styles.metrics}>
           <Metric
@@ -283,7 +277,7 @@ function Content() {
               tone="slate"
             />
           </View>
-          <Notice message={sessions.error?.message} />
+          <QueryError query={sessions} />
           {sessions.isPending ? (
             <Loading />
           ) : open.length ? (

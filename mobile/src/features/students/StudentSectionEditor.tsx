@@ -549,6 +549,18 @@ export function StudentSectionEditor({
         </>
       ) : null}
       <Notice message={save.error?.message} />
+      {identity.error ? (
+        <>
+          <Notice message={identity.error} />
+          <Button
+            secondary
+            loading={identity.retrying}
+            onPress={() => void identity.retry()}
+          >
+            Conferir CPF e contatos novamente
+          </Button>
+        </>
+      ) : null}
     </EditorDialog>
   );
 }

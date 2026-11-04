@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { useState } from "react";
 import { checkoutExpired } from "../../services/checkout-flow";
 import { View, Pressable, Text } from "react-native";
@@ -152,7 +153,8 @@ export function InvoiceActions({
         <View style={{ flex: 1 }}>
           {openInvoice ? (
             <Button icon="wallet" loading={paymentPending} onPress={onPay}>
-              {invoice.payment_checkout && checkoutExpired(invoice.payment_checkout)
+              {invoice.payment_checkout &&
+              checkoutExpired(invoice.payment_checkout)
                 ? "Gerar novo link"
                 : invoice.payment_checkout?.status === "review"
                   ? "Conferir pagamento"
@@ -237,7 +239,7 @@ export function InvoiceActions({
           {history.isPending ? (
             <Loading />
           ) : history.error ? (
-            <Notice message={history.error.message} />
+            <QueryError query={history} />
           ) : history.data?.length ? (
             history.data.map((h) => (
               <View

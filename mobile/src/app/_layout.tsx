@@ -1,4 +1,5 @@
 import { PlatformStyles } from "../components/PlatformStyles";
+import { ScreenRecovery } from "../components/RouteRecovery";
 import { Stack } from "expo-router";
 import Head from "expo-router/head";
 import { brand } from "../theme/brand";
@@ -8,6 +9,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
 import { SessionProvider, queryClient } from "../services/session";
 import { Page, Loading } from "../components/ui";
+export { RouteRecovery as ErrorBoundary } from "../components/RouteRecovery";
+
 const fonts = {
   Inter_400Regular: require("@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf"),
   Inter_600SemiBold: require("@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf"),
@@ -30,6 +33,7 @@ export default function Layout() {
           <SessionProvider>
             <StatusBar style="light" />
             <Stack
+              unstable_screenErrorBoundary={ScreenRecovery}
               screenOptions={{
                 headerShown: false,
                 gestureEnabled: false,

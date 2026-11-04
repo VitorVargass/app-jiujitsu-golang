@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
-import { IconButton } from "./ui";
+import { Button, IconButton } from "./ui";
 import { colors } from "../theme";
 
 export function Pagination({
@@ -13,6 +13,13 @@ export function Pagination({
   size?: number;
   onChange: (n: number) => void;
 }) {
+  const lastPage = Math.max(1, Math.ceil(total / size));
+  if (page > lastPage)
+    return (
+      <Button compact secondary onPress={() => onChange(lastPage)}>
+        Voltar à página com resultados
+      </Button>
+    );
   if (total <= size) return null;
   return (
     <View style={styles.row}>

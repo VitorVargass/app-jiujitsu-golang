@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
@@ -6,7 +7,6 @@ import {
   Heading,
   Label,
   Button,
-  Notice,
   Loading,
   Empty,
   Row,
@@ -41,7 +41,7 @@ function Content() {
       {sessions.isPending ? (
         <Loading />
       ) : sessions.error ? (
-        <Notice message={sessions.error.message} />
+        <QueryError query={sessions} />
       ) : own.length ? (
         own.map((s) => (
           <Card key={s.id}>

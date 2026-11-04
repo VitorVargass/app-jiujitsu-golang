@@ -49,6 +49,8 @@ export function useIdentityCheck(
     pending:
       enabled && (settled !== value || check.isFetching || check.isPending),
     error: enabled && settled === value ? check.error?.message : undefined,
+    retry: () => check.refetch(),
+    retrying: check.isFetching,
     cpfMessage: current?.cpf_exists
       ? "Este CPF já está cadastrado no sistema. Use o cadastro atual ou peça ao gestor para corrigir os dados."
       : "",

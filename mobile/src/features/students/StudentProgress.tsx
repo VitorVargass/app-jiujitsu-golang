@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -10,7 +11,6 @@ import {
   IconButton,
   Label,
   Loading,
-  Notice,
   Row,
 } from "../../components/ui";
 import { formatBirth } from "../../types/age";
@@ -93,7 +93,7 @@ export function StudentProgress({
           {q.isPending ? (
             <Loading />
           ) : q.error ? (
-            <Notice message={q.error.message} />
+            <QueryError query={q} />
           ) : q.data ? (
             <Card>
               <View style={s.progressHeading}>

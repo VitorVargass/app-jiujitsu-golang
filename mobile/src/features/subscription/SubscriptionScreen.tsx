@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { AccessRecovery } from "../../components/AccessRecovery";
 import { View } from "react-native";
 import { Redirect, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -363,12 +364,14 @@ export default function SubscriptionScreen() {
       <Page>
         <Notice message={academiesError.message} />
         <Button onPress={reloadAcademies}>Tentar novamente</Button>
+        <AccessRecovery next={next} />
       </Page>
     );
   if (params.academy_id && !target)
     return (
       <Page title="Assinatura TatameMix">
         <Notice message="Esta conta não administra a academia desta cobrança." />
+        <AccessRecovery next={next} />
       </Page>
     );
   if (!atTarget)

@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
@@ -586,7 +587,7 @@ function ReviewRequests() {
       {list.isPending ? (
         <Loading />
       ) : list.error ? (
-        <Notice message={list.error.message} />
+        <QueryError query={list} />
       ) : !list.data?.items.length ? (
         <EmptySection
           title="Tudo em dia"
@@ -764,7 +765,7 @@ function PortalAccess() {
         />
       </View>
       {grants.error ? (
-        <Notice message={grants.error.message} />
+        <QueryError query={grants} />
       ) : grants.isPending ? (
         <Loading />
       ) : !grants.data?.items.length ? (

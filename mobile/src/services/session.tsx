@@ -8,17 +8,13 @@ import React, {
 } from "react";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { QueryClient, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "./query-client";
 import { api, APIError, setToken, setUnauthorized } from "./api";
 import { Academy, Role, User } from "../types";
 import { accessRole, academyAccesses, AccessPreference } from "./access";
+export { queryClient } from "./query-client";
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: 1, staleTime: 15000 },
-    mutations: { retry: false },
-  },
-});
 export type LoginState =
   | { kind: "user"; token: string; user: User }
   | {
@@ -81,7 +77,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const activeUser = useRef("");
   const save = useCallback(
     async (value: LoginState | null, previous?: AccessPreference | null) => {
-      await writeStored("tatame.session", value ? JSON.stringify(value) : null);
+      // Persistence is optional. Storage restrictions must not trap a user in
+      // an expired session or prevent an otherwise successful login.
+      try {
+        await writeStored(
+          "tatame.session",
+          value ? JSON.stringify(value) : null,
+        );
+      } catch {
+        // Continue with the in-memory session; the server still checks its token.
+      }
       activeUser.current = value?.kind === "user" ? value.user.id : "";
       setToken(value?.token);
       setSelection(previous ?? null);

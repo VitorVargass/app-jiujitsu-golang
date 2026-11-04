@@ -114,9 +114,7 @@ export function CheckoutPanel({
                     loading={open.isPending}
                     onPress={() => open.mutate(result.url!)}
                   >
-                    {result.expired || result.status === "review"
-                      ? "Consultar link original"
-                      : "Continuar pagamento"}
+                    Continuar pagamento
                   </Button>
                 ) : null}
                 <Button

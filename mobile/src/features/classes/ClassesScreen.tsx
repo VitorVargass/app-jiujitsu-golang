@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -161,11 +162,11 @@ function Content() {
         ))}
       </View>
       <Notice success message={message} />
-      <Notice message={modalities.error?.message} />
+      <QueryError query={modalities} />
       {list.isPending ? (
         <Loading />
       ) : list.error ? (
-        <Notice message={list.error.message} />
+        <QueryError query={list} />
       ) : (
         <WeeklyTimetable
           items={visible}

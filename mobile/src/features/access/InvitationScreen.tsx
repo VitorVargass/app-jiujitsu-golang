@@ -17,6 +17,7 @@ import { useSession } from "../../services/session";
 import { Academy } from "../../types";
 import { Student } from "../../types/billing";
 import { cpfDigits, formatCPF, validCPF } from "../../types/cpf";
+import { AccessRecovery } from "../../components/AccessRecovery";
 
 type InvitationPreview = {
   academy_id: string;
@@ -32,7 +33,7 @@ export default function InvitationScreen() {
 }
 
 function InvitationForm({ token }: { token: string }) {
-  const { ready, session, select, logout } = useSession();
+  const { ready, session, select } = useSession();
   const [cpf, setCPF] = useState("");
   const [acceptedAcademy, setAcceptedAcademy] = useState("");
   const submitting = useRef(false);
@@ -101,7 +102,9 @@ function InvitationForm({ token }: { token: string }) {
       {!personal ? (
         <Notice message="Este convite é pessoal. Entre com a conta do aluno para continuar." />
       ) : !validToken ? (
-        <Notice message="Convite inválido. Peça um novo link à academia." />
+        <>
+          <Notice message="Convite inválido. Peça um novo link à academia." />
+        </>
       ) : acceptedAcademy ? (
         <>
           <Notice
@@ -177,9 +180,7 @@ function InvitationForm({ token }: { token: string }) {
           </Button>
         </>
       ) : null}
-      <Button secondary disabled={busy} onPress={() => void logout()}>
-        Entrar com outra conta
-      </Button>
+      <AccessRecovery next={"/invite/" + token} disabled={busy} />
     </Page>
   );
 }

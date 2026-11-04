@@ -23,6 +23,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   } = useSession();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   if (session?.kind !== "user") return null;
   const user = session.user;
   const initials = user.name
@@ -42,9 +43,16 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   }
   async function signOut() {
     setBusy(true);
+    setError("");
     try {
       await logout();
       setOpen(false);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível sair. Tente novamente.",
+      );
     } finally {
       setBusy(false);
     }
@@ -193,6 +201,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
             ) : null}
           </View>
           <View style={s.footer}>
+            <Notice message={error} />
             <Button
               compact
               secondary

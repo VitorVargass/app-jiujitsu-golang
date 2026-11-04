@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useState } from "react";
 import { brand } from "../../theme/brand";
@@ -193,7 +194,7 @@ function Content() {
           {devices.isPending ? (
             <Loading />
           ) : devices.error ? (
-            <Notice message={devices.error.message} />
+            <QueryError query={devices} />
           ) : visible.length ? (
             <View style={s.list}>
               {visible.map((d, i) => (

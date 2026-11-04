@@ -4,6 +4,8 @@ import { safeNext } from "../../services/links";
 import { Loading, Page } from "../../components/ui";
 import { colors } from "../../theme";
 
+export { ScreenRecovery as ErrorBoundary } from "../../components/RouteRecovery";
+
 export default function Layout() {
   const { ready, session } = useSession();
   const { next } = useLocalSearchParams<{ next?: string }>();

@@ -1,7 +1,8 @@
+import { QueryError } from "../../components/QueryError";
 import { StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { EditorDialog } from "../../components/EditorDialog";
-import { Badge, Button, Loading, Notice } from "../../components/ui";
+import { Badge, Button, Loading } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 import { api, academyPath } from "../../services/api";
 import type { Attendance } from "../../types";
@@ -66,10 +67,7 @@ export function StudentAttendanceDay({
         <Loading />
       ) : q.error ? (
         <>
-          <Notice message={q.error.message} />
-          <Button secondary compact onPress={() => void q.refetch()}>
-            Tentar novamente
-          </Button>
+          <QueryError query={q} />
         </>
       ) : records.length ? (
         <>

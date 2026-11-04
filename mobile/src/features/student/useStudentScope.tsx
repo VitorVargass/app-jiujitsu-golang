@@ -1,5 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, Chip, Label, Row, Notice, Button } from "../../components/ui";
+import {
+  Card,
+  Chip,
+  Label,
+  Row,
+  Notice,
+  Button,
+  Loading,
+} from "../../components/ui";
 import { api, academyPath } from "../../services/api";
 import { useSession } from "../../services/session";
 export type FamilyStudent = { id: string; name: string; status: string };
@@ -47,12 +55,22 @@ export function StudentSelector({
       </Card>
     );
   if (!scope.data?.length)
-    return scope.isPending ? null : (
+    return scope.isPending ? (
+      <Loading />
+    ) : (
       <Card>
         <Label>
           Nenhum aluno está vinculado a este acesso. Peça à academia para
           conferir seu cadastro.
         </Label>
+        <Button
+          secondary
+          compact
+          loading={scope.isFetching}
+          onPress={() => void scope.refetch()}
+        >
+          Atualizar vínculo
+        </Button>
       </Card>
     );
   return (

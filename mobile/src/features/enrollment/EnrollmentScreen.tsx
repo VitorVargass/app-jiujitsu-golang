@@ -1,4 +1,5 @@
 import { DueDayPicker } from "../../components/BillingDatePicker";
+import { AccessRecovery } from "../../components/AccessRecovery";
 import { useRef, useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -42,6 +43,7 @@ function EnrollmentLanding({ token }: { token: string }) {
     return (
       <Page title="Matrícula">
         <Notice message="Link inválido. Peça o link atual à academia." />
+        <AccessRecovery />
       </Page>
     );
   if (!ready || preview.isPending)
@@ -57,6 +59,7 @@ function EnrollmentLanding({ token }: { token: string }) {
         <Button secondary onPress={() => preview.refetch()}>
           Tentar novamente
         </Button>
+        <AccessRecovery />
       </Page>
     );
   const data = preview.data;
@@ -112,6 +115,9 @@ function EnrollmentLanding({ token }: { token: string }) {
           Sair desta conta
         </Button>
       ) : null}
+      <Button secondary compact onPress={() => router.replace("/entry")}>
+        Voltar ao sistema
+      </Button>
     </Page>
   );
 }
@@ -273,6 +279,7 @@ function EnrollmentForm({
         error={submit.error?.message}
         submitLabel="Concluir matrícula"
         onSubmit={() => submit.mutate()}
+        onCancel={() => router.replace("/entry")}
       >
         {(step) =>
           step === 0 ? (

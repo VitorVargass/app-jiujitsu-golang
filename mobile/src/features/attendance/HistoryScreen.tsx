@@ -226,6 +226,11 @@ function Content({ admin }: { admin: boolean }) {
             <Icon name="calendar" size={26} color={colors.muted} />
           </View>
           <Text style={s.heading}>Nenhuma presença por aqui</Text>
+          {page > 1 ? (
+            <Button compact secondary onPress={() => setPage(1)}>
+              Voltar à primeira página
+            </Button>
+          ) : null}
           <Text style={s.emptyText}>
             Não encontramos registros para este período
             {filterCount ? " e estes filtros" : ""}. Experimente consultar outro

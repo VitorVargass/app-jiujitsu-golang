@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { StudentsTable } from "./StudentsTable";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { useState } from "react";
@@ -151,7 +152,7 @@ function ListContent() {
               </Chip>
             ))}
           </Row>
-          <Notice message={modalities.error?.message} />
+          <QueryError query={modalities} />
         </Card>
       ) : null}
       {selectedModality && !showFilters ? (
@@ -183,7 +184,7 @@ function ListContent() {
       {list.isPending ? (
         <Loading />
       ) : list.error ? (
-        <Notice message={list.error.message} />
+        <QueryError query={list} />
       ) : list.data?.items.length ? (
         isWide ? (
           <StudentsTable
@@ -399,12 +400,28 @@ function DetailContent({ id }: { id: string }) {
     return (
       <AcademyShell title="Cadastro">
         <Notice message={error.message} />
+        <Button
+          secondary
+          onPress={() => {
+            void mods.refetch();
+            void plans.refetch();
+            if (id !== "new") void student.refetch();
+          }}
+        >
+          Tentar novamente
+        </Button>
+        <Button secondary onPress={() => router.replace("/students")}>
+          Voltar aos alunos
+        </Button>
       </AcademyShell>
     );
   if (mods.data?.some((m) => typeof m.amount_cents !== "number"))
     return (
       <AcademyShell title="Cadastro do aluno">
         <Notice message="Cadastro por etapas aguardando atualização da API." />
+        <Button secondary onPress={() => router.replace("/students")}>
+          Voltar aos alunos
+        </Button>
       </AcademyShell>
     );
   if (id !== "new" && student.data)

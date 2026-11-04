@@ -1,10 +1,10 @@
+import { QueryError } from "../../components/QueryError";
 import { useState } from "react";
 import { StudentAttendanceOverview } from "./StudentAttendanceOverview";
 import { StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import {
   Badge,
-  Button,
   Card,
   Chip,
   Empty,
@@ -12,7 +12,6 @@ import {
   IconButton,
   Label,
   Loading,
-  Notice,
   Row,
 } from "../../components/ui";
 import { Icon } from "../../components/Icon";
@@ -142,7 +141,7 @@ function PersonalAttendances({
           </Text>
         </View>
       </View>
-      {summary.error ? <Notice message={summary.error.message} /> : null}
+      {summary.error ? <QueryError query={summary} /> : null}
       <Card>
         <View style={s.heading}>
           <View style={{ flex: 1, gap: 4 }}>
@@ -196,10 +195,7 @@ function PersonalAttendances({
           <Loading />
         ) : history.error ? (
           <>
-            <Notice message={history.error.message} />
-            <Button compact secondary onPress={() => void history.refetch()}>
-              Tentar novamente
-            </Button>
+            <QueryError query={history} />
           </>
         ) : (
           <>

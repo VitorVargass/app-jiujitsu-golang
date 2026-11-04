@@ -3,6 +3,8 @@ import { useSession } from "../../services/session";
 import { Page, Loading } from "../../components/ui";
 import { SectionPagesProvider } from "../../features/shared/SectionPagesProvider";
 import { colors } from "../../theme";
+export { ScreenRecovery as ErrorBoundary } from "../../components/RouteRecovery";
+
 export default function Layout() {
   const { ready, session } = useSession();
   if (!ready)

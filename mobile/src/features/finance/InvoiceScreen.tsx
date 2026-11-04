@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { beginInvoiceCheckout } from "../../services/checkout-flow";
 import { openPaymentURL } from "../../services/open-payment";
@@ -174,7 +175,7 @@ export function InvoiceContent({ id }: { id: string }) {
       {invoice.isPending ? (
         <Loading />
       ) : invoice.error ? (
-        <Notice message={invoice.error.message} />
+        <QueryError query={invoice} />
       ) : i ? (
         <View style={[s.layout, isWide && s.desktopLayout]}>
           <Card style={[s.summaryCard, isWide && { flex: 1.4 }]}>

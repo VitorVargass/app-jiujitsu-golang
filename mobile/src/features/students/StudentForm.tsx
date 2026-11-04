@@ -494,6 +494,18 @@ export default function StudentForm({
       }
     >
       <Notice success message={message} />
+      {identity.error ? (
+        <>
+          <Notice message={identity.error} />
+          <Button
+            secondary
+            loading={identity.retrying}
+            onPress={() => void identity.retry()}
+          >
+            Conferir CPF e contatos novamente
+          </Button>
+        </>
+      ) : null}
       {editing ? (
         <FormWizard
           steps={steps}

@@ -4,6 +4,7 @@ import { Page, Loading, Notice, Button } from "../../components/ui";
 import { automaticAccess } from "../../services/access";
 import { useSession } from "../../services/session";
 import { InvoiceContent } from "../finance/InvoiceScreen";
+import { AccessRecovery } from "../../components/AccessRecovery";
 
 export default function PaymentLinkScreen() {
   const { academyId, invoiceId, order_nsu, transaction_nsu, slug } =
@@ -74,12 +75,14 @@ export default function PaymentLinkScreen() {
       <Page title="Mensalidade">
         <Notice message={academiesError.message} />
         <Button onPress={reloadAcademies}>Tentar novamente</Button>
+        <AccessRecovery next={next} />
       </Page>
     );
   if (!target)
     return (
       <Page title="Mensalidade">
         <Notice message="Esta conta não tem acesso à academia desta cobrança. Aceite seu convite ou entre com a conta do aluno." />
+        <AccessRecovery next={next} />
       </Page>
     );
   if (!atTarget)

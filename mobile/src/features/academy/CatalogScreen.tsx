@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
@@ -579,7 +580,7 @@ function Content() {
           {list.isPending ? (
             <Loading />
           ) : list.error ? (
-            <Notice message={list.error.message} />
+            <QueryError query={list} />
           ) : (
             <ResponsiveGrid>
               {list.data?.map((c) => (

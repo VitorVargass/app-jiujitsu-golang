@@ -1,16 +1,15 @@
+import { QueryError } from "../../components/QueryError";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   Badge,
-  Button,
   Card,
   Chip,
   Heading,
   Label,
   Loading,
-  Notice,
   Row,
 } from "../../components/ui";
 import { Pagination } from "../../components/Pagination";
@@ -84,10 +83,7 @@ export function StudentInvoices({
           <Loading />
         ) : invoices.error ? (
           <>
-            <Notice message={invoices.error.message} />
-            <Button secondary compact onPress={() => void invoices.refetch()}>
-              Tentar novamente
-            </Button>
+            <QueryError query={invoices} />
           </>
         ) : (
           <>

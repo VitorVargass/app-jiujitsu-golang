@@ -47,10 +47,18 @@ export async function api<T>(
       body:
         options.body === undefined ? undefined : JSON.stringify(options.body),
     });
+    if (
+      response.status === 401 &&
+      requestToken &&
+      requestToken === token &&
+      !path.startsWith("/v1/auth/")
+    )
+      onUnauthorized?.();
     let data;
     try {
       data = await response.json();
-    } catch {
+    } catch (error) {
+      if (abort.signal.aborted) throw error;
       throw new APIError(
         response.status,
         "invalid_response",
@@ -58,12 +66,6 @@ export async function api<T>(
       );
     }
     if (!response.ok) {
-      if (
-        response.status === 401 &&
-        requestToken === token &&
-        !path.startsWith("/v1/auth/")
-      )
-        onUnauthorized?.();
       throw new APIError(
         response.status,
         data.error?.code || "request_error",
@@ -75,8 +77,10 @@ export async function api<T>(
     if (error instanceof APIError) throw error;
     throw new APIError(
       0,
-      "network_error",
-      "Não foi possível alcançar a API da academia. Confira se o servidor está ligado e se o aparelho está na mesma rede.",
+      abort.signal.aborted ? "request_timeout" : "network_error",
+      abort.signal.aborted
+        ? "A resposta demorou mais que o esperado. Atualize os dados antes de repetir um pagamento ou cadastro."
+        : "Não foi possível conectar ao sistema. Confira sua internet e tente novamente. Se estava pagando ou salvando, atualize os dados antes de repetir.",
     );
   } finally {
     clearTimeout(timer);

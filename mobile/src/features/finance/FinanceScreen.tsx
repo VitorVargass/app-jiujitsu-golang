@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { useStudentScope, StudentSelector } from "../student/useStudentScope";
 import { InvoicesTable } from "./InvoicesTable";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
@@ -14,7 +15,6 @@ import {
   Empty,
   Label,
   Loading,
-  Notice,
   Badge,
 } from "../../components/ui";
 import { Icon } from "../../components/Icon";
@@ -71,7 +71,7 @@ function InvoiceResults({ student }: { student: boolean }) {
         ),
       ),
   });
-  if (student && scope.data && !scope.data.length)
+  if (student && !scope.id)
     return (
       <AcademyShell title="Mensalidades">
         <StudentSelector scope={scope} />
@@ -156,7 +156,7 @@ function InvoiceResults({ student }: { student: boolean }) {
       {invoices.isPending ? (
         <Loading />
       ) : invoices.error ? (
-        <Notice message={invoices.error.message} />
+        <QueryError query={invoices} />
       ) : invoices.data?.items.length ? (
         isWide ? (
           <InvoicesTable items={invoices.data.items} student={student} />

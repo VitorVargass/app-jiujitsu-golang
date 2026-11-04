@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api, academyPath } from "../../services/api";
@@ -8,7 +9,6 @@ import {
   Heading,
   Label,
   Button,
-  Notice,
   Loading,
   Empty,
 } from "../../components/ui";
@@ -38,9 +38,10 @@ function Content({ id }: { id: string }) {
         </Label>
       ) : null}
       <Label muted>Presenças registradas no tablet ou pelo gestor.</Label>
-      <Notice message={records.error?.message} />
       {records.isPending ? (
         <Loading />
+      ) : records.error ? (
+        <QueryError query={records} />
       ) : records.data?.length ? (
         records.data.map((p) => (
           <Card key={p.id}>

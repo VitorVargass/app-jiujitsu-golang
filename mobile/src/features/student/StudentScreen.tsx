@@ -1,3 +1,4 @@
+import { QueryError } from "../../components/QueryError";
 import { useStudentScope, StudentSelector } from "./useStudentScope";
 import { useQuery } from "@tanstack/react-query";
 import { StudentNumberCard } from "./StudentNumberCard";
@@ -25,7 +26,7 @@ export function QRScreen() {
       {scope.id && credential.isPending ? (
         <Loading />
       ) : credential.error ? (
-        <Notice message={credential.error.message} />
+        <QueryError query={credential} />
       ) : credential.data ? (
         <Card
           style={{
