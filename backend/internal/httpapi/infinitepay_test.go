@@ -51,7 +51,8 @@ func TestInfinitePayFlow(t *testing.T) {
 			if e := json.NewDecoder(r.Body).Decode(&payload); e != nil {
 				t.Error(e)
 			}
-			opts := payload["options"].(map[string]any)
+			if !strings.HasPrefix(payload["redirect_url"].(string), "https://tatame.example/pay/") || !strings.HasPrefix(payload["webhook"].(map[string]any)["url"].(string), "https://api.tatame.example/v1/webhooks/infinitepay/") { t.Error("checkout must return to portal and deliver webhooks to API") }
+		opts := payload["options"].(map[string]any)
 			if opts["single_payment"] != true || payload["order_nsu"] == nil || payload["webhook"] == nil {
 				t.Error("incomplete checkout contract")
 			}
@@ -74,7 +75,7 @@ func TestInfinitePayFlow(t *testing.T) {
 	}))
 	defer bank.Close()
 	manager := payments.New(db, nil)
-	manager.Infinite = &payments.InfinitePay{DB: db, Key: bytes.Repeat([]byte{3}, 32), PublicURL: "https://tatame.example", Enabled: true, BaseURL: bank.URL, HTTP: bank.Client()}
+	manager.Infinite = &payments.InfinitePay{DB: db, Key: bytes.Repeat([]byte{3}, 32), PublicURL: "https://tatame.example", APIURL: "https://api.tatame.example", Enabled: true, BaseURL: bank.URL, HTTP: bank.Client()}
 	server := httptest.NewServer(httpapi.NewWithPayments(db, "", manager))
 	defer server.Close()
 	base := client{t: t, url: server.URL}

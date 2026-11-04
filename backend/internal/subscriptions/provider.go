@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"tatame/backend/internal/config"
 	"os"
 	"strings"
 	"time"
@@ -25,10 +26,15 @@ func newProvider(c Config) *Provider {
 		HTTP: &http.Client{Timeout: 12 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }
 func Load(db *pgxpool.Pool) (*Manager, error) {
-	c := Config{Enabled: os.Getenv("TATAMEMIX_BILLING_ENABLED") == "true", APIKey: strings.TrimSpace(os.Getenv("TATAMEMIX_INFINITEPAY_API_KEY")), Handle: strings.TrimPrefix(strings.TrimSpace(os.Getenv("TATAMEMIX_INFINITEPAY_HANDLE")), "$"), PublicURL: strings.TrimRight(os.Getenv("PAYMENTS_PUBLIC_URL"), "/")}
+	c := Config{Enabled: os.Getenv("TATAMEMIX_BILLING_ENABLED") == "true", APIKey: strings.TrimSpace(os.Getenv("TATAMEMIX_INFINITEPAY_API_KEY")), Handle: strings.TrimPrefix(strings.TrimSpace(os.Getenv("TATAMEMIX_INFINITEPAY_HANDLE")), "$")}
+	var originErr error
+	c.PublicURL, c.APIURL, originErr = config.PaymentOrigins()
+	if originErr != nil {
+		return nil, originErr
+	}
 	if c.Enabled {
 		u, e := url.Parse(c.PublicURL)
-		if e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "" || c.APIKey == "" || c.Handle == "" {
+		if e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "" || c.APIURL == "" || c.APIKey == "" || c.Handle == "" {
 			return nil, errors.New("TatameMix billing requires platform API key, handle and public HTTPS origin")
 		}
 	}

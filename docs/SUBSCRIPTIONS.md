@@ -85,3 +85,8 @@ Tabelas: platform_subscriptions, platform_subscription_cycles, platform_subscrip
 Os testes simulam InfinitePay e usam banco isolado: preço, calendário, tolerância, múltiplos gestores, permissões entre academias, concorrência, webhook falso/repetido, resposta perdida, divergência de valor, retomada e cancelamento. O teste controlado real só deve acontecer após configuração e autorização do responsável. Não houve cobrança real nesta entrega.
 
 [Contrato oficial de checkout consultado](https://ajuda.infinitepay.io/pt-BR/articles/10766888-como-usar-o-checkout-integrado-da-infinitepay).
+
+## Frontend e API separados
+
+Use PAYMENTS_PORTAL_URL para retorno ao portal e PAYMENTS_API_URL para webhooks.
+Consulte [configuracao Vercel + Azure](VERCEL-AZURE-PAYMENTS.md) antes de ativar.

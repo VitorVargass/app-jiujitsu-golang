@@ -35,6 +35,8 @@ func TestInfiniteCredentialEncryption(t *testing.T) {
 	}
 }
 func TestInfinitePayConfig(t *testing.T) {
+	t.Setenv("PAYMENTS_PORTAL_URL", "" )
+	t.Setenv("PAYMENTS_API_URL", "" )
 	t.Setenv("INFINITEPAY_ENABLED", "false")
 	t.Setenv("PAYMENTS_MASTER_KEY", "")
 	t.Setenv("PAYMENTS_PUBLIC_URL", "")
@@ -51,6 +53,12 @@ func TestInfinitePayConfig(t *testing.T) {
 	if _, e = LoadInfinitePay(nil); e != nil {
 		t.Fatal(e)
 	}
+	t.Setenv("PAYMENTS_PORTAL_URL", "https://portal.example")
+	t.Setenv("PAYMENTS_API_URL", "https://api.example")
+	p, e = LoadInfinitePay(nil)
+	if e != nil || p.PublicURL != "https://portal.example" || p.APIURL != "https://api.example" { t.Fatal("split origins not loaded", e) }
+	t.Setenv("PAYMENTS_PORTAL_URL", "")
+	t.Setenv("PAYMENTS_API_URL", "")
 	t.Setenv("PAYMENTS_PUBLIC_URL", "http://localhost")
 	if _, e = LoadInfinitePay(nil); e == nil {
 		t.Fatal("insecure public origin accepted")

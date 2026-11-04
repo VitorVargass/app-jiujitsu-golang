@@ -12,8 +12,8 @@ const PriceCents int64 = 45000
 const Grace = 5 * 24 * time.Hour
 
 type Config struct {
-	Enabled                   bool
-	APIKey, Handle, PublicURL string
+	Enabled                         bool
+	APIKey, Handle, PublicURL, APIURL string
 }
 type Manager struct {
 	DB     *pgxpool.Pool
@@ -113,4 +113,11 @@ func disabled() error {
 func (m *Manager) ensure(ctx context.Context, a string) error {
 	_, e := m.DB.Exec(ctx, "INSERT INTO platform_subscriptions(academy_id) VALUES($1) ON CONFLICT DO NOTHING", a)
 	return e
+}
+
+func (c Config) webhookOrigin() string {
+	if c.APIURL != "" {
+		return c.APIURL
+	}
+	return c.PublicURL
 }

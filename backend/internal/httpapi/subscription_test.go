@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"tatame/backend/internal/core"
@@ -49,7 +50,8 @@ func TestPlatformSubscription(t *testing.T) {
 			if e := json.NewDecoder(r.Body).Decode(&in); e != nil {
 				t.Error(e)
 			}
-			items := in["items"].([]any)
+			if !strings.HasPrefix(in["redirect_url"].(string), "https://tatamemix.example/subscription?") || in["webhook"].(map[string]any)["url"] != "https://api.tatamemix.example/v1/webhooks/tatamemix/infinitepay" { t.Error("subscription must return to portal and deliver webhooks to API") }
+		items := in["items"].([]any)
 			price := items[0].(map[string]any)["price"].(float64)
 			if price != 45000 {
 				t.Errorf("price=%v", price)
@@ -70,7 +72,7 @@ func TestPlatformSubscription(t *testing.T) {
 		}
 	}))
 	defer fake.Close()
-	platform := subscriptions.New(db, subscriptions.Config{Enabled: true, APIKey: "platform-test-key", Handle: "tatamemix", PublicURL: "https://tatamemix.example"})
+	platform := subscriptions.New(db, subscriptions.Config{Enabled: true, APIKey: "platform-test-key", Handle: "tatamemix", PublicURL: "https://tatamemix.example", APIURL: "https://api.tatamemix.example"})
 	platform.Bank.BaseURL = fake.URL
 	bank := payments.New(db, nil)
 	bank.Subscriptions = platform

@@ -256,7 +256,7 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 	if e != nil {
 		return CheckoutResult{}, e
 	}
-	input := map[string]any{"order_nsu": c.Reference, "redirect_url": p.PublicURL + "/pay/" + a + "/" + id, "items": []map[string]any{{"quantity": 1, "price": c.Amount, "description": "Mensalidade TatameMix • " + invoice.Competence}}, "options": map[string]any{"single_payment": true, "valid_until": c.Expires.Format(time.RFC3339), "require_delivery_address": false}, "webhook": map[string]any{"url": p.PublicURL + "/v1/webhooks/infinitepay/" + conn.ID, "events": []string{"paid", "refunded", "canceled"}}}
+	input := map[string]any{"order_nsu": c.Reference, "redirect_url": p.PublicURL + "/pay/" + a + "/" + id, "items": []map[string]any{{"quantity": 1, "price": c.Amount, "description": "Mensalidade TatameMix • " + invoice.Competence}}, "options": map[string]any{"single_payment": true, "valid_until": c.Expires.Format(time.RFC3339), "require_delivery_address": false}, "webhook": map[string]any{"url": p.webhookOrigin() + "/v1/webhooks/infinitepay/" + conn.ID, "events": []string{"paid", "refunded", "canceled"}}}
 	if customer != nil {
 		input["customer"] = customer
 	}

@@ -13,8 +13,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"tatame/backend/internal/config"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -23,6 +23,7 @@ type InfinitePay struct {
 	DB        *pgxpool.Pool
 	Key       []byte
 	PublicURL string
+	APIURL    string
 	Enabled   bool
 	BaseURL   string
 	HTTP      *http.Client
@@ -38,16 +39,14 @@ func LoadInfinitePay(db *pgxpool.Pool) (*InfinitePay, error) {
 			return nil, errors.New("PAYMENTS_MASTER_KEY must be a base64-encoded 32-byte key")
 		}
 	}
-	p.PublicURL = strings.TrimRight(os.Getenv("PAYMENTS_PUBLIC_URL"), "/")
-	if p.PublicURL != "" {
-		u, e := url.Parse(p.PublicURL)
-		if e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
-			return nil, errors.New("PAYMENTS_PUBLIC_URL must be a public HTTPS origin")
-		}
+	var originErr error
+	p.PublicURL, p.APIURL, originErr = config.PaymentOrigins()
+	if originErr != nil {
+		return nil, originErr
 	}
 	p.Enabled = os.Getenv("INFINITEPAY_ENABLED") == "true"
-	if p.Enabled && (len(p.Key) != 32 || p.PublicURL == "") {
-		return nil, errors.New("InfinitePay requires PAYMENTS_MASTER_KEY and PAYMENTS_PUBLIC_URL")
+	if p.Enabled && (len(p.Key) != 32 || p.PublicURL == "" || p.APIURL == "") {
+		return nil, errors.New("InfinitePay requires PAYMENTS_MASTER_KEY, PAYMENTS_PORTAL_URL and PAYMENTS_API_URL (or PAYMENTS_PUBLIC_URL fallback)")
 	}
 	return p, nil
 }
@@ -115,4 +114,11 @@ func (e *InfiniteHTTPError) Error() string { return "payment provider rejected r
 func validCheckoutURL(raw string) bool {
 	u, e := url.Parse(raw)
 	return e == nil && u.Scheme == "https" && u.User == nil && u.Host == "checkout.infinitepay.io" && u.Fragment == ""
+}
+
+func (p *InfinitePay) webhookOrigin() string {
+	if p.APIURL != "" {
+		return p.APIURL
+	}
+	return p.PublicURL
 }

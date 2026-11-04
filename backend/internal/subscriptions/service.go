@@ -168,7 +168,7 @@ func (m *Manager) Checkout(ctx context.Context, a, id string) (Checkout, error) 
 		"redirect_url": m.Config.PublicURL + "/subscription?academy_id=" + a,
 		"items":        []map[string]any{{"quantity": 1, "price": PriceCents, "description": "Assinatura TatameMix — mensal"}},
 		"options":      map[string]any{"single_payment": true, "valid_until": c.Expires.Format(time.RFC3339), "require_delivery_address": false, "payment_methods_enabled": []string{"pix", "credit_card"}},
-		"webhook":      map[string]any{"url": m.Config.PublicURL + "/v1/webhooks/tatamemix/infinitepay", "events": []string{"paid", "refunded", "canceled"}},
+		"webhook":      map[string]any{"url": m.Config.webhookOrigin() + "/v1/webhooks/tatamemix/infinitepay", "events": []string{"paid", "refunded", "canceled"}},
 	}
 	if name != "" || email != "" {
 		input["customer"] = map[string]string{"name": name, "email": email}

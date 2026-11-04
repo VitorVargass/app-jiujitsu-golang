@@ -70,3 +70,8 @@ A API pública consultada não documenta cancelamento/inutilização de checkout
 ## Interface simplificada de pagamento
 
 A interface de gerenciamento e a confirmacao manual de inutilizacao de checkout foram removidas. A mensalidade conserva Pagar/Continuar pagamento e Copiar link. Descontos devem ser definidos antes da emissao; links emitidos mantem o valor original e nao sao substituidos automaticamente. As rotas e os registros anteriores de conferencia permanecem por compatibilidade e auditoria. Esta orientacao substitui as instrucoes anteriores de acessar Gerenciar checkout.
+
+## Frontend e API em hospedagens separadas
+
+Use PAYMENTS_PORTAL_URL para retorno ao frontend e PAYMENTS_API_URL para webhooks.
+Ambas prevalecem sobre PAYMENTS_PUBLIC_URL. Consulte [Vercel + Azure](VERCEL-AZURE-PAYMENTS.md).
