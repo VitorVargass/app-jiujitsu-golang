@@ -28,7 +28,7 @@ Notificacoes repetidas nao duplicam recibos. Valor divergente, transacao reutili
 
 A Central de Ajuda atual documenta API Key, options e webhook como objeto; a pagina interativa antiga ainda apresenta handle e webhook_url. Foi adotado o contrato atual da Central de Ajuda. Validar formato real da resposta /links (URL), dominio checkout.infinitepay.io, payload do webhook e semantica de payment_check numa conta autorizada antes de liberar alunos. Nao existe sandbox presumido, e nao foi criado checkout real durante o desenvolvimento.
 
-A documentacao consultada nao define API de invalidacao de link, busca sem transaction_nsu/slug ou consulta conclusiva de estorno. Por isso, checkout emitido/ambiguo bloqueia desconto, cancelamento, baixa manual e reemissao, inclusive apos expirar. A interface nao oferece botao que apenas declare o link cancelado. Resolver esses casos exige conferencia e um procedimento bancario comprovavel antes de qualquer correcao; nao ha desbloqueio automatico nesta versao. Suspender ou trocar a conexao nao inutiliza links anteriores.
+A API nao permite cancelar links ou buscar pagamento somente por order_nsu. Uma emissao concluida (ready) com options.valid_until vencido pode ser substituida por solicitacao explicita do usuario: arquivamos a tentativa e criamos nova referencia e validade. Transacoes conhecidas e webhooks pendentes sao conferidos antes; falhas e pagamentos pendentes impedem outra emissao. Emissoes incertas e casos em review continuam exigindo conferencia. Expiracao nao autoriza desconto, baixa manual ou cancelamento da mensalidade. Notificacoes tardias do link substituido sao preservadas para revisao.
 
 Cobranças Asaas existentes mantem o fluxo antigo; as tentativas InfinitePay nao sao convertidas nem os historicos reescritos.
 
@@ -56,7 +56,7 @@ A opção **Registrar pagamento recebido por fora** fica no menu de três pontos
 
 ## Retomar pagamento e alterar mensalidade após checkout emitido
 
-A mensalidade exibe o link emitido, com Continuar pagamento e Copiar link. Reabrir a tela ou copiar não emite outro checkout. Se a validade local terminou, o endereço original continua disponível para consulta, com aviso de que o provedor determina se ainda aceita pagamento. Não há promessa de reemissão automática.
+A mensalidade exibe Continuar pagamento e Copiar link somente enquanto o checkout esta utilizavel. Depois da validade, o link deixa de ser oferecido e aparece Gerar novo link. A nova emissao acontece somente ao clicar, nunca ao consultar a mensalidade. O historico registra a substituicao pelo Sistema, mantendo a referencia antiga para notificacoes tardias.
 
 Em Mais ações → Gerenciar checkout, gestores consultam URLs e referências antigas. Antes de alterar desconto, cancelar ou registrar recebimento externo, devem conferir no provedor que não houve pagamento e que o link antigo foi inutilizado. A ação Registrar conferência exige confirmação explícita e evidência/protocolo de 10 a 500 caracteres. Ela não cancela um link na InfinitePay. Se o painel não permitir inutilizar, é necessário confirmar com o suporte do provedor; não marque a confirmação apenas porque não houve pagamento.
 

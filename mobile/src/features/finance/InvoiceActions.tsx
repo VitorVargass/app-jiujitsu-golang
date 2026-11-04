@@ -153,7 +153,7 @@ export function InvoiceActions({
           {openInvoice ? (
             <Button icon="wallet" loading={paymentPending} onPress={onPay}>
               {invoice.payment_checkout && checkoutExpired(invoice.payment_checkout)
-                ? "Link expirado · conferir"
+                ? "Gerar novo link"
                 : invoice.payment_checkout?.status === "review"
                   ? "Conferir pagamento"
                   : invoice.payment_checkout?.url

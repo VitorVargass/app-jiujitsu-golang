@@ -45,6 +45,14 @@ test("Pagar pede um checkout e abre a InfinitePay sem registrar baixa manual", a
   assert.deepEqual(calls, ["checkout", result.url]);
   assert.equal(result.status, "waiting");
 });
+
+test("renovação abre apenas o novo link devolvido pela API", async () => {
+  const opened = [];
+  const renewed = { status: "waiting", amount_cents: 1000,
+    url: "https://checkout.infinitepay.io/new", expires_at: "2099-01-01T00:00:00Z" };
+  assert.equal(await beginInvoiceCheckout(async () => renewed, async (url) => opened.push(url)), renewed);
+  assert.deepEqual(opened, [renewed.url]);
+});
 test("estados de conferência e pago não abrem outro checkout", async () => {
   for (const status of ["paid", "review"]) {
     let opened = false;

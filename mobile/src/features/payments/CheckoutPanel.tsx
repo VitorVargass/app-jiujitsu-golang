@@ -6,7 +6,11 @@ import { Button, Label, Loading, Notice, Row } from "../../components/ui";
 import { api, academyPath } from "../../services/api";
 import { queryClient } from "../../services/session";
 import { openPaymentURL } from "../../services/open-payment";
-import { checkoutExpired, checkoutURL } from "../../services/checkout-flow";
+import {
+  beginInvoiceCheckout,
+  checkoutExpired,
+  checkoutURL,
+} from "../../services/checkout-flow";
 import { Checkout, money } from "../../types/billing";
 import { colors } from "../../theme";
 
@@ -28,10 +32,18 @@ export function CheckoutPanel({
     });
   const checkout = useMutation({
     mutationFn: () =>
-      api<Checkout>(
-        academyPath(academyId, "/invoices/" + invoiceId + "/checkout"),
-        { method: "POST" },
+      beginInvoiceCheckout(
+        () =>
+          api<Checkout>(
+            academyPath(academyId, "/invoices/" + invoiceId + "/checkout"),
+            { method: "POST" },
+          ),
+        openPaymentURL,
       ),
+    onMutate: () => {
+      check.reset();
+      setCopied(false);
+    },
     onSuccess: refresh,
   });
   const check = useMutation({
@@ -79,7 +91,7 @@ export function CheckoutPanel({
       ) : (
         <>
           {expired ? (
-            <Notice message="Este link expirou e não pode ser usado para pagar. Confira o pagamento antes de solicitar uma nova emissão à academia." />
+            <Notice message="Este link expirou. Gere um novo link para continuar. Se houver uma transação pendente, ela será conferida antes de outra emissão." />
           ) : result?.status === "review" ? (
             <Notice
               message={
@@ -88,7 +100,7 @@ export function CheckoutPanel({
               }
             />
           ) : null}
-          {result?.url && !expired ? (
+          {result?.url && !expired && result.status === "waiting" ? (
             <>
               <Label>
                 {inline
@@ -148,14 +160,21 @@ export function CheckoutPanel({
               Conferir pagamento
             </Button>
           ) : null}
-          {!result || result.retryable || checkout.error ? (
+          {!result ||
+          result.retryable ||
+          checkout.error ||
+          (expired && result.status === "waiting") ? (
             <Button
               compact
               secondary
               loading={checkout.isPending}
               onPress={() => checkout.mutate()}
             >
-              {result ? "Tentar emitir novamente" : "Gerar link de pagamento"}
+              {expired
+                ? "Gerar novo link"
+                : result
+                  ? "Tentar emitir novamente"
+                  : "Gerar link de pagamento"}
             </Button>
           ) : null}
         </>

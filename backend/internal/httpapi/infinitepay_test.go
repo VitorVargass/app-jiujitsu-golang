@@ -256,19 +256,30 @@ func TestInfinitePayFlow(t *testing.T) {
 	if creates.Load()-before > 1 {
 		t.Fatal("concurrent issuance duplicated")
 	}
-	// Expiry is not treated as proof of cancellation.
+	// Explicit renewal replaces a successfully issued, expired link and keeps history.
+	oldAttempt := owner.ok("GET", prefix+"/invoices/"+id4, nil)["payment_checkout"].(map[string]any)["id"].(string)
+	var oldReference string
+	if e = db.QueryRow(ctx, "SELECT reference FROM checkout_attempts WHERE id=$1", oldAttempt).Scan(&oldReference); e != nil { t.Fatal(e) }
 	_, e = db.Exec(ctx, "UPDATE checkout_attempts SET expires_at=now()-interval '1 day' WHERE invoice_id=$1", id4)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if result = owner.ok("POST", prefix+"/invoices/"+id4+"/checkout", nil); result["status"] != "review" {
-		t.Fatal("expired link reissued")
-	}
-	// Recover the same stored link, without emitting another charge, including after local expiry.
+	if e != nil { t.Fatal(e) }
 	expired := owner.ok("GET", prefix+"/invoices/"+id4, nil)["payment_checkout"].(map[string]any)
-	if expired["url"] != "https://checkout.infinitepay.io/test-fixture" || expired["expired"] != true {
-		t.Fatal("Stored link hidden after expiry", expired)
-	}
+	if expired["url"] != nil || expired["expired"] != true || expired["retryable"] != true { t.Fatal("expired link should offer renewal without exposing old URL", expired) }
+	before = creates.Load()
+	renewed := studentClient.ok("POST", prefix+"/invoices/"+id4+"/checkout", nil)
+	if renewed["status"] != "waiting" || renewed["id"] == oldAttempt || creates.Load() != before+1 { t.Fatal("expired link was not replaced", renewed) }
+	var newReference string
+	if e = db.QueryRow(ctx, "SELECT reference FROM checkout_attempts WHERE id=$1", renewed["id"]).Scan(&newReference); e != nil || newReference == oldReference { t.Fatal("reference reused", e) }
+	owner.ok("POST", prefix+"/invoices/"+id4+"/checkout", nil)
+	if creates.Load() != before+1 { t.Fatal("renewal duplicated on retry") }
+	var retained bool
+	if e = db.QueryRow(ctx, "SELECT retired_at IS NOT NULL FROM checkout_attempts WHERE id=$1", oldAttempt).Scan(&retained); e != nil || !retained { t.Fatal("old checkout history lost", e) }
+	// A known pending transaction is checked, never silently replaced.
+	paid.Store(false)
+	amount.Store(18000)
+	_, e = db.Exec(ctx, "UPDATE checkout_attempts SET expires_at=now()-interval '1 day',transaction_nsu='pending-test',slug='pending-slug' WHERE id=$1", renewed["id"])
+	if e != nil { t.Fatal(e) }
+	if code, _ := owner.request("POST", prefix+"/invoices/"+id4+"/checkout", nil, ""); code != 409 { t.Fatal("pending transaction replaced", code) }
+	if creates.Load() != before+1 { t.Fatal("pending transaction generated another link") }
 	amount.Store(18000)
 	paid.Store(false)
 	id5 := newInvoice()

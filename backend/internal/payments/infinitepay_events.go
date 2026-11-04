@@ -82,7 +82,11 @@ func (m *Manager) checkInfinite(ctx context.Context, c checkoutAttempt, event In
 		return e
 	}
 	if retired {
-		return m.reviewInfinite(ctx, c, "Pagamento recebido em checkout substituído após conferência manual. Confira o valor recebido antes de registrar a baixa; a mensalidade atual foi preservada.")
+		// A late settlement is retained for review; stop offering the replacement.
+		if _, err := p.DB.Exec(ctx, `UPDATE checkout_attempts SET state='review',review_reason='Recebimento em link anterior. Confira com a academia antes de continuar o pagamento.',updated_at=now() WHERE academy_id=$1 AND invoice_id=$2 AND retired_at IS NULL AND state<>'paid'`, c.Academy, c.Invoice); err != nil {
+			return err
+		}
+		return m.reviewInfinite(ctx, c, "Pagamento recebido em checkout substituído. Confira o valor recebido antes de registrar a baixa; a mensalidade atual foi preservada.")
 	}
 	tx, e := p.DB.Begin(ctx)
 	if e != nil {

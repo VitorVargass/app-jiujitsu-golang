@@ -90,7 +90,7 @@ func TestInfinitePaySafeHTTP(t *testing.T) {
 func TestCheckoutRecoveryResult(t *testing.T) {
 	c := checkoutAttempt{ID: "test", State: "ready", URL: "https://checkout.infinitepay.io/original", Amount: 18000, Expires: time.Now().Add(-time.Hour)}
 	v := c.result()
-	if v.Status != "review" || v.URL != "" || !v.Expired || v.Retryable {
+	if v.Status != "review" || v.URL != "" || !v.Expired || !v.Retryable {
 		t.Fatal(v)
 	}
 	c.State = "paid"
@@ -99,7 +99,25 @@ func TestCheckoutRecoveryResult(t *testing.T) {
 	}
 	c.State = "uncertain"
 	c.URL = ""
-	if v = c.result(); v.URL != "" || v.Status != "review" {
+	if v = c.result(); v.URL != "" || v.Status != "review" || v.Retryable {
 		t.Fatal(v)
+	}
+}
+
+func TestCheckoutRenewalEligibility(t *testing.T) {
+	c := checkoutAttempt{State: "ready", URL: "https://checkout.infinitepay.io/test", Expires: time.Now().Add(-time.Hour)}
+	if !c.renewable() {
+		t.Fatal("issued link with elapsed validity must allow renewal")
+	}
+	for _, state := range []string{"creating", "uncertain", "review", "paid"} {
+		c.State = state
+		if c.renewable() {
+			t.Fatalf("unsafe renewal in state %s", state)
+		}
+	}
+	c.State = "ready"
+	c.Expires = time.Now().Add(time.Hour)
+	if c.renewable() {
+		t.Fatal("unexpired link must be reused")
 	}
 }
