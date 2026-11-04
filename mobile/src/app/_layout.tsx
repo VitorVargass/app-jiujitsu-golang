@@ -16,7 +16,7 @@ const fonts = {
 export default function Layout() {
   const [loaded, error] = useFonts(fonts);
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={{ flex: 1, backgroundColor: brand.background }}>
       <PlatformStyles />
       <Head>
         <title>{brand.name}</title>
@@ -34,7 +34,7 @@ export default function Layout() {
                 headerShown: false,
                 gestureEnabled: false,
                 animation: "none",
-                contentStyle: { backgroundColor: "#0F0F10" },
+                contentStyle: { backgroundColor: brand.background },
               }}
             />
           </SessionProvider>

@@ -2,6 +2,7 @@ import { Redirect, Stack, useLocalSearchParams, Href } from "expo-router";
 import { useSession } from "../../services/session";
 import { safeNext } from "../../services/links";
 import { Loading, Page } from "../../components/ui";
+import { colors } from "../../theme";
 
 export default function Layout() {
   const { ready, session } = useSession();
@@ -25,6 +26,7 @@ export default function Layout() {
         headerShown: false,
         gestureEnabled: false,
         animation: "none",
+        contentStyle: { backgroundColor: colors.background },
       }}
     />
   );
