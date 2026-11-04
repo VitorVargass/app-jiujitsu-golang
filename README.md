@@ -4,7 +4,7 @@ API Go, PostgreSQL e aplicativo React Native/Expo com portal web do aluno. Esta 
 
 ## Assinatura do software
 
-O gestor acessa **Mais → Assinatura TatameMix** para pagar R$ 450/mês por academia, sem descontos. A cobrança usa a conta InfinitePay da TatameMix, separada das mensalidades dos alunos. Consulte [configuração e regras da assinatura](docs/SUBSCRIPTIONS.md) antes de habilitar TATAMEMIX_BILLING_ENABLED. Por padrão, a cobrança e a restrição ficam desativadas. Esta versão usa pagamento mensal por Pix/cartão no checkout, sem débito automático.
+O gestor acessa **Mais → Minha assinatura** para consultar seu plano automático: até 200 alunos ativos, R$ 150/mês; de 201 a 999, R$ 250/mês; a partir de 1.000, R$ 450/mês. A cobrança usa a conta InfinitePay da TatameMix, separada das mensalidades dos alunos. Consulte [configuração e regras da assinatura](docs/SUBSCRIPTIONS.md) antes de habilitar TATAMEMIX_BILLING_ENABLED. Por padrão, a cobrança e a restrição ficam desativadas. Esta versão usa pagamento mensal por Pix/cartão no checkout, sem débito automático.
 
 ## Produção no Azure e estudo do código
 

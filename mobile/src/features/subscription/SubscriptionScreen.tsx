@@ -28,6 +28,7 @@ import {
   SubscriptionCycle,
   subscriptionDate,
   subscriptionLabel,
+  planRange,
 } from "./types";
 
 function Content({
@@ -110,7 +111,7 @@ function Content({
   const checkout = result || v?.checkout;
   return (
     <AcademyShell
-      title="Assinatura TatameMix"
+      title="Minha assinatura"
       subtitle="Seu acesso ao sistema · separado das mensalidades dos alunos"
       swipeEnabled={false}
     >
@@ -127,8 +128,30 @@ function Content({
         <>
           <ResponsiveGrid>
             <Card>
-              <Label>PLANO MENSAL</Label>
+              <Label muted>Enquadramento atual</Label>
+              <Label>{v.plan?.name ?? "PLANO MENSAL"}</Label>
               <Heading>{money(v.amount_cents)} / mês</Heading>
+              {v.active_students !== undefined ? (
+                <Label>
+                  {v.active_students.toLocaleString("pt-BR")} alunos ativos e
+                  não arquivados
+                </Label>
+              ) : null}
+              {v.plan ? <Label muted>{planRange(v.plan)}</Label> : null}
+              {v.cycle && v.cycle.amount_cents !== v.amount_cents ? (
+                <Notice
+                  message={`A cobrança deste período permanece em ${money(v.cycle.amount_cents)} porque já teve uma emissão. O novo enquadramento será considerado no próximo período sem checkout emitido.`}
+                />
+              ) : null}
+              {v.plan?.max_students &&
+              v.active_students !== undefined &&
+              v.active_students >= Math.ceil(v.plan.max_students * 0.9) ? (
+                <Label>
+                  Você está próximo da próxima faixa. O valor é recalculado
+                  antes da emissão de uma nova cobrança, sem alterar o período
+                  pago.
+                </Label>
+              ) : null}
               <Label>{subscriptionLabel[v.status]}</Label>
               <Label>
                 {v.status === "active" ? "Acesso pago até " : "Vencimento: "}
@@ -199,9 +222,7 @@ function Content({
                       >
                         {v.checkout?.url
                           ? "Continuar pagamento"
-                          : v.status === "active"
-                            ? "Renovar por R$ 450"
-                            : "Pagar R$ 450"}
+                          : `${v.status === "active" ? "Renovar por" : "Pagar"} ${money(v.cycle.amount_cents)}`}
                       </Button>
                     ) : null}
                     {v.checkout?.id ? (
@@ -232,6 +253,24 @@ function Content({
             </Card>
           </ResponsiveGrid>
           <Card>
+            <Heading>Planos TatameMix</Heading>
+            <Label muted>
+              Mesmas funcionalidades. A faixa considera somente alunos ativos,
+              sem contar alunos arquivados ou acessos sem matrícula. Mudanças
+              não alteram pagamentos e links já emitidos.
+            </Label>
+            {(v.plans ?? []).map((plan) => (
+              <View key={plan.id} style={{ gap: 6, paddingVertical: 12 }}>
+                <Heading>
+                  {plan.name}
+                  {v.plan?.id === plan.id ? " · Seu enquadramento" : ""}
+                </Heading>
+                <Label>{planRange(plan)}</Label>
+                <Label>{money(plan.amount_cents)} / mês</Label>
+              </View>
+            ))}
+          </Card>
+          <Card>
             <Heading>Histórico da assinatura</Heading>
             {history.isPending ? (
               <Loading />
@@ -256,6 +295,15 @@ function Content({
                         </Label>
                         <Heading>{money(c.amount_cents)}</Heading>
                       </Row>
+                      {c.plan_id ? (
+                        <Label muted>
+                          {v.plans?.find((plan) => plan.id === c.plan_id)
+                            ?.name ?? "Plano anterior"}
+                          {c.active_students != null
+                            ? ` · ${c.active_students.toLocaleString("pt-BR")} alunos ativos na emissão`
+                            : ""}
+                        </Label>
+                      ) : null}
                       <Label>
                         {c.state === "paid"
                           ? "Pago em " + subscriptionDate(c.paid_at)

@@ -5,6 +5,7 @@ import { api, academyPath } from "../../services/api";
 import { useSession } from "../../services/session";
 import type { Subscription } from "./types";
 import { subscriptionDate } from "./types";
+import { money } from "../../types/billing";
 export function SubscriptionNotice() {
   const { academy, role, session } = useSession();
   const path = usePathname();
@@ -33,12 +34,12 @@ export function SubscriptionNotice() {
             "."
           : v.restricted
             ? "Assinatura TatameMix pendente. Novas operações estão restritas; consultas e pagamentos continuam disponíveis."
-            : "Assinatura TatameMix: R$ 450/mês. Regularize até " +
+            : `Assinatura TatameMix: ${money(v.cycle?.amount_cents ?? v.amount_cents)}/mês. Regularize até ` +
               subscriptionDate(v.grace_until) +
               " para manter todas as operações."}
       </Label>
       <Button compact onPress={() => router.push("/subscription" as Href)}>
-        Ver assinatura e pagar
+        Minha assinatura e pagamento
       </Button>
     </Card>
   );

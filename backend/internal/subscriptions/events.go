@@ -68,7 +68,7 @@ func (m *Manager) verify(ctx context.Context, c attempt, event Event) error {
 	if !out.Success {
 		return core.E(409, "subscription_payment_waiting", "Pagamento ainda não confirmado.")
 	}
-	if out.Amount != PriceCents {
+	if out.Amount != c.Amount {
 		return m.review(ctx, c, "Valor divergente. O pagamento exige conferência.")
 	}
 	if !out.Paid {
@@ -81,7 +81,7 @@ func (m *Manager) verify(ctx context.Context, c attempt, event Event) error {
 		}
 		return core.E(409, "subscription_payment_waiting", "Pagamento ainda não confirmado.")
 	}
-	if out.PaidAmount < PriceCents || (out.Method != "pix" && out.Method != "credit_card") {
+	if out.PaidAmount < c.Amount || (out.Method != "pix" && out.Method != "credit_card") {
 		return m.review(ctx, c, "Valor recebido ou meio de pagamento divergente.")
 	}
 	// The untrusted event name cannot revoke or confirm payment; only provider response is proof.
@@ -96,8 +96,13 @@ func (m *Manager) verify(ctx context.Context, c attempt, event Event) error {
 		return e
 	}
 	var state string
-	if e = tx.QueryRow(ctx, "SELECT state FROM platform_subscription_cycles WHERE academy_id=$1 AND id=$2 FOR UPDATE", c.Academy, c.Cycle).Scan(&state); e != nil {
+	var cycleAmount int64
+	if e = tx.QueryRow(ctx, "SELECT state,amount_cents FROM platform_subscription_cycles WHERE academy_id=$1 AND id=$2 FOR UPDATE", c.Academy, c.Cycle).Scan(&state, &cycleAmount); e != nil {
 		return e
+	}
+	if cycleAmount != c.Amount {
+		tx.Rollback(ctx)
+		return m.review(ctx, c, "O valor do período diverge do checkout emitido. Confira esta cobrança.")
 	}
 	var oldAttempt string
 	e = tx.QueryRow(ctx, "SELECT attempt_id FROM platform_subscription_receipts WHERE transaction_nsu=$1", event.Transaction).Scan(&oldAttempt)
@@ -122,7 +127,7 @@ func (m *Manager) verify(ctx context.Context, c attempt, event Event) error {
 		billingDay = now.Day()
 	}
 	end := nextMonthOn(start, billingDay)
-	if _, e = tx.Exec(ctx, "INSERT INTO platform_subscription_receipts(transaction_nsu,attempt_id,cycle_id,amount_cents,capture_method) VALUES($1,$2,$3,$4,$5)", event.Transaction, c.ID, c.Cycle, PriceCents, out.Method); e != nil {
+	if _, e = tx.Exec(ctx, "INSERT INTO platform_subscription_receipts(transaction_nsu,attempt_id,cycle_id,amount_cents,capture_method) VALUES($1,$2,$3,$4,$5)", event.Transaction, c.ID, c.Cycle, c.Amount, out.Method); e != nil {
 		return e
 	}
 	if _, e = tx.Exec(ctx, "UPDATE platform_subscription_cycles SET state='paid',period_start=$2,period_end=$3,paid_at=$4 WHERE id=$1", c.Cycle, start, end, now); e != nil {

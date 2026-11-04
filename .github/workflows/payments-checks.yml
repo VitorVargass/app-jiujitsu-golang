@@ -44,4 +44,4 @@ jobs:
       - name: Testar pagamentos e assinatura com banco descartavel
         env:
           TEST_DATABASE_URL: postgres://test:isolated-test-only@localhost:5432/payments_test?sslmode=disable
-        run: go test ./internal/httpapi -run 'TestInfinitePayFlow|TestPlatformSubscription' -count=1
+        run: go test -p 1 ./internal/subscriptions ./internal/httpapi -run 'TestSubscriptionPlanDatabase|TestInfinitePayFlow|TestPlatformSubscription' -count=1

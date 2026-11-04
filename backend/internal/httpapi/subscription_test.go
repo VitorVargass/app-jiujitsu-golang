@@ -35,7 +35,7 @@ func TestPlatformSubscription(t *testing.T) {
 	var paid atomic.Bool
 	var failLink atomic.Bool
 	var amount atomic.Int64
-	amount.Store(45000)
+	amount.Store(15000)
 	fake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-Api-Key") != "platform-test-key" {
 			t.Error("Academy credential used for platform billing")
@@ -50,10 +50,12 @@ func TestPlatformSubscription(t *testing.T) {
 			if e := json.NewDecoder(r.Body).Decode(&in); e != nil {
 				t.Error(e)
 			}
-			if !strings.HasPrefix(in["redirect_url"].(string), "https://tatamemix.example/subscription?") || in["webhook"].(map[string]any)["url"] != "https://api.tatamemix.example/v1/webhooks/tatamemix/infinitepay" { t.Error("subscription must return to portal and deliver webhooks to API") }
-		items := in["items"].([]any)
+			if !strings.HasPrefix(in["redirect_url"].(string), "https://tatamemix.example/subscription?") || in["webhook"].(map[string]any)["url"] != "https://api.tatamemix.example/v1/webhooks/tatamemix/infinitepay" {
+				t.Error("subscription must return to portal and deliver webhooks to API")
+			}
+			items := in["items"].([]any)
 			price := items[0].(map[string]any)["price"].(float64)
-			if price != 45000 {
+			if price != 15000 {
 				t.Errorf("price=%v", price)
 			}
 			options := in["options"].(map[string]any)
@@ -90,7 +92,7 @@ func TestPlatformSubscription(t *testing.T) {
 	a := academy["id"].(string)
 	base := "/v1/academies/" + a
 	status := owner.ok("GET", base+"/subscription", nil)
-	if links.Load() != 0 || status["amount_cents"] != float64(45000) || status["status"] != "grace" {
+	if links.Load() != 0 || status["amount_cents"] != float64(15000) || status["status"] != "grace" {
 		t.Fatal(status, links.Load())
 	}
 	cycle := status["cycle"].(map[string]any)["id"].(string)

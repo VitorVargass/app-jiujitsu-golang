@@ -1,6 +1,8 @@
 import type { Checkout } from "../../types/billing";
 export type SubscriptionCheckout = Checkout & { retryable?: boolean };
 export type SubscriptionCycle = {
+  plan_id?: string;
+  active_students?: number | null;
   checkout_state?: string;
   review_reason?: string;
   id: string;
@@ -11,6 +13,9 @@ export type SubscriptionCycle = {
   paid_at: string | null;
 };
 export type Subscription = {
+  plan?: SubscriptionPlan;
+  plans?: SubscriptionPlan[];
+  active_students?: number;
   enabled: boolean;
   renewal_soon: boolean;
   amount_cents: number;
@@ -22,6 +27,21 @@ export type Subscription = {
   cycle: SubscriptionCycle | null;
   checkout?: SubscriptionCheckout;
 };
+export type SubscriptionPlan = {
+  id: string;
+  name: string;
+  min_students: number;
+  max_students: number | null;
+  amount_cents: number;
+};
+
+export function planRange(plan: SubscriptionPlan) {
+  return plan.max_students === null
+    ? `A partir de ${plan.min_students.toLocaleString("pt-BR")} alunos ativos`
+    : plan.min_students === 0
+      ? `Até ${plan.max_students} alunos ativos`
+      : `De ${plan.min_students} a ${plan.max_students} alunos ativos`;
+}
 export const subscriptionLabel: Record<Subscription["status"], string> = {
   disabled: "Cobrança ainda não ativada",
   active: "Assinatura ativa",

@@ -25,7 +25,8 @@ caminho, query ou credenciais. Nao use a URL da InfinitePay nesses campos.
 - TATAMEMIX_INFINITEPAY_HANDLE: InfiniteTag da TatameMix, sem o cifrao.
 - TATAMEMIX_BILLING_ENABLED=true: habilita assinatura e regras de acesso.
 
-A assinatura implementada custa R$ 450/mes por academia (nao R$ 250), com
+A assinatura usa alunos ativos nao arquivados: ate 200 custa R$ 150/mes;
+de 201 a 999, R$ 250/mes; a partir de 1.000, R$ 450/mes, com
 pagamento mensal iniciado pelo gestor, sem debito automatico. Ao ativar,
 academias passam a ter vencimento inicial e cinco dias de tolerancia conforme
 docs/SUBSCRIPTIONS.md. Nao confunda a conta da plataforma com as academias.

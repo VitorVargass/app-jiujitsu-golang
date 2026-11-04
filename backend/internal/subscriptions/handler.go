@@ -162,7 +162,7 @@ func (m *Manager) Gate(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if v.Restricted {
-			core.Fail(w, core.E(402, "subscription_required", "Assinatura TatameMix pendente. O gestor pode regularizar em Mais → Assinatura TatameMix. Consultas continuam disponíveis."))
+			core.Fail(w, core.E(402, "subscription_required", "Assinatura TatameMix pendente. O gestor pode regularizar em Mais → Minha assinatura. Consultas continuam disponíveis."))
 			return
 		}
 		next(w, r)

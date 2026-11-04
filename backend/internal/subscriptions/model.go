@@ -8,11 +8,10 @@ import (
 	"time"
 )
 
-const PriceCents int64 = 45000
 const Grace = 5 * 24 * time.Hour
 
 type Config struct {
-	Enabled                         bool
+	Enabled                           bool
 	APIKey, Handle, PublicURL, APIURL string
 }
 type Manager struct {
@@ -27,27 +26,32 @@ func New(db *pgxpool.Pool, cfg Config) *Manager {
 }
 
 type Cycle struct {
-	CheckoutState string     `json:"checkout_state,omitempty"`
-	ReviewReason  string     `json:"review_reason,omitempty"`
-	ID            string     `json:"id"`
-	Academy       string     `json:"-"`
-	Start         time.Time  `json:"period_start"`
-	End           time.Time  `json:"period_end"`
-	Amount        int64      `json:"amount_cents"`
-	State         string     `json:"state"`
-	PaidAt        *time.Time `json:"paid_at"`
+	Plan           string     `json:"plan_id"`
+	ActiveStudents *int       `json:"active_students"`
+	CheckoutState  string     `json:"checkout_state,omitempty"`
+	ReviewReason   string     `json:"review_reason,omitempty"`
+	ID             string     `json:"id"`
+	Academy        string     `json:"-"`
+	Start          time.Time  `json:"period_start"`
+	End            time.Time  `json:"period_end"`
+	Amount         int64      `json:"amount_cents"`
+	State          string     `json:"state"`
+	PaidAt         *time.Time `json:"paid_at"`
 }
 type Status struct {
-	RenewalSoon bool       `json:"renewal_soon"`
-	Enabled     bool       `json:"enabled"`
-	Price       int64      `json:"amount_cents"`
-	State       string     `json:"status"`
-	Restricted  bool       `json:"restricted"`
-	Renewal     bool       `json:"renewal_enabled"`
-	PaidUntil   *time.Time `json:"paid_until"`
-	GraceUntil  *time.Time `json:"grace_until"`
-	Cycle       *Cycle     `json:"cycle"`
-	Checkout    *Checkout  `json:"checkout,omitempty"`
+	Plan           Plan       `json:"plan"`
+	Plans          []Plan     `json:"plans"`
+	ActiveStudents int        `json:"active_students"`
+	RenewalSoon    bool       `json:"renewal_soon"`
+	Enabled        bool       `json:"enabled"`
+	Price          int64      `json:"amount_cents"`
+	State          string     `json:"status"`
+	Restricted     bool       `json:"restricted"`
+	Renewal        bool       `json:"renewal_enabled"`
+	PaidUntil      *time.Time `json:"paid_until"`
+	GraceUntil     *time.Time `json:"grace_until"`
+	Cycle          *Cycle     `json:"cycle"`
+	Checkout       *Checkout  `json:"checkout,omitempty"`
 }
 type Checkout struct {
 	Retryable bool   `json:"retryable,omitempty"`
@@ -58,11 +62,12 @@ type Checkout struct {
 	Reason    string `json:"review_reason,omitempty"`
 }
 type attempt struct {
+	Amount                                                                         int64
 	ID, Academy, Cycle, Reference, Receiver, State, URL, Transaction, Slug, Reason string
 	Expires                                                                        time.Time
 }
 
-const columns = "id,academy_id,cycle_id,reference,receiver_handle,state,checkout_url,transaction_nsu,slug,review_reason,expires_at"
+const columns = "id,academy_id,cycle_id,reference,receiver_handle,state,checkout_url,transaction_nsu,slug,review_reason,expires_at,amount_cents"
 
 func nextMonth(t time.Time) time.Time { return nextMonthOn(t, t.UTC().Day()) }
 func nextMonthOn(t time.Time, day int) time.Time {
@@ -87,7 +92,7 @@ func accessState(until, now time.Time, renewal bool) (string, bool) {
 	return "overdue", true
 }
 func (c attempt) result(now time.Time) Checkout {
-	v := Checkout{ID: c.ID, Amount: PriceCents, Status: "review", Reason: c.Reason}
+	v := Checkout{ID: c.ID, Amount: c.Amount, Status: "review", Reason: c.Reason}
 	if c.State == "rejected" {
 		v.Retryable = true
 		v.Reason = "Emissão recusada pela InfinitePay. Após corrigir a configuração, tente novamente."

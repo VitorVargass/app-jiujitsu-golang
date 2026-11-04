@@ -11,7 +11,7 @@ import (
 
 func scanAttempt(row pgx.Row) (attempt, error) {
 	var c attempt
-	e := row.Scan(&c.ID, &c.Academy, &c.Cycle, &c.Reference, &c.Receiver, &c.State, &c.URL, &c.Transaction, &c.Slug, &c.Reason, &c.Expires)
+	e := row.Scan(&c.ID, &c.Academy, &c.Cycle, &c.Reference, &c.Receiver, &c.State, &c.URL, &c.Transaction, &c.Slug, &c.Reason, &c.Expires, &c.Amount)
 	return c, e
 }
 func (m *Manager) authorize(ctx context.Context, a string) error {
@@ -25,7 +25,12 @@ func (m *Manager) Status(ctx context.Context, a string) (Status, error) {
 	return m.snapshot(ctx, a, true)
 }
 func (m *Manager) snapshot(ctx context.Context, a string, withCycle bool) (Status, error) {
-	v := Status{Enabled: m.Config.Enabled, Price: PriceCents, State: "disabled"}
+	count, err := m.activeStudents(ctx, a)
+	if err != nil {
+		return Status{}, err
+	}
+	plan := PlanForStudents(count)
+	v := Status{Enabled: m.Config.Enabled, Price: plan.Amount, Plan: plan, Plans: Plans(), ActiveStudents: count, State: "disabled"}
 	if !v.Enabled {
 		return v, nil
 	}
@@ -49,11 +54,17 @@ func (m *Manager) snapshot(ctx context.Context, a string, withCycle bool) (Statu
 	grace := until.Add(Grace)
 	v.GraceUntil = &grace
 	if withCycle && v.Renewal {
-		c := Cycle{ID: core.ID(), Academy: a, Start: until, End: nextMonthOn(until, billingDay), Amount: PriceCents}
-		if _, e = tx.Exec(ctx, `INSERT INTO platform_subscription_cycles(id,academy_id,period_start,period_end) VALUES($1,$2,$3,$4) ON CONFLICT(academy_id,period_start) DO NOTHING`, c.ID, a, c.Start, c.End); e != nil {
+		c := Cycle{ID: core.ID(), Academy: a, Start: until, End: nextMonthOn(until, billingDay), Amount: plan.Amount}
+		if _, e = tx.Exec(ctx, `INSERT INTO platform_subscription_cycles(id,academy_id,period_start,period_end,amount_cents,plan_id,active_students) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(academy_id,period_start) DO NOTHING`, c.ID, a, c.Start, c.End, plan.Amount, plan.ID, count); e != nil {
 			return v, e
 		}
 		if e = tx.QueryRow(ctx, "SELECT id,period_start,period_end,amount_cents,state,paid_at FROM platform_subscription_cycles WHERE academy_id=$1 AND period_start=$2", a, until).Scan(&c.ID, &c.Start, &c.End, &c.Amount, &c.State, &c.PaidAt); e != nil {
+			return v, e
+		}
+		if e = syncCyclePrice(ctx, tx, a, c.ID, plan, count); e != nil {
+			return v, e
+		}
+		if e = tx.QueryRow(ctx, "SELECT amount_cents,plan_id,active_students FROM platform_subscription_cycles WHERE id=$1", c.ID).Scan(&c.Amount, &c.Plan, &c.ActiveStudents); e != nil {
 			return v, e
 		}
 		v.Cycle = &c
@@ -98,14 +109,14 @@ func (m *Manager) History(ctx context.Context, a string, page, size int) (core.P
 	if e := m.DB.QueryRow(ctx, "SELECT count(*) FROM platform_subscription_cycles WHERE academy_id=$1", a).Scan(&v.Total); e != nil {
 		return v, e
 	}
-	rows, e := m.DB.Query(ctx, "SELECT c.id,c.period_start,c.period_end,c.amount_cents,c.state,c.paid_at,COALESCE(p.state,''),COALESCE(p.review_reason,'') FROM platform_subscription_cycles c LEFT JOIN platform_subscription_attempts p ON p.cycle_id=c.id WHERE c.academy_id=$1 ORDER BY c.period_start DESC,c.id LIMIT $2 OFFSET $3", a, size, (page-1)*size)
+	rows, e := m.DB.Query(ctx, "SELECT c.id,c.period_start,c.period_end,c.amount_cents,c.state,c.paid_at,COALESCE(p.state,''),COALESCE(p.review_reason,''),c.plan_id,c.active_students FROM platform_subscription_cycles c LEFT JOIN platform_subscription_attempts p ON p.cycle_id=c.id WHERE c.academy_id=$1 ORDER BY c.period_start DESC,c.id LIMIT $2 OFFSET $3", a, size, (page-1)*size)
 	if e != nil {
 		return v, e
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var c Cycle
-		if e = rows.Scan(&c.ID, &c.Start, &c.End, &c.Amount, &c.State, &c.PaidAt, &c.CheckoutState, &c.ReviewReason); e != nil {
+		if e = rows.Scan(&c.ID, &c.Start, &c.End, &c.Amount, &c.State, &c.PaidAt, &c.CheckoutState, &c.ReviewReason, &c.Plan, &c.ActiveStudents); e != nil {
 			return v, e
 		}
 		v.Items = append(v.Items, c)
@@ -122,9 +133,19 @@ func (m *Manager) Checkout(ctx context.Context, a, id string) (Checkout, error) 
 	if !core.ValidID(id) {
 		return Checkout{}, core.E(422, "invalid_cycle", "Atualize a assinatura antes de pagar.")
 	}
+	tx, e := m.DB.Begin(ctx)
+	if e != nil {
+		return Checkout{}, e
+	}
+	defer tx.Rollback(ctx)
 	var state string
+	var cycleAmount int64
 	var renewal bool
-	e := m.DB.QueryRow(ctx, `SELECT c.state,s.renewal_enabled FROM platform_subscription_cycles c JOIN platform_subscriptions s ON s.academy_id=c.academy_id WHERE c.academy_id=$1 AND c.id=$2`, a, id).Scan(&state, &renewal)
+	e = tx.QueryRow(ctx, "SELECT renewal_enabled FROM platform_subscriptions WHERE academy_id=$1 FOR UPDATE", a).Scan(&renewal)
+	if e != nil {
+		return Checkout{}, e
+	}
+	e = tx.QueryRow(ctx, "SELECT state,amount_cents FROM platform_subscription_cycles WHERE academy_id=$1 AND id=$2", a, id).Scan(&state, &cycleAmount)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return Checkout{}, core.E(404, "not_found", "Cobrança não encontrada.")
 	}
@@ -132,33 +153,47 @@ func (m *Manager) Checkout(ctx context.Context, a, id string) (Checkout, error) 
 		return Checkout{}, e
 	}
 	if state == "paid" {
-		return Checkout{Status: "paid", Amount: PriceCents}, nil
+		return Checkout{Status: "paid", Amount: cycleAmount}, nil
 	}
 	if !renewal {
 		return Checkout{}, core.E(409, "renewal_disabled", "Retome a assinatura antes de gerar um pagamento.")
 	}
-	c := attempt{ID: core.ID(), Academy: a, Cycle: id, Reference: core.ID(), Receiver: m.Config.Handle, State: "creating", Expires: m.Now().Add(24 * time.Hour)}
-	tag, e := m.DB.Exec(ctx, `INSERT INTO platform_subscription_attempts(id,academy_id,cycle_id,reference,receiver_handle,state,expires_at) VALUES($1,$2,$3,$4,$5,'creating',$6) ON CONFLICT(cycle_id) DO NOTHING`, c.ID, a, id, c.Reference, c.Receiver, c.Expires)
+	var count int
+	e = tx.QueryRow(ctx, "SELECT count(*) FROM students WHERE academy_id=$1 AND status='active' AND archived_at IS NULL", a).Scan(&count)
+	if e != nil {
+		return Checkout{}, e
+	}
+	if e = syncCyclePrice(ctx, tx, a, id, PlanForStudents(count), count); e != nil {
+		return Checkout{}, e
+	}
+	if e = tx.QueryRow(ctx, "SELECT amount_cents FROM platform_subscription_cycles WHERE id=$1", id).Scan(&cycleAmount); e != nil {
+		return Checkout{}, e
+	}
+	c := attempt{Amount: cycleAmount, ID: core.ID(), Academy: a, Cycle: id, Reference: core.ID(), Receiver: m.Config.Handle, State: "creating", Expires: m.Now().Add(24 * time.Hour)}
+	tag, e := tx.Exec(ctx, `INSERT INTO platform_subscription_attempts(id,academy_id,cycle_id,reference,receiver_handle,amount_cents,state,expires_at) VALUES($1,$2,$3,$4,$5,$7,'creating',$6) ON CONFLICT(cycle_id) DO NOTHING`, c.ID, a, id, c.Reference, c.Receiver, c.Expires, c.Amount)
 	if e != nil {
 		return Checkout{}, e
 	}
 	if tag.RowsAffected() == 0 {
-		c, e = scanAttempt(m.DB.QueryRow(ctx, "SELECT "+columns+" FROM platform_subscription_attempts WHERE academy_id=$1 AND cycle_id=$2", a, id))
+		c, e = scanAttempt(tx.QueryRow(ctx, "SELECT "+columns+" FROM platform_subscription_attempts WHERE academy_id=$1 AND cycle_id=$2", a, id))
 		if e != nil {
 			return Checkout{}, e
 		}
 		if c.State != "rejected" {
 			return c.result(m.Now()), nil
 		}
-		tag, e = m.DB.Exec(ctx, "UPDATE platform_subscription_attempts SET state='creating',expires_at=$2,receiver_handle=$3,updated_at=now() WHERE id=$1 AND state='rejected'", c.ID, m.Now().Add(24*time.Hour), m.Config.Handle)
+		tag, e = tx.Exec(ctx, "UPDATE platform_subscription_attempts SET state='creating',expires_at=$2,receiver_handle=$3,updated_at=now() WHERE id=$1 AND state='rejected'", c.ID, m.Now().Add(24*time.Hour), m.Config.Handle)
 		if e != nil {
 			return Checkout{}, e
 		}
 		if tag.RowsAffected() == 0 {
-			return Checkout{Status: "review", Amount: PriceCents}, nil
+			return Checkout{Status: "review", Amount: cycleAmount}, nil
 		}
 		c.Expires = m.Now().Add(24 * time.Hour)
 		c.Receiver = m.Config.Handle
+	}
+	if e = tx.Commit(ctx); e != nil {
+		return Checkout{}, e
 	}
 	// Attempt is durable BEFORE external IO. Cancellation/crash never permits automatic reissue.
 	var name, email string
@@ -166,7 +201,7 @@ func (m *Manager) Checkout(ctx context.Context, a, id string) (Checkout, error) 
 	input := map[string]any{
 		"order_nsu":    c.Reference,
 		"redirect_url": m.Config.PublicURL + "/subscription?academy_id=" + a,
-		"items":        []map[string]any{{"quantity": 1, "price": PriceCents, "description": "Assinatura TatameMix — mensal"}},
+		"items":        []map[string]any{{"quantity": 1, "price": c.Amount, "description": "Assinatura TatameMix — mensal"}},
 		"options":      map[string]any{"single_payment": true, "valid_until": c.Expires.Format(time.RFC3339), "require_delivery_address": false, "payment_methods_enabled": []string{"pix", "credit_card"}},
 		"webhook":      map[string]any{"url": m.Config.webhookOrigin() + "/v1/webhooks/tatamemix/infinitepay", "events": []string{"paid", "refunded", "canceled"}},
 	}

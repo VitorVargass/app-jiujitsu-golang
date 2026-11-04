@@ -51,9 +51,9 @@ function Content() {
       <Heading>Gestão e configurações</Heading>
       <ResponsiveGrid>
         <Shortcut
-          title="Assinatura TatameMix"
-          description="Seu plano de R$ 450/mês e histórico de pagamentos"
-          label="Assinatura TatameMix. Pagar ou renovar o sistema"
+          title="Minha assinatura"
+          description="Planos por alunos ativos, mensalidade e histórico de pagamentos"
+          label="Minha assinatura. Consultar planos, pagar ou renovar o sistema"
           icon="wallet"
           tone="brand"
           onPress={() => router.push("/subscription" as Href)}

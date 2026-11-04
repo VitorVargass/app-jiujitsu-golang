@@ -1,22 +1,25 @@
-# Assinatura TatameMix — R$ 450 por academia/mês
+# Assinatura TatameMix — planos por alunos ativos
 
 A cobrança do software é separada das mensalidades dos alunos. Cada academia tem uma única assinatura, compartilhada pelos seus gestores. O recebedor é a conta InfinitePay da TatameMix, configurada pelo operador no servidor. Nunca é usada a chave bancária cadastrada pela academia em Recebimentos.
 
 ## Experiência
 
-Mais → Assinatura TatameMix, no navegador ou no aplicativo:
+Mais → Minha assinatura, no navegador ou no aplicativo:
 
-- Plano mensal fixo: R$ 450. Sem descontos e sem plano anual nesta entrega.
+- Essencial: até 200 alunos ativos, R$ 150/mês.
+- Profissional: de 201 a 999 alunos ativos, R$ 250/mês.
+- Grande academia: a partir de 1.000 alunos ativos, R$ 450/mês.
+- Todos os planos incluem as mesmas funcionalidades. Sem descontos e sem plano anual nesta entrega.
 - Próximo vencimento, período de acesso, histórico paginado e conferência.
 - Pagar por Pix ou cartão no checkout hospedado.
 - Encerrar ao fim do período pago ou retomar.
 - Aviso nos sete dias anteriores ao vencimento, durante a tolerância e após restrição.
 
-O backend define o valor (45000 centavos) e o banco impõe esse valor. O frontend não escolhe o preço. Não armazenamos dados de cartão nem implementamos débito automático. Renovação significa gerar/pagar o próximo mês por ação do gestor; não é autorização de cartão recorrente.
+O backend conta matrículas ativas e não arquivadas da academia e define o plano automaticamente; o banco valida a combinação de plano, quantidade e valor. Gestores/professores sem matrícula não contam. O frontend não escolhe o preço. Antes de emitir o checkout, o servidor atualiza o enquadramento. Depois da primeira tentativa de checkout, o valor do período permanece preservado, inclusive em conferência ou rejeição; não há reajuste retroativo, prorrata ou segundo link automático. O próximo período ainda não emitido acompanha a nova faixa. Ciclos legados já emitidos ou pagos mantêm os R$ 450 originais. Não armazenamos dados de cartão nem implementamos débito automático. Renovação significa gerar/pagar o próximo mês por ação do gestor; não é autorização de cartão recorrente.
 
 ## Ativação no servidor
 
-A migração 015 é aditiva e será aplicada na inicialização normal da API após publicar/reiniciar. Os testes usam PostgreSQL temporário; esta implementação não executou a migração no banco local de uso nem no Neon.
+As migrações 015 e 018 serão aplicadas na inicialização normal da API após publicar/reiniciar. A 018 adiciona os planos e preserva os valores históricos. Os testes usam PostgreSQL temporário; esta implementação não executa migrações no Neon. Publique a nova imagem da API antes do frontend.
 
 Antes de ativar em produção, faça backup, configure:
 

@@ -48,7 +48,7 @@ Não copie .env, credenciais ou backups para a imagem. A .dockerignore já os ex
 
 ### Assinatura do software
 
-Para receber os R$ 450 da academia na conta da TatameMix, configure separadamente TATAMEMIX_INFINITEPAY_API_KEY (Secret), TATAMEMIX_INFINITEPAY_HANDLE e TATAMEMIX_BILLING_ENABLED. A flag começa false. Consulte [SUBSCRIPTIONS.md](SUBSCRIPTIONS.md) antes de habilitar: há migração 015 e a tolerância começa no primeiro uso da academia após ativação. Estas credenciais não são as da academia em Recebimentos.
+Para receber a assinatura da academia conforme a faixa de alunos ativos na conta da TatameMix, configure separadamente TATAMEMIX_INFINITEPAY_API_KEY (Secret), TATAMEMIX_INFINITEPAY_HANDLE e TATAMEMIX_BILLING_ENABLED. A flag começa false. Consulte [SUBSCRIPTIONS.md](SUBSCRIPTIONS.md) antes de habilitar: há migrações 015 e 018 e a tolerância começa no primeiro uso da academia após ativação. Estas credenciais não são as da academia em Recebimentos.
 
 ### Teste e produção separados
 

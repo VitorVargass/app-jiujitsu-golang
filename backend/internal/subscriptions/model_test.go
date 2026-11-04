@@ -29,8 +29,31 @@ func TestMonthlyPeriodAndGrace(t *testing.T) {
 	if got := nextMonthOn(nextMonth(jan), 31); got.Month() != time.March || got.Day() != 31 {
 		t.Fatal("Billing day drift", got)
 	}
-	if PriceCents != 45000 {
-		t.Fatal("Preço alterado")
+}
+
+func TestPlanBoundaries(t *testing.T) {
+	for _, tc := range []struct {
+		count  int
+		plan   string
+		amount int64
+	}{
+		{0, "essential", 15000}, {199, "essential", 15000}, {200, "essential", 15000},
+		{201, "professional", 25000}, {300, "professional", 25000}, {999, "professional", 25000},
+		{1000, "large", 45000}, {1001, "large", 45000}, {10000, "large", 45000},
+	} {
+		p := PlanForStudents(tc.count)
+		if p.ID != tc.plan || p.Amount != tc.amount {
+			t.Fatalf("%d students: %+v", tc.count, p)
+		}
+	}
+}
+
+func TestCheckoutPreservesIssuedAmount(t *testing.T) {
+	for _, amount := range []int64{15000, 25000, 45000} {
+		c := attempt{Amount: amount, State: "ready", URL: "https://checkout.infinitepay.io/test", Expires: time.Now().Add(time.Hour)}
+		if c.result(time.Now()).Amount != amount {
+			t.Fatal("issued amount changed")
+		}
 	}
 }
 func TestCheckoutUncertaintyAndURL(t *testing.T) {
