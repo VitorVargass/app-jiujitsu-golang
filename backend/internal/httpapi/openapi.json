@@ -2020,7 +2020,8 @@
           },
           "expires_at": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Provider deadline. Newly issued student checkouts expire one hour after creation. Existing deadlines remain unchanged."
           },
           "review_reason": {
             "type": "string"
@@ -2030,6 +2031,10 @@
           },
           "retryable": {
             "type": "boolean"
+          },
+          "customer_changed": {
+            "type": "boolean",
+            "description": "Buyer details changed or legacy fingerprint missing. The old URL is withheld until expiry; generate a new checkout after expiration."
           }
         }
       },

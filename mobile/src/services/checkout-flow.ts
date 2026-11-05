@@ -13,7 +13,12 @@ export async function beginInvoiceCheckout(
   open: (url: string) => Promise<void>,
 ): Promise<Checkout> {
   const result = await request();
-  if (result.status === "waiting" && result.url && !checkoutExpired(result)) {
+  if (
+    result.status === "waiting" &&
+    result.url &&
+    !result.customer_changed &&
+    !checkoutExpired(result)
+  ) {
     checkoutURL(result.url);
     await open(result.url);
   }

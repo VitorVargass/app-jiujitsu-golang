@@ -97,6 +97,14 @@ func (h Handler) Get(w http.ResponseWriter, r *http.Request) {
 		c, err := h.Manager.Infinite.attempt(r.Context(), r.PathValue("academy"), r.PathValue("invoice"))
 		if err == nil {
 			result := c.result()
+			if c.State == "ready" && !result.Expired {
+				_, fingerprint, contactErr := h.Manager.Infinite.customerForInvoice(r.Context(), r.PathValue("academy"), v)
+				if contactErr != nil {
+					core.Fail(w, contactErr)
+					return
+				}
+				result = c.resultForCustomer(fingerprint)
+			}
 			checkout = &result
 			provider = "infinitepay"
 		} else if !errors.Is(err, pgx.ErrNoRows) {

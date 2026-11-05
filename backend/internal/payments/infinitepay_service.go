@@ -130,26 +130,28 @@ func (m *Manager) enableIntegration(ctx context.Context, a string, enabled bool)
 }
 
 type CheckoutResult struct {
-	Expired   bool       `json:"expired,omitempty"`
-	Retryable bool       `json:"retryable,omitempty"`
-	ID        string     `json:"id,omitempty"`
-	Status    string     `json:"status"`
-	URL       string     `json:"url,omitempty"`
-	Amount    int64      `json:"amount_cents"`
-	ExpiresAt *time.Time `json:"expires_at,omitempty"`
-	Reason    string     `json:"review_reason,omitempty"`
+	CustomerChanged bool       `json:"customer_changed,omitempty"`
+	Expired         bool       `json:"expired,omitempty"`
+	Retryable       bool       `json:"retryable,omitempty"`
+	ID              string     `json:"id,omitempty"`
+	Status          string     `json:"status"`
+	URL             string     `json:"url,omitempty"`
+	Amount          int64      `json:"amount_cents"`
+	ExpiresAt       *time.Time `json:"expires_at,omitempty"`
+	Reason          string     `json:"review_reason,omitempty"`
 }
 type checkoutAttempt struct {
+	CustomerFingerprint                                                                string
 	ID, Academy, Invoice, Connection, Reference, State, URL, Transaction, Slug, Reason string
 	Amount                                                                             int64
 	Expires                                                                            time.Time
 }
 
-const attemptColumns = `id,academy_id,invoice_id,connection_id,reference,state,checkout_url,transaction_nsu,slug,review_reason,amount_cents,expires_at`
+const attemptColumns = `id,academy_id,invoice_id,connection_id,reference,state,checkout_url,transaction_nsu,slug,review_reason,amount_cents,expires_at,customer_fingerprint`
 
 func scanAttempt(row pgx.Row) (checkoutAttempt, error) {
 	var c checkoutAttempt
-	e := row.Scan(&c.ID, &c.Academy, &c.Invoice, &c.Connection, &c.Reference, &c.State, &c.URL, &c.Transaction, &c.Slug, &c.Reason, &c.Amount, &c.Expires)
+	e := row.Scan(&c.ID, &c.Academy, &c.Invoice, &c.Connection, &c.Reference, &c.State, &c.URL, &c.Transaction, &c.Slug, &c.Reason, &c.Amount, &c.Expires, &c.CustomerFingerprint)
 	return c, e
 }
 func (p *InfinitePay) attempt(ctx context.Context, a, id string) (checkoutAttempt, error) {
@@ -218,6 +220,11 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 	if invoice.Status == "cancelled" {
 		return CheckoutResult{}, core.E(409, "invoice_closed", "Mensalidade cancelada.")
 	}
+	// Refresh contact even when a link exists. Never silently reopen stale buyer data.
+	customer, fingerprint, e := p.customerForInvoice(ctx, a, invoice)
+	if e != nil {
+		return CheckoutResult{}, e
+	}
 	c, e := p.attempt(ctx, a, id)
 	if e == nil && c.renewable() {
 		renewed, err := m.renewExpiredCheckout(ctx, c)
@@ -232,7 +239,7 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 		}
 	}
 	if e == nil && c.State != "rejected" {
-		return c.result(), nil
+		return c.resultForCustomer(fingerprint), nil
 	}
 	if e != nil && !errors.Is(e, pgx.ErrNoRows) {
 		return CheckoutResult{}, e
@@ -262,19 +269,15 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 	}
 	// Resolve contact before persisting an emission attempt: a local read failure
 	// must not leave a phantom "creating" checkout that was never sent.
-	customer, e := p.customerForInvoice(ctx, a, invoice)
-	if e != nil {
-		return CheckoutResult{}, e
-	}
 	if c.ID == "" {
-		c = checkoutAttempt{ID: core.ID(), Academy: a, Invoice: id, Connection: conn.ID, Reference: core.ID(), Amount: invoice.AmountCents, Expires: time.Now().Add(24 * time.Hour), State: "creating"}
-		_, e = p.DB.Exec(ctx, `INSERT INTO checkout_attempts(id,academy_id,invoice_id,connection_id,reference,amount_cents,expires_at,state) VALUES($1,$2,$3,$4,$5,$6,$7,'creating')`, c.ID, a, id, c.Connection, c.Reference, c.Amount, c.Expires)
+		c = checkoutAttempt{CustomerFingerprint: fingerprint, ID: core.ID(), Academy: a, Invoice: id, Connection: conn.ID, Reference: core.ID(), Amount: invoice.AmountCents, Expires: time.Now().Add(time.Hour), State: "creating"}
+		_, e = p.DB.Exec(ctx, `INSERT INTO checkout_attempts(id,academy_id,invoice_id,connection_id,reference,amount_cents,expires_at,state,customer_fingerprint) VALUES($1,$2,$3,$4,$5,$6,$7,'creating',$8)`, c.ID, a, id, c.Connection, c.Reference, c.Amount, c.Expires, fingerprint)
 	} else {
 		c.Connection = conn.ID
 		c.Amount = invoice.AmountCents
-		c.Expires = time.Now().Add(24 * time.Hour)
+		c.Expires = time.Now().Add(time.Hour)
 		c.State = "creating"
-		_, e = p.DB.Exec(ctx, `UPDATE checkout_attempts SET state='creating',connection_id=$2,amount_cents=$3,expires_at=$4,updated_at=now() WHERE id=$1`, c.ID, c.Connection, c.Amount, c.Expires)
+		_, e = p.DB.Exec(ctx, `UPDATE checkout_attempts SET state='creating',connection_id=$2,amount_cents=$3,expires_at=$4,customer_fingerprint=$5,updated_at=now() WHERE id=$1`, c.ID, c.Connection, c.Amount, c.Expires, fingerprint)
 	}
 	if e != nil {
 		return CheckoutResult{}, e
@@ -310,7 +313,7 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 	if state == "rejected" {
 		return CheckoutResult{}, core.E(502, "checkout_rejected", "A InfinitePay recusou a emissão. Confira a configuração antes de tentar novamente.")
 	}
-	return c.result(), nil
+	return p.currentResult(persist, c, invoice)
 }
 
 // There is no documented API to invalidate an outstanding InfinitePay link. Expiry alone is not proof.

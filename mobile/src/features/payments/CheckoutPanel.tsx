@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "react-native";
 import { useMutation } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
@@ -26,6 +26,8 @@ export function CheckoutPanel({
   inline?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const [validated, setValidated] = useState<Checkout>();
+  const [, tick] = useState(0);
   const refresh = () =>
     void queryClient.invalidateQueries({
       queryKey: ["invoice", academyId, invoiceId],
@@ -41,12 +43,14 @@ export function CheckoutPanel({
         openPaymentURL,
       ),
     onMutate: () => {
+      setValidated(undefined);
       check.reset();
       setCopied(false);
     },
     onSuccess: refresh,
   });
   const check = useMutation({
+    onMutate: () => setValidated(undefined),
     mutationFn: () =>
       api<Checkout>(
         academyPath(academyId, "/invoices/" + invoiceId + "/payment-check"),
@@ -54,36 +58,46 @@ export function CheckoutPanel({
       ),
     onSuccess: () => void queryClient.invalidateQueries(),
   });
-  const open = useMutation({
-    mutationFn: (url: string) => {
-      if (result && checkoutExpired(result))
-        throw new Error("Este link expirou. Confira o pagamento.");
-      return openPaymentURL(checkoutURL(url));
-    },
-  });
   const copy = useMutation({
-    mutationFn: async (url: string) => {
-      if (result && checkoutExpired(result))
-        throw new Error("Este link expirou. Confira o pagamento.");
-      if (!(await Clipboard.setStringAsync(checkoutURL(url))))
+    mutationFn: async () => {
+      setCopied(false);
+      const current = await api<Checkout>(
+        academyPath(academyId, "/invoices/" + invoiceId + "/checkout"),
+        { method: "POST" },
+      );
+      setValidated(current);
+      refresh();
+      if (
+        current.status !== "waiting" ||
+        !current.url ||
+        checkoutExpired(current) ||
+        current.customer_changed
+      )
+        throw new Error(
+          current.review_reason ||
+            "Confira a mensalidade antes de copiar outro link.",
+        );
+      if (!(await Clipboard.setStringAsync(checkoutURL(current.url))))
         throw new Error("Não foi possível copiar o link.");
       setCopied(true);
     },
   });
   const result =
-    initial?.status === "paid"
+    initial?.status === "paid" || initial?.customer_changed
       ? initial
-      : check.data || checkout.data || initial;
+      : validated || check.data || checkout.data || initial;
   const expired = result ? checkoutExpired(result) : false;
+  useEffect(() => {
+    if (!result?.expires_at || result.status === "paid") return;
+    const timer = setInterval(() => tick((v) => v + 1), 15000);
+    return () => clearInterval(timer);
+  }, [result?.expires_at, result?.status]);
   return (
     <>
       {checkout.isPending ? <Loading /> : null}
       <Notice
         message={
-          checkout.error?.message ||
-          check.error?.message ||
-          open.error?.message ||
-          copy.error?.message
+          checkout.error?.message || check.error?.message || copy.error?.message
         }
       />
       {result?.status === "paid" ? (
@@ -111,8 +125,8 @@ export function CheckoutPanel({
                 {!inline ? (
                   <Button
                     compact
-                    loading={open.isPending}
-                    onPress={() => open.mutate(result.url!)}
+                    loading={checkout.isPending}
+                    onPress={() => checkout.mutate()}
                   >
                     Continuar pagamento
                   </Button>
@@ -121,7 +135,7 @@ export function CheckoutPanel({
                   compact
                   secondary
                   loading={copy.isPending}
-                  onPress={() => copy.mutate(result.url!)}
+                  onPress={() => copy.mutate()}
                 >
                   Copiar link
                 </Button>
@@ -133,19 +147,19 @@ export function CheckoutPanel({
                 {result.url}
               </Text>
               <Label muted>
-                {result.expired
-                  ? "O prazo previsto terminou; a InfinitePay determina se o link ainda aceita pagamento. Este é o mesmo link, não uma nova cobrança."
-                  : "Você pode voltar e usar este mesmo link depois. A abertura do checkout não registra pagamento."}
+                {result.expires_at
+                  ? `Válido até ${new Date(result.expires_at).toLocaleString("pt-BR")}. Após expirar, gere um novo link.`
+                  : "Este é o link já emitido para esta mensalidade."}
               </Label>
             </>
-          ) : result && !expired ? (
+          ) : result && !expired && !result.customer_changed ? (
             <Label muted>
               O provedor não devolveu um link recuperável. A academia precisa
               conferir a emissão na InfinitePay; não vamos gerar outra cobrança
               automaticamente.
             </Label>
           ) : null}
-          {copied ? (
+          {copied && !result?.customer_changed && !expired ? (
             <Notice success message="Link do checkout copiado." />
           ) : null}
           {result ? (
@@ -158,10 +172,18 @@ export function CheckoutPanel({
               Conferir pagamento
             </Button>
           ) : null}
+          {result?.customer_changed && result.expires_at ? (
+            <Label muted>
+              O link anterior vence em{" "}
+              {new Date(result.expires_at).toLocaleString("pt-BR")}. Após esse
+              horário, use Gerar novo link.
+            </Label>
+          ) : null}
           {!result ||
           result.retryable ||
           checkout.error ||
-          (expired && result.status === "waiting") ? (
+          (expired &&
+            (result.status === "waiting" || result.customer_changed)) ? (
             <Button
               compact
               secondary

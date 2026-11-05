@@ -53,6 +53,7 @@ export type Catalog = {
   belt_options?: BeltOption[];
 };
 export type Checkout = {
+  customer_changed?: boolean;
   expired?: boolean;
   retryable?: boolean;
   id?: string;

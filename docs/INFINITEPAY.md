@@ -16,7 +16,7 @@ No app InfinitePay: Vendas > Checkout > Configuracoes > Habilitar Checkout Integ
 
 ## Emissao e confirmacao
 
-POST /links usa X-Api-Key, order_nsu aleatorio persistido antes da chamada, preco em centavos, options.single_payment=true, validade de 24 horas e webhook HTTPS por conexao. Nao adiciona descontos por metodo, taxas proprias ou juros. QR Pix e Copia e Cola sao apresentados pela InfinitePay, nao por uma API Pix nativa do TatameMix. O cartao pode aparecer e tem as condicoes do provedor.
+POST /links usa X-Api-Key, order_nsu aleatorio persistido antes da chamada, preco em centavos, options.single_payment=true, validade de 1 hora e webhook HTTPS por conexao. Nao adiciona descontos por metodo, taxas proprias ou juros. QR Pix e Copia e Cola sao apresentados pela InfinitePay, nao por uma API Pix nativa do TatameMix. O cartao pode aparecer e tem as condicoes do provedor.
 
 Apenas o pedido do aluno ou gestor emite checkout. A geracao mensal nao cria links bancarios. Tentativas simultaneas compartilham a lease financeira existente. Perda de resposta fica em conferencia e nao autoriza nova emissao. Respostas definitivas HTTP 400/401/403/422 permitem corrigir a configuracao e tentar novamente; 429, 5xx, timeout ou resposta invalida nao.
 
@@ -46,7 +46,7 @@ Em cadastros antigos de menores sem vínculo confirmado do responsável, envia a
 
 Não envia CPF nem endereço nesta alteração. A opção de endereço de entrega continua desativada. Esses dados são enviados somente no corpo da requisição do servidor à InfinitePay, nunca como parâmetros públicos do link. Não há novas variáveis de ambiente nem nova migração específica para este preenchimento; o código utiliza os vínculos familiares da migração 014 já incluída no projeto.
 
-A InfinitePay documenta o preenchimento antecipado, sem garantir que a etapa de contato será completamente pulada. Links emitidos anteriormente continuam sendo reutilizados para evitar cobrança duplicada: publicar esta atualização não modifica os dados desses links. Teste a melhoria com uma mensalidade que ainda não tenha checkout emitido. A suíte utiliza um servidor bancário simulado, sem emitir cobranças reais.
+A InfinitePay documenta o preenchimento antecipado, sem garantir que a etapa de contato será completamente pulada. Cada link novo dura 1 hora e aceita um pagamento. Nome, e-mail e telefone são resolvidos pelo cadastro atual do pagador, sem alterar o histórico financeiro da fatura. CPF serve à resolução da identidade e à detecção de alterações; não é enviado em um campo não documentado do checkout. Guardamos apenas uma impressão digital dos dados da emissão. Se os dados mudarem, abertura, cópia e conferência deixam de oferecer silenciosamente a URL antiga. Não geramos outro link enquanto o anterior ainda estiver válido, pois o provedor não permite editá-lo ou cancelá-lo. Ao expirar, uma ação explícita gera nova referência e dados atuais, após conferir transações conhecidas. Links anteriores à atualização mantêm a expiração original (podem durar 24 horas) e não ganham uma expiração retroativa. A suíte usa banco e provedor simulados, sem cobranças reais. A migração 020 adiciona a impressão digital; nenhuma tabela de faturas é reescrita.
 
 ## Ação Pagar na mensalidade
 

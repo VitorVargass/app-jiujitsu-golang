@@ -92,7 +92,12 @@ func (h Handler) PaymentCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	event.Event = "" // A browser cannot report a bank event or authorize an accounting adjustment.
 	if !event.normalize() {
-		core.Write(w, 200, c.result())
+		result, err := p.currentResult(r.Context(), c, invoice)
+		if err != nil {
+			core.Fail(w, err)
+			return
+		}
+		core.Write(w, 200, result)
 		return
 	}
 	if event.Order != c.Reference {
@@ -119,7 +124,12 @@ func (h Handler) PaymentCheck(w http.ResponseWriter, r *http.Request) {
 		core.Fail(w, e)
 		return
 	}
-	core.Write(w, 200, c.result())
+	result, err := p.currentResult(r.Context(), c, invoice)
+	if err != nil {
+		core.Fail(w, err)
+		return
+	}
+	core.Write(w, 200, result)
 }
 func (h Handler) InfiniteWebhook(w http.ResponseWriter, r *http.Request) {
 	p := h.Manager.Infinite

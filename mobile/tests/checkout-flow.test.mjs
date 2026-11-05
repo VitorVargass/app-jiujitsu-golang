@@ -6,6 +6,22 @@ import {
   checkoutExpired,
 } from "../src/services/checkout-flow.ts";
 
+test("cadastro alterado não abre um link antigo mesmo com URL em cache", async () => {
+  let opened = false;
+  await beginInvoiceCheckout(
+    async () => ({
+      status: "waiting",
+      customer_changed: true,
+      url: "https://checkout.infinitepay.io/old",
+      amount_cents: 15000,
+    }),
+    async () => {
+      opened = true;
+    },
+  );
+  assert.equal(opened, false);
+});
+
 test("link vencido nunca abre o checkout mesmo com status waiting em cache", async () => {
   for (const expiry of [
     { expired: true },
@@ -14,12 +30,23 @@ test("link vencido nunca abre o checkout mesmo com status waiting em cache", asy
   ]) {
     let opened = false;
     await beginInvoiceCheckout(
-      async () => ({ status: "waiting", url: "https://checkout.infinitepay.io/old", amount_cents: 100, ...expiry }),
-      async () => { opened = true; },
+      async () => ({
+        status: "waiting",
+        url: "https://checkout.infinitepay.io/old",
+        amount_cents: 100,
+        ...expiry,
+      }),
+      async () => {
+        opened = true;
+      },
     );
     assert.equal(opened, false);
   }
-  const checkout = { status: "waiting", amount_cents: 100, expires_at: "2030-01-01T00:00:00Z" };
+  const checkout = {
+    status: "waiting",
+    amount_cents: 100,
+    expires_at: "2030-01-01T00:00:00Z",
+  };
   const deadline = Date.parse(checkout.expires_at);
   assert.equal(checkoutExpired(checkout, deadline - 1), false);
   assert.equal(checkoutExpired(checkout, deadline), true);
@@ -48,9 +75,19 @@ test("Pagar pede um checkout e abre a InfinitePay sem registrar baixa manual", a
 
 test("renovação abre apenas o novo link devolvido pela API", async () => {
   const opened = [];
-  const renewed = { status: "waiting", amount_cents: 1000,
-    url: "https://checkout.infinitepay.io/new", expires_at: "2099-01-01T00:00:00Z" };
-  assert.equal(await beginInvoiceCheckout(async () => renewed, async (url) => opened.push(url)), renewed);
+  const renewed = {
+    status: "waiting",
+    amount_cents: 1000,
+    url: "https://checkout.infinitepay.io/new",
+    expires_at: "2099-01-01T00:00:00Z",
+  };
+  assert.equal(
+    await beginInvoiceCheckout(
+      async () => renewed,
+      async (url) => opened.push(url),
+    ),
+    renewed,
+  );
   assert.deepEqual(opened, [renewed.url]);
 });
 test("estados de conferência e pago não abrem outro checkout", async () => {

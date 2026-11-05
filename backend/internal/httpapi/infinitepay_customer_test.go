@@ -12,6 +12,7 @@ import (
 	"tatame/backend/internal/httpapi"
 	"tatame/backend/internal/payments"
 	"testing"
+	"time"
 )
 
 func TestInfinitePayCustomerPrefill(t *testing.T) {
@@ -82,6 +83,10 @@ func TestInfinitePayCustomerPrefill(t *testing.T) {
 			t.Fatalf("checkout not ready: %v", got)
 		}
 		payload := <-captures
+		until, err := time.Parse(time.RFC3339, payload["options"].(map[string]any)["valid_until"].(string))
+		if err != nil || time.Until(until) < 59*time.Minute || time.Until(until) > time.Hour {
+			t.Fatal("checkout must expire in one hour", until, err)
+		}
 		customer, ok := payload["customer"].(map[string]any)
 		if !ok {
 			t.Fatal("missing customer")
@@ -104,13 +109,37 @@ func TestInfinitePayCustomerPrefill(t *testing.T) {
 	adultInvoice := invoice(adultID, "Adult Student", adultCPF)
 	check(admin, adultInvoice, map[string]any{"name": "Adult Student", "email": adultEmail, "phone_number": "+5541999990000"})
 	// Updating a contact must not create another bank link for the same invoice.
-	_, e = db.Exec(ctx, "UPDATE students SET phone='41988887777' WHERE academy_id=$1 AND id=$2", a, adultID)
+	_, e = db.Exec(ctx, "UPDATE students SET phone='41988887777',name='Updated Adult' WHERE academy_id=$1 AND id=$2", a, adultID)
 	if e != nil {
 		t.Fatal(e)
 	}
-	admin.ok("POST", prefix+"/invoices/"+adultInvoice+"/checkout", nil)
+	changed := admin.ok("POST", prefix+"/invoices/"+adultInvoice+"/checkout", nil)
+	if changed["status"] != "review" || changed["customer_changed"] != true || changed["url"] != nil {
+		t.Fatal("outdated link reopened", changed)
+	}
+	detail := admin.ok("GET", prefix+"/invoices/"+adultInvoice, nil)["payment_checkout"].(map[string]any)
+	if detail["customer_changed"] != true || detail["url"] != nil {
+		t.Fatal("GET exposed outdated link", detail)
+	}
+	checked := admin.ok("POST", prefix+"/invoices/"+adultInvoice+"/payment-check", map[string]any{})
+	if checked["customer_changed"] != true || checked["url"] != nil {
+		t.Fatal("payment check bypassed contact validation", checked)
+	}
 	if len(captures) != 0 {
 		t.Fatal("contact update reissued checkout")
+	}
+	_, e = db.Exec(ctx, "UPDATE checkout_attempts SET expires_at=now()-interval '1 second' WHERE academy_id=$1 AND invoice_id=$2 AND retired_at IS NULL", a, adultInvoice)
+	if e != nil {
+		t.Fatal(e)
+	}
+	check(admin, adultInvoice, map[string]any{"name": "Updated Adult", "email": adultEmail, "phone_number": "+5541988887777"})
+	var historical int
+	if e = db.QueryRow(ctx, "SELECT count(*) FROM checkout_attempts WHERE academy_id=$1 AND invoice_id=$2 AND retired_at IS NOT NULL", a, adultInvoice).Scan(&historical); e != nil || historical != 1 {
+		t.Fatal("old link history lost", historical, e)
+	}
+	var payerName string
+	if e = db.QueryRow(ctx, "SELECT payer_name FROM invoices WHERE id=$1", adultInvoice).Scan(&payerName); e != nil || payerName != "Adult Student" {
+		t.Fatal("financial history changed", payerName, e)
 	}
 	childEmail := core.ID() + "@child.example.test"
 	childID := createStudent("Child Student", childEmail, testCPF(), "2015-01-01", "(41) 98888-7777", "")
@@ -138,4 +167,14 @@ func TestInfinitePayCustomerPrefill(t *testing.T) {
 	incompleteCPF := testCPF()
 	incomplete := createStudent("Incomplete Adult", "", incompleteCPF, "1990-01-01", "not-a-phone", "(11) 3333-4444")
 	check(admin, invoice(incomplete, "Incomplete Adult", incompleteCPF), map[string]any{"name": "Incomplete Adult", "phone_number": "+551133334444"})
+	// A historical invoice keeps its payer snapshot, but new checkout uses the
+	// current billing identity after a corrected name/CPF in the student's record.
+	currentCPF := testCPF()
+	currentEmail := core.ID() + "@corrected.example.test"
+	corrected := createStudent("Corrected Student", currentEmail, currentCPF, "1990-01-01", "41966665555", "")
+	_, e = db.Exec(ctx, `INSERT INTO student_billing(academy_id,student_id,enabled,amount_cents,due_day,next_month,payer_name,payer_document) VALUES($1,$2,true,15000,10,date_trunc('month',now())::date,'Old name',$3)`, a, corrected, currentCPF)
+	if e != nil {
+		t.Fatal(e)
+	}
+	check(admin, invoice(corrected, "Old name", testCPF()), map[string]any{"name": "Corrected Student", "email": currentEmail, "phone_number": "+5541966665555"})
 }

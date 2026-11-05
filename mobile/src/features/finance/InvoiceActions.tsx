@@ -156,11 +156,13 @@ export function InvoiceActions({
               {invoice.payment_checkout &&
               checkoutExpired(invoice.payment_checkout)
                 ? "Gerar novo link"
-                : invoice.payment_checkout?.status === "review"
-                  ? "Conferir pagamento"
-                  : invoice.payment_checkout?.url
-                    ? "Continuar pagamento"
-                    : "Pagar"}
+                : invoice.payment_checkout?.customer_changed
+                  ? "Atualizar pagamento"
+                  : invoice.payment_checkout?.status === "review"
+                    ? "Conferir pagamento"
+                    : invoice.payment_checkout?.url
+                      ? "Continuar pagamento"
+                      : "Pagar"}
             </Button>
           ) : (
             <Button compact secondary icon="mail" onPress={onCopy}>
