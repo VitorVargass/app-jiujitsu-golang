@@ -1,7 +1,7 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Href, Link } from "expo-router";
 import { Brand } from "./Brand";
-import { AccountMenu } from "./AccountMenu";
 import { Icon, IconName } from "./Icon";
 import { colors } from "../theme";
 import { useSession } from "../services/session";
@@ -12,6 +12,109 @@ export type NavigationItem = {
   icon: IconName;
   routes: string[];
 };
+const administration: NavigationItem[] = [
+  {
+    label: "Planos e modalidades",
+    url: "/catalog",
+    icon: "sliders",
+    routes: ["/catalog"],
+  },
+  {
+    label: "Equipe de gestão",
+    url: "/managers",
+    icon: "users",
+    routes: ["/managers"],
+  },
+  {
+    label: "Matrículas pelo link",
+    url: "/enrollment-settings",
+    icon: "plus",
+    routes: ["/enrollment-settings"],
+  },
+];
+const operations: NavigationItem[] = [
+  {
+    label: "Recebimentos",
+    url: "/receipts",
+    icon: "wallet",
+    routes: ["/receipts"],
+  },
+  {
+    label: "Check-in e dispositivos",
+    url: "/devices",
+    icon: "tablet",
+    routes: ["/devices"],
+  },
+];
+const subscription: NavigationItem = {
+  label: "Minha assinatura",
+  url: "/subscription",
+  icon: "wallet",
+  routes: ["/subscription"],
+};
+const settings: NavigationItem = {
+  label: "Configurações",
+  url: "/more",
+  icon: "sliders",
+  routes: ["/more", "/participation", "/create-academy"],
+};
+
+function MenuLink({
+  item,
+  selected,
+  attention = false,
+}: {
+  item: NavigationItem;
+  selected: boolean;
+  attention?: boolean;
+}) {
+  const [hovered, setHovered] = useState(false);
+  // Router's Slot merges plain style objects; callbacks lose layout, arrays throw in dev.
+  return (
+    <Link href={item.url as Href} asChild>
+      <Pressable
+        accessibilityRole="link"
+        aria-current={selected ? "page" : undefined}
+        accessibilityLabel={
+          item.label +
+          (attention ? ". Configure os horários para liberar o check-in" : "")
+        }
+        onHoverIn={() => setHovered(true)}
+        onHoverOut={() => setHovered(false)}
+        style={StyleSheet.flatten([
+          s.link,
+          hovered && s.hovered,
+          selected && s.selected,
+        ])}
+      >
+        {selected ? <View style={s.selectionRail} /> : null}
+        <Icon
+          name={item.icon}
+          size={19}
+          color={
+            selected ? colors.onPrimary : hovered ? colors.text : "#91919D"
+          }
+        />
+        <Text
+          numberOfLines={1}
+          style={[s.linkText, (selected || hovered) && { color: colors.text }]}
+        >
+          {item.label}
+        </Text>
+        {attention ? (
+          <View
+            style={[s.attention, selected && { backgroundColor: "#FFFFFF26" }]}
+          >
+            <Text style={[s.attentionText, selected && { color: "#FFFFFF" }]}>
+              !
+            </Text>
+          </View>
+        ) : null}
+      </Pressable>
+    </Link>
+  );
+}
+
 export function DesktopSidebar({
   items,
   pathname,
@@ -21,105 +124,306 @@ export function DesktopSidebar({
   pathname: string;
   needsSetup: boolean;
 }) {
-  const { academy } = useSession();
+  const { academy, role } = useSession();
+  const admin = role === "admin";
+  const primary = admin
+    ? [
+        ...items
+          .filter((item) => item.url !== "/more")
+          .map((item) => ({
+            ...item,
+            label: item.url === "/academy" ? "Visão geral" : item.label,
+          })),
+        {
+          label: "Presenças",
+          url: "/academy-history",
+          icon: "check-circle" as const,
+          routes: ["/academy-history"],
+        },
+      ]
+    : items;
+  const all = [
+    ...primary,
+    ...(admin
+      ? [...administration, ...operations, settings, subscription]
+      : []),
+  ];
+  // The most specific match wins: never highlight two sections for a nested route.
+  const active = all
+    .flatMap((item) =>
+      item.routes
+        .filter(
+          (route) => pathname === route || pathname.startsWith(route + "/"),
+        )
+        .map((route) => ({ url: item.url, length: route.length })),
+    )
+    .sort((a, b) => b.length - a.length)[0]?.url;
+  function group(title: string, links: NavigationItem[]) {
+    return (
+      <View style={s.group}>
+        <Text style={s.groupLabel}>{title}</Text>
+        {links.map((item) => (
+          <MenuLink
+            key={item.url}
+            item={item}
+            selected={active === item.url}
+            attention={needsSetup && item.url === "/classes"}
+          />
+        ))}
+      </View>
+    );
+  }
   return (
     <View testID="desktop-sidebar" style={s.sidebar}>
-      <ScrollView contentContainerStyle={s.content}>
-        <Brand compact />
-        <View style={s.academy}>
-          <Text style={s.eyebrow}>ACADEMIA ATIVA</Text>
-          <Text style={s.academyName}>{academy?.name}</Text>
+      <View style={s.top}>
+        <View style={s.brandRow}>
+          <Link
+            href={(role === "student" ? "/student" : "/academy") as Href}
+            accessibilityLabel="TatameMix, início da academia"
+          >
+            <Brand compact />
+          </Link>
+          <Text style={s.appBadge}>WORKSPACE</Text>
         </View>
-        <View role="navigation" style={s.navigation}>
-          {items.map((item) => {
-            const selected = item.routes.some(
-              (path) => pathname === path || pathname.startsWith(path + "/"),
-            );
-            const attention = needsSetup && item.url === "/classes";
-            return (
-              <Link
-                key={item.url}
-                href={item.url as Href}
-                accessibilityLabel={
-                  item.label +
-                  (attention
-                    ? ". Configure os horários para liberar o check-in"
-                    : "")
-                }
-                aria-current={selected ? "page" : undefined}
-                style={[s.link, selected && s.selected]}
-              >
-                <View style={s.linkContent}>
-                  <Icon
-                    name={item.icon}
-                    size={20}
-                    color={selected ? colors.onPrimary : colors.muted}
-                  />
-                  <Text
-                    style={[
-                      s.linkText,
-                      selected && { color: colors.onPrimary },
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                  {attention ? <Text style={s.pending}>!</Text> : null}
-                </View>
-              </Link>
-            );
-          })}
+        <Link href="/academies" asChild>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={`Academia atual: ${academy?.name ?? "Minha academia"}. Ver meus acessos e trocar academia`}
+            style={s.academy}
+          >
+            <View style={s.academyAvatar}>
+              <Text style={s.academyInitial}>
+                {academy?.name?.trim().slice(0, 1).toUpperCase() || "A"}
+              </Text>
+            </View>
+            <View style={s.academyCopy}>
+              <Text style={s.academyCaption}>Academia atual</Text>
+              <Text numberOfLines={1} style={s.academyName}>
+                {academy?.name ?? "Minha academia"}
+              </Text>
+            </View>
+            <Icon name="swap" size={16} color={colors.muted} />
+          </Pressable>
+        </Link>
+      </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={{ flex: 1 }}
+        contentContainerStyle={s.navigation}
+        accessibilityLabel="Menu da academia"
+      >
+        <View
+          role="navigation"
+          aria-label="Navegação da academia"
+          style={{ gap: 23 }}
+        >
+          {group(admin ? "PRINCIPAL" : "MEU ESPAÇO", primary)}
+          {admin ? (
+            <>
+              {group("GESTÃO", administration)}
+              {group("OPERAÇÃO", operations)}
+            </>
+          ) : null}
         </View>
-        <View style={s.identity}>
-          <AccountMenu />
-        </View>
-        <Text style={s.eyebrow}>MENOS GESTÃO. MAIS TATAME.</Text>
       </ScrollView>
+      <View style={s.footer}>
+        {admin ? (
+          <>
+            <MenuLink item={settings} selected={active === settings.url} />
+            <Link href="/subscription" asChild>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Minha assinatura. Consultar plano e pagamentos"
+                aria-current={active === subscription.url ? "page" : undefined}
+                style={StyleSheet.flatten([
+                  s.subscription,
+                  active === subscription.url && s.subscriptionSelected,
+                ])}
+              >
+                <View style={s.subscriptionIcon}>
+                  <Icon name="wallet" size={19} color={colors.primaryLight} />
+                </View>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={s.subscriptionTitle}>Minha assinatura</Text>
+                  <Text style={s.subscriptionHint}>Plano e pagamentos</Text>
+                </View>
+                <Icon name="chevron-right" size={15} color={colors.muted} />
+              </Pressable>
+            </Link>
+          </>
+        ) : null}
+        <View style={s.signature}>
+          <View style={s.brandLine} />
+          <Text style={s.signatureText}>Menos gestão. Mais tatame.</Text>
+        </View>
+      </View>
     </View>
   );
 }
 const s = StyleSheet.create({
   sidebar: {
-    width: 232,
+    width: 264,
     flexShrink: 0,
+    backgroundColor: "#131315",
     borderRightWidth: 1,
-    borderRightColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    borderRightColor: "#29292F",
   },
-  content: { padding: 20, gap: 28, flexGrow: 1 },
-  academy: { gap: 8, paddingTop: 8 },
-  eyebrow: {
-    color: colors.muted,
+  top: { paddingHorizontal: 18, paddingTop: 25, paddingBottom: 22, gap: 27 },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingHorizontal: 5,
+  },
+  appBadge: {
+    color: "#777782",
+    fontSize: 6,
+    letterSpacing: 1,
     fontFamily: "Inter_600SemiBold",
+    borderWidth: 1,
+    borderColor: "#333339",
+    borderRadius: 4,
+    padding: 5,
+  },
+  academy: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#1D1D21",
+    borderWidth: 1,
+    borderColor: "#323238",
+  },
+  academyAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    backgroundColor: "#342027",
+    borderWidth: 1,
+    borderColor: "#633039",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  academyInitial: {
+    color: "#FF8A94",
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+  },
+  academyCopy: { flex: 1, minWidth: 0, gap: 5 },
+  academyCaption: {
+    color: "#92929D",
     fontSize: 9,
-    letterSpacing: 1.2,
+    fontFamily: "Inter_400Regular",
   },
   academyName: {
     color: colors.text,
+    fontSize: 13,
     fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-    lineHeight: 22,
   },
-  navigation: { gap: 8 },
+  navigation: { paddingHorizontal: 14, paddingBottom: 22 },
+  group: { gap: 4 },
+  groupLabel: {
+    paddingHorizontal: 13,
+    paddingBottom: 9,
+    color: "#7F7F8C",
+    fontSize: 8,
+    letterSpacing: 1.7,
+    fontFamily: "Inter_600SemiBold",
+  },
   link: {
-    borderRadius: 10,
-    paddingVertical: 13,
-    paddingHorizontal: 12,
-    textDecorationLine: "none",
-  },
-  linkContent: { flexDirection: "row", gap: 12, alignItems: "center" },
-  linkText: {
-    color: colors.muted,
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-    flex: 1,
-  },
-  selected: { backgroundColor: colors.primary },
-  pending: { color: colors.danger, fontFamily: "Inter_700Bold", fontSize: 16 },
-  identity: {
-    marginTop: "auto",
+    minHeight: 43,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
+    position: "relative",
+    overflow: "hidden",
+  },
+  linkText: {
+    flex: 1,
+    color: "#B0B0BB",
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+  },
+  hovered: { backgroundColor: "#242428" },
+  selected: { backgroundColor: "#CE1C2C" },
+  selectionRail: {
+    position: "absolute",
+    left: 0,
+    top: 11,
+    bottom: 11,
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: "#FFADB5",
+  },
+  attention: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    backgroundColor: "#362229",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attentionText: {
+    color: "#FF8A94",
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+  },
+  footer: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 16,
+    gap: 9,
     borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
-    paddingTop: 20,
+    borderTopColor: "#29292F",
+  },
+  subscription: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: "#1D1A1F",
+    borderWidth: 1,
+    borderColor: "#3E2A32",
+  },
+  subscriptionSelected: {
+    borderColor: colors.primaryLight,
+    backgroundColor: "#2D171B",
+  },
+  subscriptionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#342027",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  subscriptionTitle: {
+    color: colors.text,
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+  },
+  subscriptionHint: {
+    color: "#92929D",
+    fontSize: 9,
+    fontFamily: "Inter_400Regular",
+  },
+  signature: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 8,
+  },
+  brandLine: { width: 13, height: 2, backgroundColor: colors.primary },
+  signatureText: {
+    color: "#85858F",
+    fontSize: 8,
+    fontFamily: "Inter_400Regular",
   },
 });

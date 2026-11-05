@@ -92,7 +92,13 @@ export function Page({
       {sidebar}
       <View style={{ flex: 1, minWidth: 0 }}>
         {header ? (
-          <View style={[styles.appHeader, wide && styles.widePage]}>
+          <View
+            style={[
+              styles.appHeader,
+              wide && styles.widePage,
+              !!sidebar && styles.desktopHeader,
+            ]}
+          >
             {header}
           </View>
         ) : null}
@@ -503,7 +509,13 @@ export const styles = StyleSheet.create({
   },
   appPage: { paddingHorizontal: 20, paddingTop: 24, gap: 20 },
   widePage: { maxWidth: 1440 },
-  desktopPage: { padding: 32, paddingBottom: 48, gap: 24 },
+  desktopPage: { padding: 36, paddingTop: 32, paddingBottom: 56, gap: 24 },
+  desktopHeader: {
+    maxWidth: "100%",
+    paddingHorizontal: 36,
+    paddingVertical: 10,
+    backgroundColor: "#141416",
+  },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   footer: {
     width: "100%",

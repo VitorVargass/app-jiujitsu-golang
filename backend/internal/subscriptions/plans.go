@@ -33,6 +33,16 @@ func PlanForStudents(count int) Plan {
 	return plans[0]
 }
 
+func EffectivePlan(count int, selected string) Plan {
+	current := PlanForStudents(count)
+	for _, p := range Plans() {
+		if p.ID == selected && p.Amount > current.Amount {
+			return p
+		}
+	}
+	return current
+}
+
 func (m *Manager) activeStudents(ctx context.Context, academy string) (int, error) {
 	var count int
 	err := m.DB.QueryRow(ctx, "SELECT count(*) FROM students WHERE academy_id=$1 AND status='active' AND archived_at IS NULL", academy).Scan(&count)

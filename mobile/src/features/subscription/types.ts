@@ -13,13 +13,15 @@ export type SubscriptionCycle = {
   paid_at: string | null;
 };
 export type Subscription = {
+  trial_ends_at?: string | null;
+  selected_plan_id?: string | null;
   plan?: SubscriptionPlan;
   plans?: SubscriptionPlan[];
   active_students?: number;
   enabled: boolean;
   renewal_soon: boolean;
   amount_cents: number;
-  status: "disabled" | "active" | "grace" | "overdue" | "cancelled";
+  status: "disabled" | "trial" | "active" | "grace" | "overdue" | "cancelled";
   restricted: boolean;
   renewal_enabled: boolean;
   paid_until: string | null;
@@ -44,6 +46,7 @@ export function planRange(plan: SubscriptionPlan) {
 }
 export const subscriptionLabel: Record<Subscription["status"], string> = {
   disabled: "Cobrança ainda não ativada",
+  trial: "Teste grátis de 5 dias",
   active: "Assinatura ativa",
   grace: "Pagamento pendente · prazo de tolerância",
   overdue: "Pagamento em atraso",

@@ -35,7 +35,7 @@ func (r Repository) Principal(ctx context.Context, token string) (core.Principal
 	return p, nil
 }
 
-func (r Repository) CreateUser(ctx context.Context, u *User, hash string) error {
+func (r Repository) CreateUser(ctx context.Context, u *User, hash string, c Credentials) error {
 	tx, err := r.DB.Begin(ctx)
 	if err != nil {
 		return err
@@ -46,6 +46,9 @@ func (r Repository) CreateUser(ctx context.Context, u *User, hash string) error 
 		return err
 	}
 	if _, err = tx.Exec(ctx, "INSERT INTO users(id,person_id,name,password_hash) VALUES($1,$2,$3,$4)", u.ID, u.PersonID, u.Name, hash); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, "INSERT INTO account_legal_acceptances(user_id,terms_version,privacy_version) VALUES($1,$2,$3)", u.ID, c.TermsVersion, c.PrivacyVersion); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

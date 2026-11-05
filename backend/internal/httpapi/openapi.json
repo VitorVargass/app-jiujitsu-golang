@@ -101,12 +101,32 @@
             "type": "string",
             "minLength": 8,
             "description": "Até 72 bytes UTF-8."
+          },
+          "password_confirmation": {
+            "type": "string",
+            "writeOnly": true,
+            "description": "Must exactly match password."
+          },
+          "terms_version": {
+            "type": "string",
+            "enum": [
+              "2026-11-04"
+            ]
+          },
+          "privacy_version": {
+            "type": "string",
+            "enum": [
+              "2026-11-04"
+            ]
           }
         },
         "required": [
           "name",
           "email",
-          "password"
+          "password",
+          "password_confirmation",
+          "terms_version",
+          "privacy_version"
         ],
         "additionalProperties": false
       },
@@ -135,10 +155,26 @@
           "timezone": {
             "type": "string",
             "default": "America/Sao_Paulo"
+          },
+          "plan_id": {
+            "type": "string",
+            "enum": [
+              "essential",
+              "professional",
+              "large"
+            ]
+          },
+          "terms_version": {
+            "type": "string",
+            "enum": [
+              "2026-11-04"
+            ]
           }
         },
         "required": [
-          "name"
+          "name",
+          "plan_id",
+          "terms_version"
         ],
         "additionalProperties": false
       },
@@ -2296,7 +2332,8 @@
               "active",
               "grace",
               "overdue",
-              "cancelled"
+              "cancelled",
+              "trial"
             ]
           },
           "restricted": {
@@ -2328,6 +2365,21 @@
           },
           "renewal_soon": {
             "type": "boolean"
+          },
+          "trial_ends_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "selected_plan_id": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "essential",
+              "professional",
+              "large",
+              null
+            ]
           }
         }
       },
@@ -13872,6 +13924,9 @@
           }
         },
         "responses": {
+          "200": {
+            "description": "Persistido; confirmação exige consulta autenticada ao provedor"
+          },
           "400": {
             "description": "Evento inválido"
           },
@@ -13880,9 +13935,6 @@
           },
           "503": {
             "description": "Cobrança desabilitada"
-          },
-          "200": {
-            "description": "Persistido; confirmação exige consulta autenticada ao provedor"
           }
         }
       }

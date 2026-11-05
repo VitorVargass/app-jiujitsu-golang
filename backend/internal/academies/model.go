@@ -11,6 +11,8 @@ type Academy struct {
 	Belt         string   `json:"belt"`
 }
 type CreateInput struct {
-	Name     string `json:"name"`
-	Timezone string `json:"timezone"`
+	PlanID       string `json:"plan_id"`
+	TermsVersion string `json:"terms_version"`
+	Name         string `json:"name"`
+	Timezone     string `json:"timezone"`
 }

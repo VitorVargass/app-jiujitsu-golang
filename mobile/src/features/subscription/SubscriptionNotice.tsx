@@ -26,17 +26,19 @@ export function SubscriptionNotice() {
   return (
     <Card>
       <Label>
-        {v.status === "active"
-          ? (v.renewal_enabled
-              ? "Assinatura TatameMix: próximo vencimento em "
-              : "Sua assinatura será encerrada em ") +
-            subscriptionDate(v.paid_until) +
-            "."
-          : v.restricted
-            ? "Assinatura TatameMix pendente. Novas operações estão restritas; consultas e pagamentos continuam disponíveis."
-            : `Assinatura TatameMix: ${money(v.cycle?.amount_cents ?? v.amount_cents)}/mês. Regularize até ` +
-              subscriptionDate(v.grace_until) +
-              " para manter todas as operações."}
+        {v.status === "trial"
+          ? `Você tem 5 dias grátis. Teste até ${subscriptionDate(v.trial_ends_at)}. Depois, ${money(v.cycle?.amount_cents ?? v.amount_cents)}/mês, conforme seu plano e alunos ativos. Sem débito automático.`
+          : v.status === "active"
+            ? (v.renewal_enabled
+                ? "Assinatura TatameMix: próximo vencimento em "
+                : "Sua assinatura será encerrada em ") +
+              subscriptionDate(v.paid_until) +
+              "."
+            : v.restricted
+              ? "Assinatura TatameMix pendente. Novas operações estão restritas; consultas e pagamentos continuam disponíveis."
+              : `Assinatura TatameMix: ${money(v.cycle?.amount_cents ?? v.amount_cents)}/mês. Regularize até ` +
+                subscriptionDate(v.grace_until) +
+                " para manter todas as operações."}
       </Label>
       <Button compact onPress={() => router.push("/subscription" as Href)}>
         Minha assinatura e pagamento

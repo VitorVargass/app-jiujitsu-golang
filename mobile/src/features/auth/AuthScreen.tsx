@@ -10,6 +10,10 @@ import { User } from "../../types";
 import { brand } from "../../theme/brand";
 import { AuthLayout } from "./AuthLayout";
 import { AuthAction, AuthField, authControlStyles } from "./AuthControls";
+import { EditorDialog } from "../../components/EditorDialog";
+import { LegalDocument } from "../legal/LegalDocument";
+import { LEGAL_VERSION } from "../legal/content";
+import { registrationProblem } from "./registration-validation";
 
 export default function AuthScreen({
   register = false,
@@ -25,7 +29,11 @@ export default function AuthScreen({
     destination.startsWith("/pay/");
   const nameInput = useRef<ComponentRef<typeof TextInput>>(null),
     emailInput = useRef<ComponentRef<typeof TextInput>>(null),
-    passwordInput = useRef<ComponentRef<typeof TextInput>>(null);
+    passwordInput = useRef<ComponentRef<typeof TextInput>>(null),
+    confirmationInput = useRef<ComponentRef<typeof TextInput>>(null);
+  const [confirmation, setConfirmation] = useState("");
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [document, setDocument] = useState<"terms" | "privacy" | null>(null);
   const submitting = useRef(false);
   const [name, setName] = useState(""),
     [email, setEmail] = useState(""),
@@ -57,6 +65,15 @@ export default function AuthScreen({
       return;
     }
     submitting.current = true;
+    if (register) {
+      const problem = registrationProblem(password, confirmation, acknowledged);
+      if (problem) {
+        submitting.current = false;
+        setError(problem);
+        if (password !== confirmation) confirmationInput.current?.focus();
+        return;
+      }
+    }
     setBusy(true);
     try {
       const data = await api<{ token: string; user: User }>(
@@ -64,7 +81,14 @@ export default function AuthScreen({
         {
           method: "POST",
           body: register
-            ? { name: name.trim(), email: email.trim(), password }
+            ? {
+                name: name.trim(),
+                email: email.trim(),
+                password,
+                password_confirmation: confirmation,
+                terms_version: LEGAL_VERSION,
+                privacy_version: LEGAL_VERSION,
+              }
             : { email: email.trim(), password },
         },
       );
@@ -126,9 +150,11 @@ export default function AuthScreen({
           secureTextEntry={!show}
           autoComplete={register ? "new-password" : "current-password"}
           editable={!busy}
-          returnKeyType={register ? "done" : "go"}
+          returnKeyType={register ? "next" : "go"}
           submitBehavior="submit"
-          onSubmitEditing={() => void submit()}
+          onSubmitEditing={() =>
+            register ? confirmationInput.current?.focus() : void submit()
+          }
           trailing={
             <Pressable
               accessibilityRole="button"
@@ -150,7 +176,78 @@ export default function AuthScreen({
             </Pressable>
           }
         />
+        {register ? (
+          <>
+            <AuthField
+              inputRef={confirmationInput}
+              label="Repetir senha"
+              icon="lock"
+              placeholder="Digite a mesma senha novamente"
+              value={confirmation}
+              onChangeText={setConfirmation}
+              secureTextEntry={!show}
+              autoComplete="new-password"
+              editable={!busy}
+              returnKeyType="done"
+              submitBehavior="submit"
+              onSubmitEditing={() => void submit()}
+            />
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityLabel="Aceito os Termos de Uso e li o Aviso de Privacidade"
+              accessibilityState={{ checked: acknowledged, disabled: busy }}
+              disabled={busy}
+              onPress={() => setAcknowledged((v) => !v)}
+              style={s.acknowledgement}
+            >
+              <View
+                style={[
+                  s.checkbox,
+                  acknowledged && {
+                    backgroundColor: brand.accent,
+                    borderColor: brand.accent,
+                  },
+                ]}
+              >
+                {acknowledged ? (
+                  <Icon name="check-circle" size={18} color="#FFFFFF" />
+                ) : null}
+              </View>
+              <Text style={s.note}>
+                Aceito os Termos de Uso e confirmo que li o Aviso de
+                Privacidade. Isso não autoriza publicidade ou uso irrestrito dos
+                meus dados.
+              </Text>
+            </Pressable>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 18 }}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setDocument("terms")}
+                style={{ minHeight: 44, justifyContent: "center" }}
+              >
+                <Text style={s.legalLink}>Ler Termos de Uso</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setDocument("privacy")}
+                style={{ minHeight: 44, justifyContent: "center" }}
+              >
+                <Text style={s.legalLink}>Ler Aviso de Privacidade</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : null}
       </View>
+      {document ? (
+        <EditorDialog
+          title={
+            document === "privacy" ? "Aviso de Privacidade" : "Termos de Uso"
+          }
+          onClose={() => setDocument(null)}
+        >
+          <LegalDocument privacy={document === "privacy"} />
+        </EditorDialog>
+      ) : null}
       {error ? (
         <View accessibilityRole="alert" accessibilityLiveRegion="polite">
           <Notice message={error} />
@@ -196,6 +293,27 @@ export default function AuthScreen({
   );
 }
 const s = StyleSheet.create({
+  acknowledgement: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    minHeight: 44,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: brand.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  legalLink: {
+    color: brand.accentLight,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
+  },
   fields: { gap: 18 },
   divider: {
     flexDirection: "row",

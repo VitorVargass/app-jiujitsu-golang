@@ -39,6 +39,8 @@ type Cycle struct {
 	PaidAt         *time.Time `json:"paid_at"`
 }
 type Status struct {
+	TrialEndsAt    *time.Time `json:"trial_ends_at"`
+	SelectedPlanID *string    `json:"selected_plan_id"`
 	Plan           Plan       `json:"plan"`
 	Plans          []Plan     `json:"plans"`
 	ActiveStudents int        `json:"active_students"`
@@ -53,6 +55,20 @@ type Status struct {
 	Cycle          *Cycle     `json:"cycle"`
 	Checkout       *Checkout  `json:"checkout,omitempty"`
 }
+
+func subscriptionAccess(until, now time.Time, renewal bool, trialEnd *time.Time, hasPaid bool) (string, bool) {
+	if trialEnd != nil && !hasPaid {
+		if now.Before(*trialEnd) {
+			return "trial", false
+		}
+		if !renewal {
+			return "cancelled", true
+		}
+		return "overdue", true
+	}
+	return accessState(until, now, renewal)
+}
+
 type Checkout struct {
 	Retryable bool   `json:"retryable,omitempty"`
 	ID        string `json:"id,omitempty"`

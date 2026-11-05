@@ -32,6 +32,14 @@ func (m *Manager) snapshot(ctx context.Context, a string, withCycle bool) (Statu
 	plan := PlanForStudents(count)
 	v := Status{Enabled: m.Config.Enabled, Price: plan.Amount, Plan: plan, Plans: Plans(), ActiveStudents: count, State: "disabled"}
 	if !v.Enabled {
+		err := m.DB.QueryRow(ctx, "SELECT selected_plan_id,trial_ends_at FROM platform_subscriptions WHERE academy_id=$1", a).Scan(&v.SelectedPlanID, &v.TrialEndsAt)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return v, err
+		}
+		if v.SelectedPlanID != nil {
+			v.Plan = EffectivePlan(count, *v.SelectedPlanID)
+			v.Price = v.Plan.Amount
+		}
 		return v, nil
 	}
 	if e := m.ensure(ctx, a); e != nil {
@@ -44,14 +52,24 @@ func (m *Manager) snapshot(ctx context.Context, a string, withCycle bool) (Statu
 	defer tx.Rollback(ctx)
 	var until time.Time
 	var billingDay int
-	if e = tx.QueryRow(ctx, "SELECT paid_until,renewal_enabled,billing_day FROM platform_subscriptions WHERE academy_id=$1 FOR UPDATE", a).Scan(&until, &v.Renewal, &billingDay); e != nil {
+	var hasPaid bool
+	if e = tx.QueryRow(ctx, "SELECT paid_until,renewal_enabled,billing_day,trial_ends_at,selected_plan_id,EXISTS(SELECT 1 FROM platform_subscription_cycles WHERE academy_id=$1 AND state='paid') FROM platform_subscriptions WHERE academy_id=$1 FOR UPDATE", a).Scan(&until, &v.Renewal, &billingDay, &v.TrialEndsAt, &v.SelectedPlanID, &hasPaid); e != nil {
 		return v, e
 	}
+	selected := ""
+	if v.SelectedPlanID != nil {
+		selected = *v.SelectedPlanID
+	}
+	plan = EffectivePlan(count, selected)
+	v.Plan, v.Price = plan, plan.Amount
 	now := m.Now().UTC()
-	v.State, v.Restricted = accessState(until, now, v.Renewal)
+	v.State, v.Restricted = subscriptionAccess(until, now, v.Renewal, v.TrialEndsAt, hasPaid)
 	v.RenewalSoon = v.State == "active" && until.Sub(now) <= 7*24*time.Hour
 	v.PaidUntil = &until
 	grace := until.Add(Grace)
+	if v.TrialEndsAt != nil && !hasPaid {
+		grace = *v.TrialEndsAt
+	}
 	v.GraceUntil = &grace
 	if withCycle && v.Renewal {
 		c := Cycle{ID: core.ID(), Academy: a, Start: until, End: nextMonthOn(until, billingDay), Amount: plan.Amount}
@@ -141,7 +159,8 @@ func (m *Manager) Checkout(ctx context.Context, a, id string) (Checkout, error) 
 	var state string
 	var cycleAmount int64
 	var renewal bool
-	e = tx.QueryRow(ctx, "SELECT renewal_enabled FROM platform_subscriptions WHERE academy_id=$1 FOR UPDATE", a).Scan(&renewal)
+	var selected *string
+	e = tx.QueryRow(ctx, "SELECT renewal_enabled,selected_plan_id FROM platform_subscriptions WHERE academy_id=$1 FOR UPDATE", a).Scan(&renewal, &selected)
 	if e != nil {
 		return Checkout{}, e
 	}
@@ -163,7 +182,11 @@ func (m *Manager) Checkout(ctx context.Context, a, id string) (Checkout, error) 
 	if e != nil {
 		return Checkout{}, e
 	}
-	if e = syncCyclePrice(ctx, tx, a, id, PlanForStudents(count), count); e != nil {
+	selectedID := ""
+	if selected != nil {
+		selectedID = *selected
+	}
+	if e = syncCyclePrice(ctx, tx, a, id, EffectivePlan(count, selectedID), count); e != nil {
 		return Checkout{}, e
 	}
 	if e = tx.QueryRow(ctx, "SELECT amount_cents FROM platform_subscription_cycles WHERE id=$1", id).Scan(&cycleAmount); e != nil {

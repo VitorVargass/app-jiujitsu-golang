@@ -31,7 +31,7 @@ func main() {
 		var id string
 		e = db.QueryRow(ctx, "SELECT u.id FROM users u JOIN people p ON p.id=u.person_id WHERE p.email=$1", item.Email).Scan(&id)
 		if e != nil {
-			v, err := as.Register(ctx, auth.Credentials{Name: item.Name, Email: item.Email, Password: "Tatame123!"})
+			v, err := as.Register(ctx, auth.Credentials{Name: item.Name, Email: item.Email, Password: "Tatame123!", PasswordConfirmation: "Tatame123!", TermsVersion: core.LegalVersion, PrivacyVersion: core.LegalVersion})
 			must(err)
 			id = v.User.ID
 		}
@@ -45,7 +45,7 @@ func main() {
 		var a academies.Academy
 		e = db.QueryRow(ctx, "SELECT id,name,code FROM academies WHERE name=$1 ORDER BY created_at LIMIT 1", name).Scan(&a.ID, &a.Name, &a.Code)
 		if e != nil {
-			a, e = ac.Create(admin, academies.CreateInput{Name: name})
+			a, e = ac.Create(admin, academies.CreateInput{Name: name, PlanID: "essential", TermsVersion: core.LegalVersion})
 			must(e)
 		}
 		// The demo manager can train without a student enrollment or billing.

@@ -48,6 +48,32 @@ func TestPlanBoundaries(t *testing.T) {
 	}
 }
 
+func TestSelectedPlanAndTrial(t *testing.T) {
+	for _, tc := range []struct {
+		count    int
+		selected string
+		want     int64
+	}{
+		{0, "professional", 25000}, {200, "essential", 15000}, {201, "essential", 25000},
+		{1000, "professional", 45000}, {0, "large", 45000}, {0, "", 15000},
+	} {
+		if got := EffectivePlan(tc.count, tc.selected); got.Amount != tc.want {
+			t.Fatal(tc, got)
+		}
+	}
+	now := time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
+	end := now.Add(5 * 24 * time.Hour)
+	if state, restricted := subscriptionAccess(end, now, true, &end, false); state != "trial" || restricted {
+		t.Fatal(state, restricted)
+	}
+	if state, restricted := subscriptionAccess(end, end, true, &end, false); state != "overdue" || !restricted {
+		t.Fatal("trial must not acquire another grace period", state, restricted)
+	}
+	if state, restricted := subscriptionAccess(end.AddDate(0, 1, 0), end, true, &end, true); state != "active" || restricted {
+		t.Fatal(state, restricted)
+	}
+}
+
 func TestCheckoutPreservesIssuedAmount(t *testing.T) {
 	for _, amount := range []int64{15000, 25000, 45000} {
 		c := attempt{Amount: amount, State: "ready", URL: "https://checkout.infinitepay.io/test", Expires: time.Now().Add(time.Hour)}

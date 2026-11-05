@@ -3,6 +3,7 @@ import { AccountMenu } from "../../components/AccountMenu";
 import React, { useCallback } from "react";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { DesktopSidebar } from "../../components/DesktopSidebar";
+import { DesktopHeader } from "../../components/DesktopHeader";
 import { Brand } from "../../components/Brand";
 import { Redirect, router, usePathname, Href } from "expo-router";
 import { View, Pressable, Text, StyleSheet, Keyboard } from "react-native";
@@ -244,7 +245,9 @@ export function AcademyShell({
               <AccountMenu compact />
             </View>
           </View>
-        ) : undefined
+        ) : (
+          <DesktopHeader title={title} />
+        )
       }
       footer={
         !isWide ? (

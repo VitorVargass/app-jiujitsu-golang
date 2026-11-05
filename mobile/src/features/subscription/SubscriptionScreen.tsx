@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { AccessRecovery } from "../../components/AccessRecovery";
-import { View } from "react-native";
+import { Text, View } from "react-native";
+import { Icon } from "../../components/Icon";
+import { colors } from "../../theme";
+import {
+  SubscriptionSummary,
+  SubscriptionPlanCards,
+  SubscriptionDetails,
+} from "./SubscriptionCards";
 import { Redirect, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
@@ -23,13 +30,7 @@ import { beginInvoiceCheckout } from "../../services/checkout-flow";
 import { openPaymentURL } from "../../services/open-payment";
 import type { Checkout, Page as ResultPage } from "../../types/billing";
 import { money } from "../../types/billing";
-import {
-  Subscription,
-  SubscriptionCycle,
-  subscriptionDate,
-  subscriptionLabel,
-  planRange,
-} from "./types";
+import { Subscription, SubscriptionCycle, subscriptionDate } from "./types";
 
 function Content({
   event,
@@ -112,7 +113,7 @@ function Content({
   return (
     <AcademyShell
       title="Minha assinatura"
-      subtitle="Seu acesso ao sistema · separado das mensalidades dos alunos"
+      subtitle="Plano, pagamentos e acesso da sua academia"
       swipeEnabled={false}
     >
       {status.isPending ? (
@@ -127,63 +128,42 @@ function Content({
       ) : v ? (
         <>
           <ResponsiveGrid>
-            <Card>
-              <Label muted>Enquadramento atual</Label>
-              <Label>{v.plan?.name ?? "PLANO MENSAL"}</Label>
-              <Heading>{money(v.amount_cents)} / mês</Heading>
-              {v.active_students !== undefined ? (
-                <Label>
-                  {v.active_students.toLocaleString("pt-BR")} alunos ativos e
-                  não arquivados
-                </Label>
-              ) : null}
-              {v.plan ? <Label muted>{planRange(v.plan)}</Label> : null}
-              {v.cycle && v.cycle.amount_cents !== v.amount_cents ? (
-                <Notice
-                  message={`A cobrança deste período permanece em ${money(v.cycle.amount_cents)} porque já teve uma emissão. O novo enquadramento será considerado no próximo período sem checkout emitido.`}
-                />
-              ) : null}
-              {v.plan?.max_students &&
-              v.active_students !== undefined &&
-              v.active_students >= Math.ceil(v.plan.max_students * 0.9) ? (
-                <Label>
-                  Você está próximo da próxima faixa. O valor é recalculado
-                  antes da emissão de uma nova cobrança, sem alterar o período
-                  pago.
-                </Label>
-              ) : null}
-              <Label>{subscriptionLabel[v.status]}</Label>
-              <Label>
-                {v.status === "active" ? "Acesso pago até " : "Vencimento: "}
-                {subscriptionDate(v.paid_until)}
+            <SubscriptionSummary value={v} />
+            <Card style={{ padding: 26, gap: 20 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+              >
+                <Icon name="wallet" size={22} color={colors.primaryLight} />
+                <Heading>Pagamento da assinatura</Heading>
+              </View>
+              <Label muted>
+                {!v.cycle
+                  ? "Valor mensal do plano"
+                  : v.status === "trial"
+                    ? "Após o teste gratuito"
+                    : "Cobrança do período"}
               </Label>
-              {v.status === "grace" ? (
-                <Label>
-                  Prazo de tolerância até {subscriptionDate(v.grace_until)}.
-                </Label>
-              ) : null}
-              <Label>
-                Uma assinatura por academia, compartilhada por todos os
-                gestores.
-              </Label>
-            </Card>
-            <Card>
-              <Heading>Pagamento</Heading>
-              <Label>
-                Você paga à TatameMix. As mensalidades dos seus alunos continuam
-                sendo recebidas pela academia.
-              </Label>
+              <Text
+                style={{
+                  fontFamily: "Inter_700Bold",
+                  fontSize: 34,
+                  color: colors.text,
+                  letterSpacing: -1,
+                }}
+              >
+                {money(v.cycle?.amount_cents ?? v.amount_cents)}
+              </Text>
+              <View
+                style={{ flexDirection: "row", gap: 8, alignItems: "center" }}
+              >
+                <Icon name="lock" size={14} color={colors.muted} />
+                <Label muted>Pix ou cartão · InfinitePay</Label>
+              </View>
               {!v.enabled ? (
-                <Label>
-                  A equipe TatameMix ainda precisa habilitar a cobrança no
-                  servidor. Nenhum pagamento foi gerado.
-                </Label>
+                <Label>Pagamentos ainda não habilitados pela TatameMix.</Label>
               ) : (
                 <>
-                  <Label>
-                    Pix ou cartão no checkout seguro da InfinitePay. Pagamento
-                    mensal, sem débito automático nesta versão.
-                  </Label>
+                  <Label>Pagamento mensal, sem débito automático.</Label>
                   {v.restricted ? (
                     <Notice message="Novas operações estão restritas. Pague para liberar; seus dados e consultas permanecem disponíveis." />
                   ) : null}
@@ -245,31 +225,14 @@ function Content({
                   </Row>
                   {v.renewal_enabled ? (
                     <Button secondary compact onPress={() => setConfirm(true)}>
-                      Encerrar ao fim do período pago
+                      Encerrar renovação
                     </Button>
                   ) : null}
                 </>
               )}
             </Card>
           </ResponsiveGrid>
-          <Card>
-            <Heading>Planos TatameMix</Heading>
-            <Label muted>
-              Mesmas funcionalidades. A faixa considera somente alunos ativos,
-              sem contar alunos arquivados ou acessos sem matrícula. Mudanças
-              não alteram pagamentos e links já emitidos.
-            </Label>
-            {(v.plans ?? []).map((plan) => (
-              <View key={plan.id} style={{ gap: 6, paddingVertical: 12 }}>
-                <Heading>
-                  {plan.name}
-                  {v.plan?.id === plan.id ? " · Seu enquadramento" : ""}
-                </Heading>
-                <Label>{planRange(plan)}</Label>
-                <Label>{money(plan.amount_cents)} / mês</Label>
-              </View>
-            ))}
-          </Card>
+          <SubscriptionPlanCards value={v} />
           <Card>
             <Heading>Histórico da assinatura</Heading>
             {history.isPending ? (
@@ -287,7 +250,15 @@ function Content({
                   <Label>Nenhum período registrado.</Label>
                 ) : (
                   history.data.items.map((c) => (
-                    <View key={c.id} style={{ gap: 4, paddingVertical: 12 }}>
+                    <View
+                      key={c.id}
+                      style={{
+                        gap: 8,
+                        paddingVertical: 18,
+                        borderTopWidth: 1,
+                        borderTopColor: colors.borderSubtle,
+                      }}
+                    >
                       <Row>
                         <Label>
                           {subscriptionDate(c.period_start)} →{" "}
@@ -326,11 +297,7 @@ function Content({
               </>
             )}
           </Card>
-          <Label>
-            Para suporte ou pagamento em conferência, contate a equipe
-            TatameMix. A confirmação depende da consulta ao provedor, não apenas
-            do retorno do navegador.
-          </Label>
+          <SubscriptionDetails value={v} />
           <ConfirmDialog
             visible={confirm}
             title="Encerrar assinatura?"

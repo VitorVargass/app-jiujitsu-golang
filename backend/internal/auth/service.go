@@ -13,6 +13,12 @@ import (
 type Service struct{ Repo Repository }
 
 func (s Service) Register(ctx context.Context, c Credentials) (LoginResult, error) {
+	if c.Password != c.PasswordConfirmation {
+		return LoginResult{}, core.E(422, "password_mismatch", "As senhas precisam ser iguais.")
+	}
+	if c.TermsVersion != core.LegalVersion || c.PrivacyVersion != core.LegalVersion {
+		return LoginResult{}, core.E(422, "legal_acceptance_required", "Leia e aceite os Termos de Uso e confirme a ciência do Aviso de Privacidade atualizado.")
+	}
 	c.Name = strings.TrimSpace(c.Name)
 	c.Email = strings.ToLower(strings.TrimSpace(c.Email))
 	addr, e := mail.ParseAddress(c.Email)
@@ -24,7 +30,7 @@ func (s Service) Register(ctx context.Context, c Credentials) (LoginResult, erro
 		return LoginResult{}, e
 	}
 	u := User{ID: core.ID(), Name: c.Name, Email: c.Email}
-	e = s.Repo.CreateUser(ctx, &u, string(hash))
+	e = s.Repo.CreateUser(ctx, &u, string(hash), c)
 	if e != nil {
 		var pe *pgconn.PgError
 		if errors.As(e, &pe) && pe.Code == "23505" {

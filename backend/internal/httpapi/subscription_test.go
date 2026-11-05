@@ -92,7 +92,7 @@ func TestPlatformSubscription(t *testing.T) {
 	a := academy["id"].(string)
 	base := "/v1/academies/" + a
 	status := owner.ok("GET", base+"/subscription", nil)
-	if links.Load() != 0 || status["amount_cents"] != float64(15000) || status["status"] != "grace" {
+	if links.Load() != 0 || status["amount_cents"] != float64(15000) || status["status"] != "trial" {
 		t.Fatal(status, links.Load())
 	}
 	cycle := status["cycle"].(map[string]any)["id"].(string)
@@ -135,7 +135,7 @@ func TestPlatformSubscription(t *testing.T) {
 		t.Fatal(e)
 	}
 	// Not paying restricts writes, but keeps reads and regularization routes available.
-	if _, e = db.Exec(ctx, "UPDATE platform_subscriptions SET paid_until=now()-interval '6 days' WHERE academy_id=$1", a); e != nil {
+	if _, e = db.Exec(ctx, "UPDATE platform_subscriptions SET paid_until=now()-interval '6 days',trial_ends_at=now()-interval '6 days' WHERE academy_id=$1", a); e != nil {
 		t.Fatal(e)
 	}
 	restricted := owner.ok("GET", base+"/subscription", nil)

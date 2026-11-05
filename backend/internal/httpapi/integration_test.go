@@ -51,6 +51,20 @@ func (c client) request(method, path string, body any, key string) (int, map[str
 }
 func (c client) ok(method, path string, body any) map[string]any {
 	c.t.Helper()
+	// Successful test fixtures follow the same onboarding contract as the UI.
+	if method == "POST" && (path == "/v1/auth/register" || path == "/v1/academies") {
+		encoded, _ := json.Marshal(body)
+		var fields map[string]any
+		_ = json.Unmarshal(encoded, &fields)
+		fields["terms_version"] = core.LegalVersion
+		if path == "/v1/auth/register" {
+			fields["password_confirmation"] = fields["password"]
+			fields["privacy_version"] = core.LegalVersion
+		} else if fields["plan_id"] == nil {
+			fields["plan_id"] = "essential"
+		}
+		body = fields
+	}
 	status, v := c.request(method, path, body, "")
 	if status < 200 || status >= 300 {
 		c.t.Fatalf("%s %s: %d %v", method, path, status, v)

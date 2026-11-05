@@ -1,7 +1,7 @@
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "../../components/Icon";
-import { Badge, Card, Heading, Label } from "../../components/ui";
+import { Badge, Card, Heading } from "../../components/ui";
 import { AcademyAccess, accessHome } from "../../services/access";
 import { useSession } from "../../services/session";
 import { router } from "expo-router";
@@ -15,14 +15,16 @@ export function AcademyAccessList({ options }: { options: AcademyAccess[] }) {
   return (
     <ResponsiveGrid>
       {groups.map((item) => (
-        <Card key={item.id}>
+        <Card key={item.id} style={s.card}>
           <View style={s.heading}>
             <View style={s.icon}>
-              <Icon name="home" color={accents.blue.color} />
+              <Text style={s.initial}>
+                {item.name.trim().slice(0, 1).toUpperCase()}
+              </Text>
             </View>
             <View style={s.name}>
               <Heading>{item.name}</Heading>
-              <Label muted>Escolha a área para acessar</Label>
+              <Text style={s.caption}>SEU ESPAÇO NA ACADEMIA</Text>
             </View>
           </View>
           {options
@@ -54,10 +56,19 @@ export function AcademyAccessList({ options }: { options: AcademyAccess[] }) {
                     size={20}
                     color={current ? accents.brand.color : colors.muted}
                   />
-                  <Text style={s.label}>
-                    {manager ? "Gestão da academia" : "Área do aluno"}
-                  </Text>
-                  {current ? <Badge label="Atual" tone="mint" /> : null}
+                  <View style={{ flex: 1, gap: 5, minWidth: 0 }}>
+                    <Text style={s.label}>
+                      {manager ? "Gestão da academia" : "Área do aluno"}
+                    </Text>
+                    <Text style={s.optionHint}>
+                      {manager
+                        ? "Alunos, turmas e financeiro"
+                        : "Mensalidades, presenças e identificação"}
+                    </Text>
+                    {current ? (
+                      <Badge label="Acesso atual" tone="mint" />
+                    ) : null}
+                  </View>
                   <Icon name="chevron-right" size={18} color={colors.muted} />
                 </Pressable>
               );
@@ -68,12 +79,39 @@ export function AcademyAccessList({ options }: { options: AcademyAccess[] }) {
   );
 }
 const s = StyleSheet.create({
+  card: { padding: 24, gap: 20, borderRadius: 15 },
   heading: { flexDirection: "row", alignItems: "center", gap: 12 },
-  icon: { padding: 12, borderRadius: 14, backgroundColor: accents.blue.soft },
+  icon: {
+    width: 46,
+    height: 46,
+    borderRadius: 13,
+    backgroundColor: accents.brand.soft,
+    borderWidth: 1,
+    borderColor: accents.brand.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  initial: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 21,
+    color: colors.primaryLight,
+  },
+  caption: {
+    color: colors.muted,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 8,
+    letterSpacing: 1,
+  },
+  optionHint: {
+    color: colors.muted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 10,
+    lineHeight: 17,
+  },
   name: { flex: 1, gap: 5, minWidth: 0 },
   option: {
-    minHeight: 56,
-    padding: 12,
+    minHeight: 72,
+    padding: 15,
     gap: 10,
     flexDirection: "row",
     alignItems: "center",
@@ -86,9 +124,8 @@ const s = StyleSheet.create({
     backgroundColor: accents.brand.soft,
   },
   label: {
-    flex: 1,
     fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
+    fontSize: 13,
     color: colors.text,
   },
 });

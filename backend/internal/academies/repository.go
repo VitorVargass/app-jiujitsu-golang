@@ -18,6 +18,10 @@ func (repo Repository) Create(ctx context.Context, u string, in CreateInput) (Ac
 	if _, e = tx.Exec(ctx, "INSERT INTO academies(id,name,code,timezone) VALUES($1,$2,$3,$4)", a.ID, a.Name, a.Code, a.Timezone); e != nil {
 		return a, e
 	}
+	if _, e = tx.Exec(ctx, `INSERT INTO platform_subscriptions(academy_id,selected_plan_id,trial_ends_at,paid_until,billing_day,terms_version,terms_accepted_at,terms_accepted_by)
+	 VALUES($1,$2,now()+interval '5 days',now()+interval '5 days',extract(day FROM ((now()+interval '5 days') AT TIME ZONE 'UTC'))::integer,$3,now(),$4)`, a.ID, in.PlanID, in.TermsVersion, u); e != nil {
+		return a, e
+	}
 	if _, e = tx.Exec(ctx, "INSERT INTO memberships(id,academy_id,user_id,status,student_code,qr_token) VALUES($1,$2,$3,'active',$4,$5)", a.MembershipID, a.ID, u, core.Digits(), core.Token()); e != nil {
 		return a, e
 	}

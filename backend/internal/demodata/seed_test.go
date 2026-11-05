@@ -34,13 +34,13 @@ func TestSeedPreservesAcademyAndIsRepeatable(t *testing.T) {
 	must(err)
 	defer db.Close()
 	as := auth.Service{Repo: auth.Repository{DB: db}}
-	account, err := as.Register(ctx, auth.Credentials{Name: "Gestor original", Email: core.ID() + "@example.test", Password: "Tatame123!"})
+	account, err := as.Register(ctx, auth.Credentials{Name: "Gestor original", Email: core.ID() + "@example.test", Password: "Tatame123!", PasswordConfirmation: "Tatame123!", TermsVersion: core.LegalVersion, PrivacyVersion: core.LegalVersion})
 	must(err)
 	principal := core.WithPrincipal(ctx, core.Principal{UserID: account.User.ID})
 	ac := academies.Service{Repo: academies.Repository{DB: db}}
-	academy, err := ac.Create(principal, academies.CreateInput{Name: "Academia original"})
+	academy, err := ac.Create(principal, academies.CreateInput{Name: "Academia original", PlanID: "essential", TermsVersion: core.LegalVersion})
 	must(err)
-	foreign, err := ac.Create(principal, academies.CreateInput{Name: "Outra academia"})
+	foreign, err := ac.Create(principal, academies.CreateInput{Name: "Outra academia", PlanID: "essential", TermsVersion: core.LegalVersion})
 	must(err)
 	ss := students.Service{Repo: students.Repository{DB: db}, Access: access.Service{DB: db}}
 	mods, err := ss.Repo.Catalog(ctx, academy.ID, false)

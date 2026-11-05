@@ -49,8 +49,8 @@ function Metric({
       accessibilityLabel={label + ": " + value + ". " + hint}
       style={[
         styles.metric,
-        isWide && { flexBasis: "22%", minHeight: 165 },
-        { borderColor: accent.border },
+        isWide && { flexBasis: "22%", minHeight: 178, borderRadius: 12 },
+        { borderColor: isWide ? colors.border : accent.border },
       ]}
     >
       <View style={styles.metricTop}>
@@ -67,7 +67,7 @@ function Metric({
           styles.value,
           {
             color: accent.color,
-            fontSize: isWide ? 24 : valueSize,
+            fontSize: isWide ? 30 : valueSize,
           },
         ]}
       >

@@ -7,9 +7,12 @@ type User struct {
 	Email    string `json:"email"`
 }
 type Credentials struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	PasswordConfirmation string `json:"password_confirmation"`
+	TermsVersion         string `json:"terms_version"`
+	PrivacyVersion       string `json:"privacy_version"`
+	Name                 string `json:"name"`
+	Email                string `json:"email"`
+	Password             string `json:"password"`
 }
 type LoginResult struct {
 	Token string `json:"token"`

@@ -3,8 +3,8 @@ import { Redirect, router, useLocalSearchParams } from "expo-router";
 import {
   Page,
   Button,
-  Heading,
-  Label,
+  Card,
+  Badge,
   Loading,
   Notice,
 } from "../../components/ui";
@@ -16,6 +16,8 @@ import {
 } from "../../services/access";
 import { useSession } from "../../services/session";
 import { AcademyAccessList } from "./AcademyAccessList";
+import { EntryActionCards, EntryHelp, EntryWelcome } from "./EntryCards";
+import { View } from "react-native";
 
 export default function EntryScreen() {
   const { area } = useLocalSearchParams<{ area?: string }>();
@@ -75,58 +77,84 @@ export default function EntryScreen() {
   if (!academies.length && requestedRole === "admin")
     return <Redirect href="/create-academy" />;
   const options = entryAccesses(academies, requestedRole);
+  const firstName = session.user.name.trim().split(/\s+/)[0] || "bem-vindo";
+  const academyCount = new Set(options.map((option) => option.academy.id)).size;
   return (
     <Page
       wide
       title={
         options.length
-          ? new Set(options.map((option) => option.academy.id)).size > 1
-            ? "Qual academia você quer acessar?"
-            : "Como você quer acessar?"
-          : "Seu acesso à academia"
+          ? "Escolha seu acesso"
+          : academies.length
+            ? "Seus acessos"
+            : "Vamos começar"
       }
       subtitle={
         options.length
-          ? "Esta conta tem mais de uma opção de acesso."
-          : undefined
+          ? "Entre na academia e no perfil que deseja usar."
+          : session.user.email
       }
       action={
         <Button compact secondary onPress={() => void logout()}>
-          Sair
+          Sair da conta
         </Button>
       }
     >
       {options.length ? (
-        <AcademyAccessList options={options} />
-      ) : (
         <>
-          <Heading>
-            {academies.length ? "Acesso indisponível" : "Sua conta está pronta"}
-          </Heading>
-          <Label muted>
-            {academies.length
-              ? "Nenhum acesso disponível para esta conta. Converse com o responsável pela academia."
-              : "Para acessar como aluno ou responsável, abra o link de matrícula enviado pela academia. Se já tiver enviado, acompanhe seu pedido abaixo."}
-          </Label>
-          {!academies.length ? (
-            <>
-              <Heading>Vai gerenciar uma academia?</Heading>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            <Badge
+              label={
+                academyCount === 1
+                  ? "1 academia vinculada"
+                  : academyCount + " academias vinculadas"
+              }
+              tone="slate"
+            />
+          </View>
+          <AcademyAccessList options={options} />
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+            <Button secondary onPress={() => router.push("/enrollment-status")}>
+              Minhas matrículas e pedidos
+            </Button>
+            {options.some((option) => option.role === "admin") ? (
               <Button
+                secondary
                 icon="plus"
                 onPress={() => router.push("/create-academy")}
               >
-                Cadastrar minha academia
+                Criar outra academia
               </Button>
-            </>
-          ) : null}
+            ) : null}
+          </View>
         </>
+      ) : !academies.length ? (
+        <>
+          <EntryWelcome name={firstName} />
+          <EntryActionCards canCreate />
+        </>
+      ) : (
+        <Card>
+          <Notice message="Nenhum acesso disponível para o perfil solicitado. Converse com o responsável pela academia." />
+          {entryAccesses(academies).length > 0 ? (
+            <Button secondary onPress={() => router.push("/academies")}>
+              Ver todos os meus acessos
+            </Button>
+          ) : null}
+          <Button secondary onPress={() => router.push("/enrollment-status")}>
+            Minhas matrículas e pedidos
+          </Button>
+        </Card>
       )}
-      <Button secondary onPress={() => router.push("/enrollment-status")}>
-        Minhas matrículas e pedidos
-      </Button>
-      <Button secondary icon="swap" onPress={reloadAcademies}>
-        Atualizar acessos
-      </Button>
+      <EntryHelp reload={reloadAcademies} />
     </Page>
   );
 }

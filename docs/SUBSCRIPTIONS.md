@@ -6,6 +6,10 @@ A cobrança do software é separada das mensalidades dos alunos. Cada academia t
 
 Mais → Minha assinatura, no navegador ou no aplicativo:
 
+Novas academias selecionam um plano obrigatório na criação e começam com 5 dias grátis a partir desse momento. O servidor registra plano, versão das condições, responsável e data do aceite na mesma transação da criação. No fim do teste, sem pagamento confirmado, a API restringe novas operações imediatamente, sem acrescentar outros cinco dias de tolerância. Consultas, login e pagamentos seguem disponíveis. Pagar durante o teste reserva o mês seguinte, sem consumir o teste. Academias antigas não ganham novo teste nem têm pagamentos alterados.
+
+O plano escolhido é o mínimo contratado: Profissional com 30 alunos continua em R$ 250. Ultrapassar 200 alunos no Essencial ou 999 no Profissional aumenta o enquadramento na próxima cobrança ainda não emitida. Diminuir alunos não reduz o plano abaixo do escolhido. Não existe cobrança automática no cartão ao mudar de faixa. Essa regra aparece antes da criação e em Minha assinatura.
+
 - Essencial: até 200 alunos ativos, R$ 150/mês.
 - Profissional: de 201 a 999 alunos ativos, R$ 250/mês.
 - Grande academia: a partir de 1.000 alunos ativos, R$ 450/mês.
@@ -38,7 +42,7 @@ Com a flag false, a tela explica que a cobrança ainda não foi liberada e não 
 
 ## Calendário e acesso
 
-Ao primeiro acesso/uso de uma academia com a cobrança habilitada, o sistema registra o início da assinatura e vencimento inicial imediato. Há cinco dias de tolerância. Portanto, ativar a flag começa a implantação comercial nas academias existentes à medida que forem usadas; combine essa ativação com os clientes.
+Para academias legadas, ao primeiro acesso/uso com a cobrança habilitada, o sistema registra início e vencimento inicial imediato, com cinco dias de tolerância. Novas academias usam o teste de cinco dias contados da criação, sem tolerância adicional antes do primeiro pagamento. Ativar a flag começa a implantação comercial; combine essa ativação com os clientes.
 
 - Pagamento em dia: acesso até o fim do período pago.
 - Vencimento até menos de cinco dias: aviso, operações liberadas.
