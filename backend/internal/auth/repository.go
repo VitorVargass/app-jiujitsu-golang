@@ -13,12 +13,15 @@ type Repository struct{ DB *pgxpool.Pool }
 
 func (r Repository) Session(ctx context.Context, id string) (string, error) {
 	token := core.Token()
-	_, e := r.DB.Exec(ctx, "INSERT INTO auth_sessions(token_hash,user_id,expires_at) VALUES($1,$2,$3)", core.Hash(token), id, time.Now().Add(30*24*time.Hour))
+	result, e := r.DB.Exec(ctx, "INSERT INTO auth_sessions(token_hash,user_id,expires_at) SELECT $1,id,$3 FROM users WHERE id=$2 AND deleted_at IS NULL FOR SHARE", core.Hash(token), id, time.Now().Add(30*24*time.Hour))
+	if e == nil && result.RowsAffected() != 1 {
+		return "", core.E(401, "unauthorized", "Entre novamente para continuar.")
+	}
 	return token, e
 }
 func (r Repository) Principal(ctx context.Context, token string) (core.Principal, error) {
 	var p core.Principal
-	e := r.DB.QueryRow(ctx, "SELECT user_id FROM auth_sessions WHERE token_hash=$1 AND expires_at>now()", core.Hash(token)).Scan(&p.UserID)
+	e := r.DB.QueryRow(ctx, "SELECT s.user_id FROM auth_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now() AND u.deleted_at IS NULL", core.Hash(token)).Scan(&p.UserID)
 	if e == nil {
 		return p, nil
 	}
@@ -56,7 +59,7 @@ func (r Repository) CreateUser(ctx context.Context, u *User, hash string, c Cred
 func (r Repository) UserByEmail(ctx context.Context, email string) (User, string, error) {
 	var u User
 	var hash string
-	err := r.DB.QueryRow(ctx, "SELECT u.id,u.name,p.email,u.password_hash,u.person_id FROM users u JOIN people p ON p.id=u.person_id WHERE p.email=$1", email).Scan(&u.ID, &u.Name, &u.Email, &hash, &u.PersonID)
+	err := r.DB.QueryRow(ctx, "SELECT u.id,u.name,p.email,u.password_hash,u.person_id FROM users u JOIN people p ON p.id=u.person_id WHERE p.email=$1 AND u.deleted_at IS NULL", email).Scan(&u.ID, &u.Name, &u.Email, &hash, &u.PersonID)
 	return u, hash, err
 }
 func (r Repository) User(ctx context.Context, id string) (User, error) {

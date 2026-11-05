@@ -1,5 +1,7 @@
 # TatameMix — gestão de academias de luta
 
+Exclusão de conta e dados: página pública `/delete-account`, acesso em Minha conta e Mais, com solicitação autenticada e atendimento manual. Consulte o [procedimento, migração 021, deploy e Google Play](docs/ACCOUNT-DELETION.md) antes da publicação.
+
 API Go, PostgreSQL e aplicativo React Native/Expo com portal web do aluno. Esta versão inclui alunos independentes de contas, modalidades, planos opcionais, geração mensal, Pix Asaas e presenças pelo tablet ou lançadas pelo gestor. A identidade TatameMix usa preto, branco e vermelho, com tipografia Inter. Os fluxos da academia, do aluno e do tablet são compartilhados entre o aplicativo e a versão web.
 
 ## Assinatura do software

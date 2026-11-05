@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useLocalSearchParams, Href } from "expo-router";
 import {
   Page,
   Button,
@@ -100,6 +100,9 @@ export default function EntryScreen() {
         </Button>
       }
     >
+      <Button secondary onPress={() => router.push("/delete-account" as Href)}>
+        Excluir minha conta
+      </Button>
       {options.length ? (
         <>
           <View

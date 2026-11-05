@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
+import { router, Href } from "expo-router";
 import { useSession } from "../services/session";
 import { academyAccesses, accessHome, AcademyAccess } from "../services/access";
 import { colors, accents, roleLabel } from "../theme";
@@ -211,6 +211,21 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
               Sair da conta
             </Button>
           </View>
+          <View style={s.privacy}>
+            <Text style={s.sectionLabel}>PRIVACIDADE E DADOS</Text>
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy}
+              accessibilityHint="Abre as informações e a confirmação da solicitação de exclusão"
+              style={({ pressed }) => [s.deletionLink, pressed && s.pressed]}
+              onPress={() => {
+                setOpen(false);
+                router.push("/delete-account" as Href);
+              }}
+            >
+              <Text style={s.refreshText}>Excluir minha conta</Text>
+            </Pressable>
+          </View>
         </EditorDialog>
       ) : null}
     </>
@@ -317,6 +332,18 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
     paddingTop: 16,
+  },
+  privacy: {
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    alignItems: "flex-start",
+  },
+  deletionLink: {
+    minHeight: 48,
+    justifyContent: "center",
+    paddingHorizontal: 4,
   },
   pressed: { opacity: 0.65 },
 });

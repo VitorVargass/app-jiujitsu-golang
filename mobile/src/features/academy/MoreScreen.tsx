@@ -2,7 +2,7 @@ import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { View } from "react-native";
 import { router, Href } from "expo-router";
 import { Icon, IconName } from "../../components/Icon";
-import { accents, Accent } from "../../theme";
+import { accents, Accent, colors } from "../../theme";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
 import { Card, Heading, Label, Button } from "../../components/ui";
 import { useSession } from "../../services/session";
@@ -127,6 +127,25 @@ function Content() {
       <View style={{ alignItems: "flex-start" }}>
         <Button compact secondary onPress={() => void logout()}>
           Sair da conta
+        </Button>
+      </View>
+      <View
+        style={{
+          marginTop: 24,
+          paddingTop: 20,
+          borderTopWidth: 1,
+          borderTopColor: colors.borderSubtle,
+          alignItems: "flex-start",
+          gap: 12,
+        }}
+      >
+        <Label muted>Privacidade e dados</Label>
+        <Button
+          compact
+          secondary
+          onPress={() => router.push("/delete-account" as Href)}
+        >
+          Excluir minha conta
         </Button>
       </View>
     </AcademyShell>

@@ -13872,6 +13872,9 @@
           }
         },
         "responses": {
+          "200": {
+            "description": "Persistido; confirmação exige consulta autenticada ao provedor"
+          },
           "400": {
             "description": "Evento inválido"
           },
@@ -13880,9 +13883,6 @@
           },
           "503": {
             "description": "Cobrança desabilitada"
-          },
-          "200": {
-            "description": "Persistido; confirmação exige consulta autenticada ao provedor"
           }
         }
       }
@@ -14080,6 +14080,92 @@
           },
           "422": {
             "description": "Dados inválidos"
+          }
+        }
+      }
+    },
+    "/v1/auth/deletion-requests": {
+      "post": {
+        "summary": "Solicitar exclusão da própria conta e dados por atendimento manual",
+        "description": "Exige sessão pessoal e senha atual; disponível independentemente de assinatura. Repetições retornam o mesmo protocolo. Não executa exclusão imediata.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "password",
+                  "confirm"
+                ],
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 72,
+                    "format": "password"
+                  },
+                  "confirm": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Pedido persistido (novo ou repetido)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "status",
+                    "message"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "received",
+                        "reviewing",
+                        "completed"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sessão ausente ou expirada"
+          },
+          "403": {
+            "description": "Senha incorreta ou sessão de dispositivo"
+          },
+          "422": {
+            "description": "Confirmação obrigatória"
+          },
+          "429": {
+            "description": "Limite de tentativas atingido"
           }
         }
       }

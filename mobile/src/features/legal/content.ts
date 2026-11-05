@@ -1,4 +1,4 @@
-export const LEGAL_VERSION = "2026-11-04";
+export const LEGAL_VERSION = "2026-11-05";
 export const privacyContact =
   process.env.EXPO_PUBLIC_PRIVACY_EMAIL?.trim() ||
   "vitorrodriguesvargas@gmail.com";
@@ -6,6 +6,10 @@ export const legalResponsible =
   process.env.EXPO_PUBLIC_LEGAL_RESPONSIBLE?.trim() || "TatameMix";
 
 export const privacySections = [
+  [
+    "Exclusão de conta e dados",
+    `Solicite em Minha conta → Excluir minha conta, em Mais → Excluir minha conta ou na página pública /delete-account, inclusive após desinstalar o aplicativo. Sem login, envie o pedido para ${privacyContact}; o atendimento confirma o recebimento e verifica sua identidade pelo controle do e-mail cadastrado ou por alternativa proporcional. Dentro do app, a senha atual confirma o pedido e a API registra um protocolo. O atendimento manual abrange todas as academias e separa credenciais de registros mantidos por cada academia. Dados sem finalidade de conservação são apagados ou anonimizados; registros financeiros, contratuais e de segurança com justificativa aplicável são minimizados e conservados somente enquanto a finalidade persistir. O atendimento informa quais registros foram conservados, finalidade e prazo ou critério de término em cada caso. Não há prazo operacional fixo publicado. O protocolo mínimo permanece enquanto necessário para acompanhar e comprovar o atendimento, com revisão na conclusão. Gestores combinam transferência explícita ou encerramento separado da academia com o suporte. Na conclusão são removidas credenciais, sessões e acessos pessoais; dispositivos compartilhados da academia são preservados. O pedido não cancela cobranças externas, não gera reembolso e não equivale a arquivar aluno ou encerrar renovação.`,
+  ],
   [
     "Quem trata seus dados",
     `${legalResponsible} mantém o TatameMix e trata os dados de conta, acesso e assinatura do software. Cada academia define as finalidades dos dados de seus alunos e responsáveis; o TatameMix fornece a tecnologia para operar essa gestão. Solicitações sobre matrículas e dados escolares/esportivos devem identificar a academia responsável.`,

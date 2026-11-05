@@ -89,6 +89,8 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	})
 	mux.HandleFunc("POST /v1/auth/register", s.rate(a.Register))
 	mux.HandleFunc("POST /v1/auth/login", s.rate(a.Login))
+	// Personal rights requests must remain available even with overdue billing.
+	mux.Handle("POST /v1/auth/deletion-requests", a.Middleware(http.HandlerFunc(s.rate(a.RequestDeletion))))
 	platform := bank.Subscriptions
 	if platform == nil {
 		platform = subscriptions.New(db, subscriptions.Config{})

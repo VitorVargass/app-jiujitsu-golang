@@ -1,4 +1,5 @@
 import { Linking, View } from "react-native";
+import { router, Href } from "expo-router";
 import { Heading, Label, Button, Notice } from "../../components/ui";
 import {
   LEGAL_VERSION,
@@ -21,6 +22,9 @@ export function LegalDocument({ privacy = false }: { privacy?: boolean }) {
         </View>
       ))}
       <Heading>Contato e solicitações</Heading>
+      <Button secondary onPress={() => router.push("/delete-account" as Href)}>
+        Excluir minha conta e dados
+      </Button>
       {privacyContact ? (
         <>
           <Label>{privacyContact}</Label>
