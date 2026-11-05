@@ -7,8 +7,11 @@
     "orientation": "default",
     "userInterfaceStyle": "dark",
     "android": {
-      "package": "com.tatame.jiujitsu",
-      "permissions": ["CAMERA"],
+      "package": "com.tatamemix.app",
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
@@ -46,6 +49,16 @@
       "typedRoutes": true
     },
     "icon": "./assets/icon.png",
-    "backgroundColor": "#0F0F10"
+    "backgroundColor": "#0F0F10",
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "59590655-b390-411d-879d-6a2ac72b86ab"
+      }
+    }
   }
 }
