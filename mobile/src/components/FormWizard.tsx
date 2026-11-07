@@ -1,8 +1,9 @@
 import { ReactNode, useContext, useState } from "react";
-import { Keyboard, Text, View, StyleSheet } from "react-native";
+import { Keyboard, Text, View } from "react-native";
 import { Button, Notice } from "./ui";
 import { FormScrollContext } from "./FormScrollContext";
-import { colors } from "../theme";
+import { useThemedStyles } from "../theme/ThemeProvider";
+import { createThemedStyles } from "../theme";
 
 export function FormWizard({
   steps,
@@ -25,6 +26,7 @@ export function FormWizard({
   submitLabel?: string;
   initialStep?: number;
 }) {
+  const styles = useThemedStyles(themedStyles);
   const [step, setStep] = useState(initialStep);
   const [message, setMessage] = useState("");
   const resetScroll = useContext(FormScrollContext);
@@ -117,7 +119,7 @@ export function FormWizard({
     </View>
   );
 }
-const styles = StyleSheet.create({
+const themedStyles = createThemedStyles(({ colors }) => ({
   root: { gap: 20, width: "100%", maxWidth: 1040, alignSelf: "center" },
   progress: { gap: 10 },
   bars: { flexDirection: "row", gap: 6 },
@@ -137,4 +139,4 @@ const styles = StyleSheet.create({
   body: { gap: 16 },
   actions: { flexDirection: "row", gap: 12 },
   action: { flex: 1, minWidth: 0 },
-});
+}));

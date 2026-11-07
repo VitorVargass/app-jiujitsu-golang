@@ -7,11 +7,11 @@ import {
   PanResponder,
   PanResponderGestureState,
   Platform,
-  StyleSheet,
   View,
   useWindowDimensions,
 } from "react-native";
-import { colors } from "../theme";
+import { useThemedStyles } from "../theme/ThemeProvider";
+import { createThemedStyles } from "../theme";
 
 export type SwipeDirection = "left" | "right";
 export type SwipePages = { right: React.ReactNode; left: React.ReactNode };
@@ -163,6 +163,7 @@ export function SwipeNavigator({
   onSwipe?: (direction: SwipeDirection) => void;
   pages?: SwipePages;
 }) {
+  const styles = useThemedStyles(themedStyles);
   const window = useWindowDimensions();
   const [width, setWidth] = useState(window.width);
   const [offset] = useState(() => new Animated.Value(0));
@@ -233,7 +234,7 @@ export function SwipeNavigator({
     </View>
   );
 }
-const styles = StyleSheet.create({
+const themedStyles = createThemedStyles(({ colors }) => ({
   frame: { flex: 1, overflow: "hidden", backgroundColor: colors.background },
   strip: { flex: 1 },
   panel: {
@@ -242,4 +243,4 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: colors.background,
   },
-});
+}));

@@ -3,7 +3,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
@@ -12,7 +11,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, G, Line, Path, Rect } from "react-native-svg";
 import { Brand, BrandGlyph, BrandMark } from "../../components/Brand";
 import { Icon, IconName } from "../../components/Icon";
-import { brand } from "../../theme/brand";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
+
 
 const features: { icon: IconName; title: string }[] = [
   { icon: "users", title: "Alunos" },
@@ -20,6 +21,8 @@ const features: { icon: IconName; title: string }[] = [
   { icon: "check-circle", title: "Presenças" },
 ];
 function ArenaGraphic() {
+  const { brand } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <View
       style={s.graphic}
@@ -34,17 +37,17 @@ function ArenaGraphic() {
           width="498"
           height="208"
           rx="22"
-          fill="#141416"
-          stroke="#333337"
+          fill={brand.surface}
+          stroke={brand.border}
         />
         {[70, 140, 210, 280, 350, 420].map((x) => (
-          <Line key={x} x1={x} y1="1" x2={x} y2="209" stroke="#252528" />
+          <Line key={x} x1={x} y1="1" x2={x} y2="209" stroke={brand.surfaceRaised} />
         ))}
         {[52, 105, 158].map((y) => (
-          <Line key={y} x1="1" y1={y} x2="499" y2={y} stroke="#252528" />
+          <Line key={y} x1="1" y1={y} x2="499" y2={y} stroke={brand.surfaceRaised} />
         ))}
-        <Circle cx="250" cy="105" r="92" fill="none" stroke="#3D3033" />
-        <Circle cx="250" cy="105" r="72" fill="#211619" stroke="#5D2A33" />
+        <Circle cx="250" cy="105" r="92" fill="none" stroke={brand.border} />
+        <Circle cx="250" cy="105" r="72" fill={brand.accentSoft} stroke={brand.accentBorder} />
         <G transform="translate(202 55) scale(1.5)">
           <BrandGlyph />
         </G>
@@ -69,6 +72,8 @@ export function AuthLayout({
   fromStudentLink: boolean;
   children: ReactNode;
 }) {
+  const { brand } = useTheme();
+  const s = useThemedStyles(themedS);
   const { isWide: wide } = useResponsiveLayout();
   return (
     <SafeAreaView style={s.safe}>
@@ -144,7 +149,7 @@ export function AuthLayout({
             </View>
           </View>
           <View style={s.signature}>
-            <BrandMark size={14} color="#7A7A83" />
+            <BrandMark size={14} color={brand.muted} />
             <Text style={s.signatureText}>FEITO PARA QUEM VIVE A LUTA.</Text>
           </View>
         </ScrollView>
@@ -152,7 +157,7 @@ export function AuthLayout({
     </SafeAreaView>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ brand }) => ({
   fill: { flex: 1 },
   safe: { flex: 1, backgroundColor: brand.background },
   viewport: {
@@ -188,7 +193,7 @@ const s = StyleSheet.create({
     fontSize: 47,
     lineHeight: 55,
     letterSpacing: -1.9,
-    color: "#F3F5F5",
+    color: brand.text,
   },
   heroDescription: {
     fontFamily: "Inter_400Regular",
@@ -203,7 +208,7 @@ const s = StyleSheet.create({
   featureText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
-    color: "#D0D0D7",
+    color: brand.text,
   },
   form: {
     width: "100%",
@@ -223,7 +228,7 @@ const s = StyleSheet.create({
     fontSize: 31,
     lineHeight: 37,
     letterSpacing: -1,
-    color: "#F5F7F6",
+    color: brand.text,
   },
   description: {
     fontFamily: "Inter_400Regular",
@@ -242,6 +247,6 @@ const s = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     fontSize: 8,
     letterSpacing: 1.2,
-    color: "#8A8A94",
+    color: brand.muted,
   },
-});
+}));

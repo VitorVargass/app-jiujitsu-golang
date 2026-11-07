@@ -6,7 +6,7 @@ import { DesktopSidebar } from "../../components/DesktopSidebar";
 import { DesktopHeader } from "../../components/DesktopHeader";
 import { Brand } from "../../components/Brand";
 import { Redirect, router, usePathname, Href } from "expo-router";
-import { View, Pressable, Text, StyleSheet, Keyboard } from "react-native";
+import { View, Pressable, Text, Keyboard } from "react-native";
 import { Page, Loading } from "../../components/ui";
 import { SwipeDirection } from "../../components/SwipeNavigator";
 import {
@@ -17,7 +17,8 @@ import {
 import { Icon, IconName } from "../../components/Icon";
 import { useSession } from "../../services/session";
 import { Role } from "../../types";
-import { colors, accents, Accent } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { Accent, createThemedStyles } from "../../theme";
 import { useClassSetup } from "../classes/useClassSetup";
 import { ClassSetupNotice } from "../classes/ClassSetupNotice";
 
@@ -78,13 +79,6 @@ const managerTabs: Tab[] = [
 ];
 const studentTabs: Tab[] = [
   {
-    label: "Mensalidades",
-    url: "/student",
-    icon: "wallet",
-    tone: "brand",
-    routes: ["/student", "/invoice"],
-  },
-  {
     label: "Presenças",
     url: "/history",
     icon: "check-circle",
@@ -92,11 +86,25 @@ const studentTabs: Tab[] = [
     routes: ["/history"],
   },
   {
+    label: "Mensalidades",
+    url: "/student",
+    icon: "wallet",
+    tone: "brand",
+    routes: ["/student", "/invoice"],
+  },
+  {
     label: "Meu QR",
     url: "/qr",
     icon: "qr",
     tone: "brand",
     routes: ["/qr"],
+  },
+  {
+    label: "Mais",
+    url: "/more",
+    icon: "more",
+    tone: "brand",
+    routes: ["/more"],
   },
 ];
 
@@ -160,14 +168,17 @@ export function AcademyShell({
   wide = false,
 }: {
   title: string;
-  subtitle?: string;
+  subtitle?: string | null;
   titleAction?: React.ReactNode;
   children: React.ReactNode;
   swipeEnabled?: boolean;
   showClassSetupNotice?: boolean;
   wide?: boolean;
 }) {
+  const { accents, colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   const { academy, role, session } = useSession();
+  const pageSubtitle = subtitle === null ? undefined : subtitle || academy?.name;
   const pathname = usePathname();
   const { isWide } = useResponsiveLayout();
   const tabs = role === "student" ? studentTabs : managerTabs;
@@ -204,7 +215,7 @@ export function AcademyShell({
     return (
       <Page
         title={title}
-        subtitle={subtitle || academy?.name}
+        subtitle={pageSubtitle}
         titleAction={titleAction}
         contentOnly
         wide={wide}
@@ -216,7 +227,7 @@ export function AcademyShell({
   return (
     <Page
       title={title}
-      subtitle={subtitle || academy?.name}
+      subtitle={pageSubtitle}
       titleAction={titleAction}
       wide={wide || isWide}
       sidebar={
@@ -336,7 +347,7 @@ export function AcademyShell({
     </Page>
   );
 }
-const styles = StyleSheet.create({
+const themedStyles = createThemedStyles(({ accents, colors }) => ({
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -406,4 +417,4 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.muted,
   },
-});
+}));

@@ -27,7 +27,8 @@ import {
   copyPresetBelts,
   beltPalette,
 } from "../../types/graduation";
-import { colors } from "../../theme";
+import { useTheme } from "../../theme/ThemeProvider";
+
 
 function Editor({
   initial,
@@ -40,6 +41,7 @@ function Editor({
   modalities: Catalog[];
   onDone: () => void;
 }) {
+  const { colors } = useTheme();
   const { academy } = useSession();
   const [name, setName] = useState(initial?.name ?? "");
   const [active, setActive] = useState(initial?.active ?? true);

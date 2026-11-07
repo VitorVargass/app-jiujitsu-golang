@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { router } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Badge, Button, Card, Heading, Label } from "../../components/ui";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { Icon } from "../../components/Icon";
-import { colors } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 export function EntryWelcome({ name }: { name: string }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <Card style={s.welcome}>
       <View style={s.between}>
@@ -27,7 +30,7 @@ export function EntryWelcome({ name }: { name: string }) {
       </View>
       <View style={s.milestones}>
         <View style={s.milestone}>
-          <Icon name="check-circle" size={16} color="#89D2A6" />
+          <Icon name="check-circle" size={16} color={colors.success} />
           <Text style={s.milestoneText}>Sua conta</Text>
         </View>
         <View style={s.connector} />
@@ -41,6 +44,8 @@ export function EntryWelcome({ name }: { name: string }) {
 }
 
 export function EntryActionCards({ canCreate }: { canCreate: boolean }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const [choice, setChoice] = useState<"student" | "admin" | null>(null);
   if (!choice)
     return (
@@ -61,10 +66,10 @@ export function EntryActionCards({ canCreate }: { canCreate: boolean }) {
               <View
                 style={[
                   s.icon,
-                  { backgroundColor: "#20252E", borderColor: "#3B4654" },
+                  { backgroundColor: accents.blue.soft, borderColor: accents.blue.border },
                 ]}
               >
-                <Icon name="users" size={26} color="#B4C4DA" />
+                <Icon name="users" size={26} color={accents.blue.color} />
               </View>
               <Text style={s.eyebrow}>PARA QUEM TREINA</Text>
             </View>
@@ -85,14 +90,14 @@ export function EntryActionCards({ canCreate }: { canCreate: boolean }) {
             >
               <Text
                 style={{
-                  color: "#B4C4DA",
+                  color: accents.blue.color,
                   fontSize: 12,
                   fontFamily: "Inter_600SemiBold",
                 }}
               >
                 Acessar minha academia
               </Text>
-              <Icon name="arrow-right" size={20} color="#B4C4DA" />
+              <Icon name="arrow-right" size={20} color={accents.blue.color} />
             </View>
           </Card>
           {canCreate ? (
@@ -165,10 +170,10 @@ export function EntryActionCards({ canCreate }: { canCreate: boolean }) {
             <View
               style={[
                 s.icon,
-                { backgroundColor: "#20252E", borderColor: "#3B4654" },
+                { backgroundColor: accents.blue.soft, borderColor: accents.blue.border },
               ]}
             >
-              <Icon name="users" size={24} color="#B4C4DA" />
+              <Icon name="users" size={24} color={accents.blue.color} />
             </View>
             <Badge label="Aluno ou responsável" tone="blue" />
           </View>
@@ -238,6 +243,8 @@ export function EntryHelp({
   reload: () => void;
   refreshing?: boolean;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <Card style={s.help}>
       <View style={s.helpCopy}>
@@ -264,12 +271,12 @@ export function EntryHelp({
   );
 }
 
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   welcome: {
     padding: 28,
     gap: 24,
-    borderColor: "#59303A",
-    backgroundColor: "#1D181D",
+    borderColor: accents.brand.border,
+    backgroundColor: colors.surface,
   },
   between: {
     flexDirection: "row",
@@ -302,9 +309,9 @@ const s = StyleSheet.create({
   welcomeIcon: {
     width: 62,
     height: 62,
-    backgroundColor: "#352129",
+    backgroundColor: accents.brand.soft,
     borderWidth: 1,
-    borderColor: "#633039",
+    borderColor: accents.brand.border,
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
@@ -315,7 +322,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 14,
     borderTopWidth: 1,
-    borderTopColor: "#3D2B33",
+    borderTopColor: colors.borderSubtle,
     paddingTop: 19,
   },
   milestone: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -324,7 +331,7 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontFamily: "Inter_400Regular",
   },
-  connector: { width: 35, height: 1, backgroundColor: "#54414A" },
+  connector: { width: 35, height: 1, backgroundColor: colors.border },
   currentDot: {
     width: 8,
     height: 8,
@@ -337,9 +344,9 @@ const s = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 13,
-    backgroundColor: "#2D171B",
+    backgroundColor: accents.brand.soft,
     borderWidth: 1,
-    borderColor: "#633039",
+    borderColor: accents.brand.border,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -368,11 +375,11 @@ const s = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: "#202126",
+    backgroundColor: colors.surfaceRaised,
     borderRadius: 9,
   },
   stepText: {
-    color: "#B4C4DA",
+    color: accents.blue.color,
     fontSize: 11,
     lineHeight: 18,
     fontFamily: "Inter_400Regular",
@@ -401,4 +408,4 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-});
+}));

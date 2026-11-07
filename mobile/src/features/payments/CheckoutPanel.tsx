@@ -12,7 +12,8 @@ import {
   checkoutURL,
 } from "../../services/checkout-flow";
 import { Checkout, money } from "../../types/billing";
-import { colors } from "../../theme";
+import { useTheme } from "../../theme/ThemeProvider";
+
 
 export function CheckoutPanel({
   academyId,
@@ -25,6 +26,7 @@ export function CheckoutPanel({
   initial?: Checkout;
   inline?: boolean;
 }) {
+  const { colors } = useTheme();
   const [copied, setCopied] = useState(false);
   const [validated, setValidated] = useState<Checkout>();
   const [, tick] = useState(0);

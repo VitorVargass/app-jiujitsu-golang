@@ -8,7 +8,7 @@ export function accessRole(value: unknown): AccessRole | undefined {
   return value === "admin" || value === "student" ? value : undefined;
 }
 export function accessHome(role: AccessRole) {
-  return role === "admin" ? "/academy" : "/student";
+  return role === "admin" ? "/academy" : "/history";
 }
 export function academyAccesses(academies: Academy[]): AcademyAccess[] {
   return academies.flatMap((academy) => [

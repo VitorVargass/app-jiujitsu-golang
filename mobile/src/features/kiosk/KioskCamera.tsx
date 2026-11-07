@@ -5,7 +5,8 @@ import type { CameraType } from "expo-camera";
 import { EditorDialog } from "../../components/EditorDialog";
 import { Icon } from "../../components/Icon";
 import { Button, Label, Loading, Notice } from "../../components/ui";
-import { colors, accents } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 export function KioskCamera({
   onRead,
@@ -16,6 +17,8 @@ export function KioskCamera({
   onClose: () => void;
   disabled: boolean;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const [permission, requestPermission] = useCameraPermissions();
   const [error, setError] = useState("");
   const [requesting, setRequesting] = useState(false);
@@ -121,7 +124,7 @@ export function KioskCamera({
     </EditorDialog>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   cameraControls: {
     flexDirection: "row",
     alignItems: "center",
@@ -180,4 +183,4 @@ const s = StyleSheet.create({
     lineHeight: 21,
     textAlign: "center",
   },
-});
+}));

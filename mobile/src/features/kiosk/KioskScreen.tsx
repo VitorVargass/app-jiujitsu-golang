@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { Redirect } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -19,7 +13,6 @@ import {
   Field,
   IconButton,
   Label,
-  Loading,
   Notice,
   Page,
 } from "../../components/ui";
@@ -30,11 +23,13 @@ import {
   studentNumberDigits,
   validStudentNumber,
 } from "../../types/student-number";
-import { colors, accents, displayTime } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { displayTime, createThemedStyles } from "../../theme";
 import { KioskCamera } from "./KioskCamera";
 import { KioskLessonPicker, KioskSuccess } from "./KioskPanels";
 
 function Content() {
+  const s = useThemedStyles(themedS);
   const { session, logout } = useSession();
   const device = session! as Extract<
     NonNullable<typeof session>,
@@ -54,8 +49,8 @@ function Content() {
     body: {
       qr_token?: string;
       student_code?: string;
-      schedule_id: string;
-      date: string;
+      schedule_id?: string;
+      date?: string;
     };
     key: string;
   } | null>(null);
@@ -102,14 +97,15 @@ function Content() {
     body: { qr_token?: string; student_code?: string },
     retry = false,
   ) {
-    if ((!retry && !active) || submitting.current) return;
+    if (submitting.current) return;
     submitting.current = true;
     setScanning(false);
-    if (!retry && active) {
+    if (!retry) {
       const payload = {
         ...body,
-        schedule_id: active.schedule_id,
-        date: active.date,
+        ...(active
+          ? { schedule_id: active.schedule_id, date: active.date }
+          : {}),
       };
       if (
         !event.current ||
@@ -131,7 +127,7 @@ function Content() {
   }
   const retry = checkin.error instanceof APIError && checkin.error.status === 0;
   const valid = validStudentNumber(code);
-  const canSubmit = retry || (!!active && valid);
+  const canSubmit = retry || valid;
   function confirm() {
     if (!canSubmit || checkin.isPending) return;
     if (retry && event.current) void submit(event.current.body, true);
@@ -190,49 +186,7 @@ function Content() {
             />
           ) : (
             <>
-              {sessions.isPending ? (
-                <View style={s.state}>
-                  <Loading />
-                  <Text style={s.hint}>Buscando os horários da academia…</Text>
-                </View>
-              ) : sessions.error ? (
-                <View style={s.state}>
-                  <View style={s.stateIcon}>
-                    <Icon name="calendar" color={colors.muted} size={24} />
-                  </View>
-                  <Text style={s.stateTitle}>
-                    Não foi possível consultar as aulas
-                  </Text>
-                  <Notice message={sessions.error.message} />
-                  <Button
-                    compact
-                    secondary
-                    loading={sessions.isFetching}
-                    onPress={() => void sessions.refetch()}
-                  >
-                    Tentar carregar horários
-                  </Button>
-                </View>
-              ) : !options.length ? (
-                <View style={s.state}>
-                  <View style={s.stateIcon}>
-                    <Icon name="calendar" color={colors.muted} size={24} />
-                  </View>
-                  <Text style={s.stateTitle}>Nenhuma aula neste horário</Text>
-                  <Text style={s.description}>
-                    Os horários são identificados pela grade da academia.
-                    Confira sua aula com a recepção.
-                  </Text>
-                  <Button
-                    compact
-                    secondary
-                    loading={sessions.isFetching}
-                    onPress={() => void sessions.refetch()}
-                  >
-                    Atualizar horários
-                  </Button>
-                </View>
-              ) : (
+              {options.length > 0 ? (
                 <KioskLessonPicker
                   options={options}
                   active={active}
@@ -245,60 +199,63 @@ function Content() {
                     event.current = null;
                   }}
                 />
-              )}
-              {options.length > 0 || retry ? (
-                <>
-                  <View style={s.identification}>
-                    <Field
-                      label="Número do aluno"
-                      editable={!checkin.isPending}
-                      value={code}
-                      onChangeText={(value) => {
-                        setCode(studentNumberDigits(value));
-                        checkin.reset();
-                      }}
-                      keyboardType="number-pad"
-                      autoComplete="off"
-                      maxLength={5}
-                      placeholder="5 números"
-                      style={[
-                        s.input,
-                        width < 380 && { fontSize: 22, letterSpacing: 0.5 },
-                      ]}
-                      returnKeyType="done"
-                      onSubmitEditing={confirm}
-                    />
-                    <Text style={s.hint}>
-                      Seu número tem 5 dígitos. Se esqueceu, peça à recepção.
-                    </Text>
-                    <Button
-                      icon="check-circle"
-                      disabled={!canSubmit}
-                      loading={checkin.isPending}
-                      onPress={confirm}
-                    >
-                      {retry ? "Tentar novamente" : "Confirmar presença"}
-                    </Button>
-                    <Notice message={checkin.error?.message} />
-                  </View>
-                  <View style={s.divider}>
-                    <View style={s.line} />
-                    <Text style={s.or}>ou</Text>
-                    <View style={s.line} />
-                  </View>
-                  <Button
-                    secondary
-                    icon="qr"
-                    disabled={!active || checkin.isPending}
-                    onPress={() => {
-                      checkin.reset();
-                      setScanning(true);
-                    }}
-                  >
-                    Escanear QR Code
-                  </Button>
-                </>
               ) : null}
+              <View style={s.identification}>
+                <Field
+                  label="Número do aluno"
+                  editable={!checkin.isPending}
+                  value={code}
+                  onChangeText={(value) => {
+                    setCode(studentNumberDigits(value));
+                    checkin.reset();
+                  }}
+                  keyboardType="number-pad"
+                  autoComplete="off"
+                  maxLength={5}
+                  placeholder="5 números"
+                  style={[
+                    s.input,
+                    width < 380 && { fontSize: 22, letterSpacing: 0.5 },
+                  ]}
+                  returnKeyType="done"
+                  onSubmitEditing={confirm}
+                />
+                <Text style={s.hint}>
+                  Seu número tem 5 dígitos. Se esqueceu, peça à recepção.
+                </Text>
+                <Button
+                  icon="check-circle"
+                  disabled={!canSubmit}
+                  loading={checkin.isPending}
+                  onPress={confirm}
+                >
+                  {retry ? "Tentar novamente" : "Confirmar presença"}
+                </Button>
+                <Notice
+                  message={
+                    checkin.error instanceof APIError &&
+                    checkin.error.code === "no_scheduled_class"
+                      ? "Nenhuma aula neste horário."
+                      : checkin.error?.message
+                  }
+                />
+              </View>
+              <View style={s.divider}>
+                <View style={s.line} />
+                <Text style={s.or}>ou</Text>
+                <View style={s.line} />
+              </View>
+              <Button
+                secondary
+                icon="qr"
+                disabled={checkin.isPending}
+                onPress={() => {
+                  checkin.reset();
+                  setScanning(true);
+                }}
+              >
+                Escanear QR Code
+              </Button>
             </>
           )}
         </Card>
@@ -310,7 +267,7 @@ function Content() {
       </View>
       {scanning ? (
         <KioskCamera
-          disabled={!active || checkin.isPending}
+          disabled={checkin.isPending}
           onRead={(data) => void submit({ qr_token: data })}
           onClose={() => setScanning(false)}
         />
@@ -376,6 +333,8 @@ function MenuItem({
   onPress: () => void;
   danger?: boolean;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <Pressable
       accessibilityRole="button"
@@ -403,7 +362,7 @@ export default function KioskScreen() {
   if (session?.kind !== "device") return <Redirect href="/entry" />;
   return <Content />;
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -472,22 +431,6 @@ const s = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 18,
   },
-  state: { alignItems: "center", gap: 16, paddingVertical: 18 },
-  stateIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surfaceRaised,
-  },
-  stateTitle: {
-    fontFamily: "Inter_600SemiBold",
-    color: colors.text,
-    fontSize: 18,
-    lineHeight: 25,
-    textAlign: "center",
-  },
   hint: {
     fontFamily: "Inter_400Regular",
     color: colors.muted,
@@ -508,4 +451,4 @@ const s = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-});
+}));

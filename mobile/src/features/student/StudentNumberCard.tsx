@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Text, View, useWindowDimensions } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import QRCode from "react-native-qrcode-svg";
+import { CopyButton } from "../../components/CopyField";
 import { Button, Heading, Label, Notice } from "../../components/ui";
-import { colors } from "../../theme";
+import { useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 export function StudentNumberCard({
   name,
@@ -16,6 +18,7 @@ export function StudentNumberCard({
   code: string;
   qrToken: string;
 }) {
+  const s = useThemedStyles(themedS);
   const { width } = useWindowDimensions();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -57,6 +60,7 @@ export function StudentNumberCard({
         >
           {code}
         </Text>
+        <CopyButton value={code} label="Copiar número" />
       </View>
       <Heading>{name}</Heading>
       <Label muted>{academy}</Label>
@@ -74,7 +78,7 @@ export function StudentNumberCard({
     </View>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ colors }) => ({
   card: { alignItems: "center", gap: 12 },
   qr: { backgroundColor: "white", padding: 20, borderRadius: 16 },
   number: { alignItems: "center", gap: 5 },
@@ -84,4 +88,4 @@ const s = StyleSheet.create({
     letterSpacing: 6,
     color: colors.text,
   },
-});
+}));

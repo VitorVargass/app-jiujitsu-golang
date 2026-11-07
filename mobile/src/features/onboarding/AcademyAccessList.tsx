@@ -1,13 +1,16 @@
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Icon } from "../../components/Icon";
 import { Badge, Card, Heading } from "../../components/ui";
 import { AcademyAccess, accessHome } from "../../services/access";
 import { useSession } from "../../services/session";
 import { router } from "expo-router";
-import { accents, colors } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 export function AcademyAccessList({ options }: { options: AcademyAccess[] }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy, role, select } = useSession();
   const groups = [
     ...new Map(options.map((item) => [item.academy.id, item.academy])).values(),
@@ -78,7 +81,7 @@ export function AcademyAccessList({ options }: { options: AcademyAccess[] }) {
     </ResponsiveGrid>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   card: { padding: 24, gap: 20, borderRadius: 15 },
   heading: { flexDirection: "row", alignItems: "center", gap: 12 },
   icon: {
@@ -128,4 +131,4 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
   },
-});
+}));

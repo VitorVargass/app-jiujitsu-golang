@@ -5,7 +5,7 @@
     "scheme": "tatame",
     "version": "1.1.1",
     "orientation": "default",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.tatamemix.app",
       "versionCode": 2,

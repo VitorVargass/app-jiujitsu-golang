@@ -73,9 +73,10 @@ export function StudentSelector({
         </Button>
       </Card>
     );
+  if (scope.data.length === 1) return null;
   return (
     <Card>
-      <Label muted>{scope.data.length > 1 ? "Consultar aluno" : "Aluno"}</Label>
+      <Label muted>Consultar aluno</Label>
       <Row>
         {scope.data.map((x) => (
           <Chip

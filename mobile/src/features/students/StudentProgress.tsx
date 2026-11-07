@@ -1,7 +1,7 @@
 import { QueryError } from "../../components/QueryError";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import {
   Badge,
@@ -21,7 +21,8 @@ import { Pagination } from "../../components/Pagination";
 import { api, academyPath } from "../../services/api";
 import { Catalog, Page, Student } from "../../types/billing";
 import { rankLabel } from "../../types/graduation";
-import { colors, accents } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 type GraduationEvent = {
   id: string;
@@ -58,6 +59,8 @@ export function StudentProgress({
   timezone: string;
   onEdit: (id: string) => void;
 }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const [page, setPage] = useState(1),
     [modality, setModality] = useState("");
   const [startEditor, setStartEditor] = useState(false);
@@ -297,7 +300,7 @@ function enrollmentDuration(
     .filter(Boolean)
     .join(" e ");
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   progressHeading: {
     flexDirection: "row",
     alignItems: "center",
@@ -338,4 +341,4 @@ const s = StyleSheet.create({
     paddingLeft: 14,
     paddingVertical: 8,
   },
-});
+}));

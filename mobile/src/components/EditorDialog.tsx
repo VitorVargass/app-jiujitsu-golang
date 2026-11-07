@@ -3,7 +3,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
@@ -11,7 +10,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon } from "./Icon";
 import { useDialogFocus } from "../hooks/useDialogFocus";
 import { useResponsiveLayout } from "../hooks/useResponsiveLayout";
-import { colors } from "../theme";
+import { useTheme, useThemedStyles } from "../theme/ThemeProvider";
+import { createThemedStyles } from "../theme";
 
 export function EditorDialog({
   title,
@@ -28,6 +28,8 @@ export function EditorDialog({
   pending?: boolean;
   wide?: boolean;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const panel = useRef<ComponentRef<typeof View>>(null);
   const titleId = useId();
   const { isCompact } = useResponsiveLayout();
@@ -80,7 +82,7 @@ export function EditorDialog({
     </Modal>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ colors }) => ({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,.75)",
@@ -129,4 +131,4 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
   },
-});
+}));

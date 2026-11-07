@@ -1,5 +1,5 @@
 import { QueryError } from "../../components/QueryError";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { EditorDialog } from "../../components/EditorDialog";
 import { Badge, Button, Loading } from "../../components/ui";
@@ -7,7 +7,8 @@ import { Icon } from "../../components/Icon";
 import { api, academyPath } from "../../services/api";
 import type { Attendance } from "../../types";
 import type { Page } from "../../types/billing";
-import { colors, accents, displayTime } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { displayTime, createThemedStyles } from "../../theme";
 import {
   attendanceDayLabel,
   groupAttendanceDays,
@@ -69,60 +70,70 @@ export function StudentAttendanceDay({
         <>
           <QueryError query={q} />
         </>
-      ) : records.length ? (
-        <>
-          <Badge
-            tone="mint"
-            label={
-              records.length === 1
-                ? "1 presença confirmada"
-                : records.length + " presenças confirmadas"
-            }
-          />
-          {records.map((item) => (
-            <View key={item.id} style={s.lesson}>
-              <View style={s.heading}>
-                <Icon
-                  name="check-circle"
-                  color={accents.mint.color}
-                  size={18}
-                />
-                <Text style={s.name}>{item.class_name}</Text>
-              </View>
-              <Text style={s.caption}>
-                {item.modality_name ? item.modality_name + " · " : ""}Aula às{" "}
-                {displayTime(item.starts_at ?? item.checked_in_at, timezone)}
-              </Text>
-              <Text style={s.caption}>
-                {item.source === "manager"
-                  ? "Lançado pelo gestor"
-                  : "Check-in no tablet"}
-              </Text>
-              <Text style={s.caption}>
-                Registrado em{" "}
-                {new Intl.DateTimeFormat("pt-BR", {
-                  timeZone: timezone,
-                  dateStyle: "short",
-                }).format(new Date(item.checked_in_at))}{" "}
-                às {displayTime(item.checked_in_at, timezone)}
-              </Text>
-            </View>
-          ))}
-        </>
       ) : (
-        <View style={s.empty}>
-          <Icon name="calendar" color={colors.muted} size={28} />
-          <Text style={s.name}>Nenhuma presença registrada</Text>
-          <Text style={s.caption}>
-            Este dia não tem registros de treino. Isso não representa uma falta
-            automática.
-          </Text>
-        </View>
+        <AttendanceDayDetails records={records} timezone={timezone} />
       )}
     </EditorDialog>
   );
 }
-const s = StyleSheet.create({
+
+export function AttendanceDayDetails({
+  records,
+  timezone,
+}: {
+  records: Attendance[];
+  timezone: string;
+}) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
+  return records.length ? (
+    <>
+      <Badge
+        tone="mint"
+        label={
+          records.length === 1
+            ? "1 presença confirmada"
+            : records.length + " presenças confirmadas"
+        }
+      />
+      {records.map((item) => (
+        <View key={item.id} style={s.lesson}>
+          <View style={s.heading}>
+            <Icon name="check-circle" color={accents.mint.color} size={18} />
+            <Text style={s.name}>{item.class_name}</Text>
+          </View>
+          <Text style={s.caption}>
+            {item.modality_name ? item.modality_name + " · " : ""}Aula às{" "}
+            {displayTime(item.starts_at ?? item.checked_in_at, timezone)}
+          </Text>
+          <Text style={s.caption}>
+            {item.source === "manager"
+              ? "Lançado pelo gestor"
+              : "Check-in no tablet"}
+          </Text>
+          <Text style={s.caption}>
+            Registrado em{" "}
+            {new Intl.DateTimeFormat("pt-BR", {
+              timeZone: timezone,
+              dateStyle: "short",
+            }).format(new Date(item.checked_in_at))}{" "}
+            às {displayTime(item.checked_in_at, timezone)}
+          </Text>
+        </View>
+      ))}
+    </>
+  ) : (
+    <View style={s.empty}>
+      <Icon name="calendar" color={colors.muted} size={28} />
+      <Text style={s.name}>Nenhuma presença registrada</Text>
+      <Text style={s.caption}>
+        Este dia não tem registros de treino. Isso não representa uma falta
+        automática.
+      </Text>
+    </View>
+  );
+}
+const themedS = createThemedStyles(({ colors }) => ({
   lesson: {
     gap: 7,
     paddingVertical: 12,
@@ -144,4 +155,4 @@ const s = StyleSheet.create({
     lineHeight: 19,
   },
   empty: { gap: 12, alignItems: "center", paddingVertical: 20 },
-});
+}));

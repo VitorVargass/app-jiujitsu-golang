@@ -38,7 +38,7 @@ func (s Service) Register(ctx context.Context, c Credentials) (LoginResult, erro
 		}
 		return LoginResult{}, e
 	}
-	token, e := s.Repo.Session(ctx, u.ID)
+	token, e := s.Repo.Session(ctx, u.ID, string(hash))
 	return LoginResult{token, u}, e
 }
 func (s Service) Login(ctx context.Context, c Credentials) (LoginResult, error) {
@@ -50,7 +50,7 @@ func (s Service) Login(ctx context.Context, c Credentials) (LoginResult, error) 
 	if e != nil || compare != nil {
 		return LoginResult{}, core.E(401, "invalid_credentials", "E-mail ou senha incorretos.")
 	}
-	token, e := s.Repo.Session(ctx, u.ID)
+	token, e := s.Repo.Session(ctx, u.ID, hash)
 	return LoginResult{token, u}, e
 }
 

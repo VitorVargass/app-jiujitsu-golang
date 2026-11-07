@@ -21,8 +21,9 @@ import {
   money,
   statusLabel,
 } from "../../types/billing";
-import { dueDateLabel, formatMonth, shiftMonth } from "../../types/month";
-import { colors } from "../../theme";
+import { formatMonth } from "../../types/month";
+import { BillingForecast } from "../finance/BillingForecast";
+import { useTheme } from "../../theme/ThemeProvider";
 
 export function StudentInvoices({
   academyId,
@@ -31,6 +32,7 @@ export function StudentInvoices({
   academyId: string;
   student: Student;
 }) {
+  const { colors } = useTheme();
   const [filter, setFilter] = useState<"" | "paid" | "open" | "overdue">("");
   const [page, setPage] = useState(1);
   const invoices = useQuery({
@@ -155,36 +157,7 @@ export function StudentInvoices({
         )}
       </Card>
       {b?.enabled && student.status === "active" && !student.archived_at ? (
-        <Card>
-          <Heading>Próximos meses previstos</Heading>
-          <Label muted>
-            Previsão dos próximos seis meses pelo contrato atual. Estes valores
-            ainda não são cobranças emitidas e podem mudar.
-          </Label>
-          {Array.from({ length: 6 }, (_, index) =>
-            shiftMonth(b.first_month, index),
-          ).map((month) => (
-            <View
-              key={month}
-              style={{
-                gap: 6,
-                paddingVertical: 12,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
-              }}
-            >
-              <Row>
-                <View style={{ flex: 1 }}>
-                  <Label>{formatMonth(month)}</Label>
-                </View>
-                <Label>{money(b.amount_cents)}</Label>
-              </Row>
-              <Label muted>
-                Previsto para {dueDateLabel(month, b.due_day)}
-              </Label>
-            </View>
-          ))}
-        </Card>
+        <BillingForecast academyId={academyId} studentId={student.id} />
       ) : (
         <Card>
           <Label muted>

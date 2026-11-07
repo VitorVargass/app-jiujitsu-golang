@@ -10,7 +10,8 @@ import { useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import { useMutation } from "@tanstack/react-query";
-import * as Clipboard from "expo-clipboard";
+import { CopyField } from "../../components/CopyField";
+import { StudentTemporaryAccess } from "./StudentTemporaryAccess";
 import { AcademyShell } from "../shared/AcademyShell";
 import {
   Button,
@@ -309,12 +310,12 @@ export default function StudentForm({
         academyPath(a.id, "/students/" + initial!.id + "/invitations"),
         { method: "POST" },
       ),
-    onSuccess: async (result) => {
+    onSuccess: (result) => {
       const url = portalLink("/invite/" + result.token);
       setLink(url);
-      if (await Clipboard.setStringAsync(url))
-        setMessage("Convite copiado. Válido por 7 dias.");
-      else setMessage("Convite gerado. Copie o link abaixo.");
+      setMessage(
+        "Convite gerado. Copie o link para enviar ao aluno. Válido por sete dias.",
+      );
     },
   });
   const revoke = useMutation({
@@ -924,6 +925,14 @@ export default function StudentForm({
       {initial && !initial.archived_at && !editing ? (
         <Card>
           <Heading>Acesso do aluno</Heading>
+          <StudentTemporaryAccess
+            key={initial.id}
+            academyId={a.id}
+            studentId={initial.id}
+            email={initial.email}
+            linked={!!initial.user_id}
+            active={initial.status === "active"}
+          />
           <Label>
             {cpf
               ? "Presença por CPF ou QR Code"
@@ -940,14 +949,13 @@ export default function StudentForm({
                 loading={invite.isPending}
                 onPress={() => invite.mutate()}
               >
-                Gerar e copiar convite
+                {link ? "Gerar novo convite" : "Gerar convite"}
               </Button>
               {link ? (
-                <Field
+                <CopyField
                   label="Link do convite"
                   value={link}
-                  editable={false}
-                  selectTextOnFocus
+                  buttonLabel="Copiar convite"
                 />
               ) : null}
               <Button

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { EditorDialog } from "./EditorDialog";
 import { Button, IconButton, Label } from "./ui";
 import { Icon } from "./Icon";
-import { colors, accents } from "../theme";
+import { useTheme, useThemedStyles } from "../theme/ThemeProvider";
+import { createThemedStyles } from "../theme";
 import { monthNow } from "../types/billing";
 import { formatMonth, monthNames } from "../types/month";
 
@@ -20,6 +21,8 @@ function PickerField({
   disabled?: boolean;
   compact?: boolean;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <View style={{ gap: 8 }}>
       {!compact ? <Label>{label}</Label> : null}
@@ -61,6 +64,7 @@ export function MonthPicker({
   compact?: boolean;
   min?: string;
 }) {
+  const s = useThemedStyles(themedS);
   const [open, setOpen] = useState(false),
     [year, setYear] = useState(Number((value || monthNow()).slice(0, 4)));
   function choose(v: string) {
@@ -145,6 +149,7 @@ export function DueDayPicker({
   onChange: (value: string) => void;
   disabled?: boolean;
 }) {
+  const s = useThemedStyles(themedS);
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -182,7 +187,7 @@ export function DueDayPicker({
     </>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   field: {
     minHeight: 54,
     padding: 14,
@@ -240,4 +245,4 @@ const s = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
   },
-});
+}));

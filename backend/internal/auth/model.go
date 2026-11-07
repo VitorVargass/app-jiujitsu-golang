@@ -1,10 +1,11 @@
 package auth
 
 type User struct {
-	PersonID string `json:"person_id"`
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
+	PasswordChangeRequired bool   `json:"password_change_required"`
+	PersonID               string `json:"person_id"`
+	ID                     string `json:"id"`
+	Name                   string `json:"name"`
+	Email                  string `json:"email"`
 }
 type Credentials struct {
 	PasswordConfirmation string `json:"password_confirmation"`

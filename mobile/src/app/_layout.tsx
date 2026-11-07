@@ -1,8 +1,15 @@
 import { PlatformStyles } from "../components/PlatformStyles";
 import { ScreenRecovery } from "../components/RouteRecovery";
-import { Stack } from "expo-router";
+import { FirstAccessGuard } from "../features/auth/FirstAccessGuard";
+import {
+  DarkTheme,
+  DefaultTheme,
+  Stack,
+  ThemeProvider as NavigationThemeProvider,
+} from "expo-router";
 import Head from "expo-router/head";
-import { brand } from "../theme/brand";
+import { ThemeProvider, useTheme } from "../theme/ThemeProvider";
+
 import { StatusBar } from "expo-status-bar";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -17,6 +24,27 @@ const fonts = {
   Inter_700Bold: require("@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf"),
 };
 export default function Layout() {
+  return (
+    <ThemeProvider>
+      <ThemedLayout />
+    </ThemeProvider>
+  );
+}
+
+function ThemedLayout() {
+  const { brand, colors, scheme } = useTheme();
+  const base = scheme === "dark" ? DarkTheme : DefaultTheme;
+  const navigationTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      primary: colors.primary,
+    },
+  };
   const [loaded, error] = useFonts(fonts);
   return (
     <SafeAreaProvider style={{ flex: 1, backgroundColor: brand.background }}>
@@ -31,16 +59,19 @@ export default function Layout() {
       ) : (
         <QueryClientProvider client={queryClient}>
           <SessionProvider>
-            <StatusBar style="light" />
-            <Stack
-              unstable_screenErrorBoundary={ScreenRecovery}
-              screenOptions={{
-                headerShown: false,
-                gestureEnabled: false,
-                animation: "none",
-                contentStyle: { backgroundColor: brand.background },
-              }}
-            />
+            <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+            <NavigationThemeProvider value={navigationTheme}>
+              <Stack
+                unstable_screenErrorBoundary={ScreenRecovery}
+                screenOptions={{
+                  headerShown: false,
+                  gestureEnabled: false,
+                  animation: "none",
+                  contentStyle: { backgroundColor: brand.background },
+                }}
+              />
+            </NavigationThemeProvider>
+            <FirstAccessGuard />
           </SessionProvider>
         </QueryClientProvider>
       )}

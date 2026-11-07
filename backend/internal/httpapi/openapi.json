@@ -73,6 +73,10 @@
           "person_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "password_change_required": {
+            "type": "boolean",
+            "description": "Conta com senha temporária deve concluir o primeiro acesso antes de usar o portal."
           }
         }
       },
@@ -1267,6 +1271,11 @@
           },
           "environment": {
             "type": "string"
+          },
+          "pass_card_fees": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "true repassa as taxas do cartão ao aluno, false faz a academia assumir. null preserva a configuração da conta InfinitePay até o gestor salvar sua escolha. Aplica-se a novos links."
           }
         }
       },
@@ -2459,6 +2468,28 @@
           "retryable": {
             "type": "boolean",
             "description": "Somente recusas definitivas permitem nova tentativa de emissão."
+          }
+        }
+      },
+      "BillingForecastMonth": {
+        "type": "object",
+        "required": [
+          "competence",
+          "due_date",
+          "amount_cents"
+        ],
+        "properties": {
+          "competence": {
+            "type": "string",
+            "example": "2026-12"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       }
@@ -14223,6 +14254,286 @@
           },
           "429": {
             "description": "Limite de tentativas atingido"
+          }
+        }
+      }
+    },
+    "/v1/auth/first-access": {
+      "post": {
+        "summary": "Concluir o primeiro acesso com senha temporária",
+        "description": "Exige sessão pessoal autenticada com senha temporária válida e aceite dos documentos vigentes. Recebe somente a nova senha e sua confirmação. Troca a senha e invalida as sessões anteriores. Contas normais não podem trocar a senha por esta rota.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "password",
+                  "password_confirmation",
+                  "terms_version",
+                  "privacy_version"
+                ],
+                "properties": {
+                  "current_password": {
+                    "type": "string",
+                    "format": "password",
+                    "deprecated": true,
+                    "description": "Campo opcional aceito por compatibilidade com clientes antigos. A senha temporária já foi validada no login."
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 8,
+                    "maxLength": 72
+                  },
+                  "password_confirmation": {
+                    "type": "string",
+                    "format": "password"
+                  },
+                  "terms_version": {
+                    "type": "string"
+                  },
+                  "privacy_version": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conta ativada e nova sessão.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Login"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sessão ou senha temporária expirada."
+          },
+          "403": {
+            "description": "Acesso pessoal necessário."
+          },
+          "409": {
+            "description": "Primeiro acesso já concluído."
+          },
+          "422": {
+            "description": "Senhas ou aceite inválidos."
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/students/{student_id}/temporary-access": {
+      "post": {
+        "summary": "Criar acesso de aluno com senha temporária",
+        "description": "Somente gestor ativo. Cria conta e vínculo de aluno adulto ativo na mesma transação. Exige e-mail próprio. Contas existentes usam convite. A senha é retornada somente nesta resposta, armazenada como hash, expira em sete dias e exige troca no primeiro acesso. Convites pendentes são revogados.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Conta criada. Resposta sem cache.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "email",
+                    "temporary_password",
+                    "expires_at"
+                  ],
+                  "properties": {
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "temporary_password": {
+                      "type": "string",
+                      "format": "password"
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Gestor sem acesso."
+          },
+          "404": {
+            "description": "Aluno não encontrado."
+          },
+          "409": {
+            "description": "Conta existente, aluno vinculado ou inativo."
+          },
+          "422": {
+            "description": "E-mail ou nascimento incompletos, ou aluno menor."
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/payment-integration/fees": {
+      "patch": {
+        "summary": "Definir repasse das taxas do cartão",
+        "description": "Somente gestor ativo. Salva a preferência da academia para novos links InfinitePay. O valor-base da mensalidade é enviado ao checkout, onde o provedor calcula o total. Não emite pagamentos nem substitui links já criados.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "pass_card_fees"
+                ],
+                "properties": {
+                  "pass_card_fees": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preferência salva.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Integration"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso de gestor necessário."
+          },
+          "422": {
+            "description": "Escolha obrigatória."
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/me/billing-forecast": {
+      "get": {
+        "summary": "Consultar previsão das próximas mensalidades",
+        "description": "Consulta os próximos seis meses programados da matrícula ativa. Meses já emitidos são excluídos, inclusive cancelados. A consulta não gera mensalidades, boletos ou links de pagamento. Somente aluno ou responsável com acesso ao cadastro.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meses previstos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BillingForecastMonth"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso ao aluno não autorizado."
+          }
+        }
+      }
+    },
+    "/v1/academies/{academy_id}/students/{student_id}/billing-forecast": {
+      "get": {
+        "summary": "Consultar previsão das próximas mensalidades",
+        "description": "Consulta os próximos seis meses programados da matrícula ativa. Meses já emitidos são excluídos, inclusive cancelados. A consulta não gera mensalidades, boletos ou links de pagamento. Somente gestor da academia.",
+        "parameters": [
+          {
+            "name": "academy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Meses previstos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BillingForecastMonth"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Acesso ao aluno não autorizado."
           }
         }
       }

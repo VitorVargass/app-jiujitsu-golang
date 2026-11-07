@@ -1,10 +1,13 @@
 import { router } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Card } from "../../components/ui";
 import { Icon } from "../../components/Icon";
-import { accents, colors } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 export function ClassSetupNotice({ hasClasses }: { hasClasses: boolean }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const action = hasClasses ? "Revisar turmas e horários" : "Cadastrar turmas";
   return (
     <Card
@@ -43,7 +46,7 @@ export function ClassSetupNotice({ hasClasses }: { hasClasses: boolean }) {
   );
 }
 
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   card: {
     borderColor: accents.coral.border,
     backgroundColor: accents.brand.soft,
@@ -102,4 +105,4 @@ const s = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
-});
+}));

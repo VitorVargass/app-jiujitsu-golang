@@ -1,7 +1,7 @@
 import { QueryError } from "../../components/QueryError";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { useContext, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Card, IconButton, Loading, Notice } from "../../components/ui";
 import { Icon } from "../../components/Icon";
@@ -15,7 +15,8 @@ import type { Attendance } from "../../types";
 import type { Page } from "../../types/billing";
 import { academyDate } from "../../types/attendance";
 import { shiftMonth } from "../../types/month";
-import { accents, colors, displayTime } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { displayTime, createThemedStyles } from "../../theme";
 import {
   attendanceDay,
   attendanceDayLabel,
@@ -33,6 +34,8 @@ export function StudentAttendanceOverview({
   studentId: string;
   canRecord: boolean;
 }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy, role } = useSession(),
     a = academy!;
   const { isWide } = useResponsiveLayout();
@@ -361,7 +364,7 @@ export function StudentAttendanceOverview({
     </View>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   container: { gap: 14 },
   header: { flexDirection: "row", alignItems: "center", gap: 10 },
   heading: {
@@ -480,4 +483,4 @@ const s = StyleSheet.create({
     color: colors.text,
   },
   empty: { alignItems: "center", gap: 10, paddingVertical: 26 },
-});
+}));

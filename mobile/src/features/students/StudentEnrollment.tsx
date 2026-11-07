@@ -1,10 +1,11 @@
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Icon } from "../../components/Icon";
 import { Badge, Button, Card, Heading, Label } from "../../components/ui";
 import { Catalog, Student, money } from "../../types/billing";
 import { ageOn } from "../../types/age";
-import { colors, accents } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 import { StudentSection } from "./StudentSectionEditor";
 
 export function StudentEnrollment({
@@ -22,6 +23,8 @@ export function StudentEnrollment({
   onEdit: (section: StudentSection) => void;
   onContract: () => void;
 }) {
+  const { accents } = useTheme();
+  const s = useThemedStyles(themedS);
   const archived = !!student.archived_at,
     b = student.billing;
   const age = ageOn(student.birth_date, timezone),
@@ -153,7 +156,7 @@ export function StudentEnrollment({
     </ResponsiveGrid>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   heading: {
     flexDirection: "row",
     alignItems: "center",
@@ -227,4 +230,4 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-});
+}));

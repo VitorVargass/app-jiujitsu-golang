@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { router, type ErrorBoundaryProps } from "expo-router";
 import { Pressable, Text, View } from "react-native";
-import { colors } from "../theme";
+import { useTheme } from "../theme/ThemeProvider";
+
 
 // Avoid session, query and safe-area providers: one of them may have failed.
 export function RouteRecovery({
   retry,
   canNavigate = false,
 }: ErrorBoundaryProps & { canNavigate?: boolean }) {
+  const { colors } = useTheme();
   const [pending, setPending] = useState(false);
   async function recover() {
     setPending(true);

@@ -3,7 +3,8 @@ import { useState } from "react";
 import { checkoutExpired } from "../../services/checkout-flow";
 import { View, Pressable, Text } from "react-native";
 import { Icon, IconName } from "../../components/Icon";
-import { colors } from "../../theme";
+import { useTheme } from "../../theme/ThemeProvider";
+
 import { formatMonth } from "../../types/month";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { EditorDialog } from "../../components/EditorDialog";
@@ -60,6 +61,7 @@ export function InvoiceActions({
   paymentPending?: boolean;
   onCancel: () => void;
 }) {
+  const { colors } = useTheme();
   const [edit, setEdit] = useState<Edit | null>(null);
   const [discount, setDiscount] = useState("");
   const [reason, setReason] = useState("");
@@ -398,6 +400,7 @@ function ActionRow({
   onPress: () => void;
   danger?: boolean;
 }) {
+  const { colors } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"

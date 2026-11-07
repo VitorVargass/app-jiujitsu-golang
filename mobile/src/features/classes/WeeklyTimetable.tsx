@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { MobileClassAgenda } from "./MobileClassAgenda";
 import { modalityColor } from "./weekly-colors";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { Icon } from "../../components/Icon";
 import type { Class, Schedule } from "../../types";
-import { colors } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 import { dayNames, fullDays, scheduleRange } from "./weekly";
 
 type Entry = { item: Class; schedule: Schedule };
@@ -74,6 +75,8 @@ function DesktopWeeklyTimetable({
   onSelect: (item: Class, schedule?: Schedule) => void;
   onInteractionChange: (active: boolean) => void;
 }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const [width, setWidth] = useState(0);
   const rows = timeRows(items);
   const dayWidth = Math.max(MIN_DAY_WIDTH, (width - RULER_WIDTH - 2) / 7);
@@ -104,7 +107,7 @@ function DesktopWeeklyTimetable({
               <View
                 style={[
                   s.legendDot,
-                  { backgroundColor: modalityColor(item).color },
+                  { backgroundColor: modalityColor(item, accents).color },
                 ]}
               />
               <Text style={s.legendText}>
@@ -198,7 +201,7 @@ function DesktopWeeklyTimetable({
                     >
                       {row.days[day].length ? (
                         row.days[day].map(({ item, schedule }) => {
-                          const tone = modalityColor(item);
+                          const tone = modalityColor(item, accents);
                           return (
                             <Pressable
                               key={schedule.id}
@@ -284,7 +287,7 @@ function DesktopWeeklyTimetable({
   );
 }
 
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   section: { gap: 16, minWidth: 0 },
   heading: { flexDirection: "row", alignItems: "center", gap: 12 },
   headingText: { flex: 1, minWidth: 0, gap: 5 },
@@ -325,7 +328,7 @@ const s = StyleSheet.create({
   table: { flexDirection: "row", minWidth: 0 },
   ruler: {
     width: RULER_WIDTH,
-    backgroundColor: "#131315",
+    backgroundColor: colors.surface,
     borderRightWidth: 1,
     borderRightColor: colors.border,
   },
@@ -376,7 +379,7 @@ const s = StyleSheet.create({
     fontSize: 10,
     color: colors.muted,
   },
-  currentDay: { backgroundColor: "#30181E" },
+  currentDay: { backgroundColor: accents.brand.soft },
   currentDayName: { color: colors.primaryLight },
   todayDot: {
     width: 4,
@@ -393,7 +396,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderSubtle,
   },
-  todayCell: { backgroundColor: "#201418" },
+  todayCell: { backgroundColor: accents.brand.soft },
   event: {
     height: EVENT_HEIGHT,
     borderWidth: 1,
@@ -437,7 +440,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 10,
-    backgroundColor: "#131315",
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -467,4 +470,4 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
   },
-});
+}));

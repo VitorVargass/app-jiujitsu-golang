@@ -7,7 +7,8 @@ import { Class, Member } from "../../types";
 import { Catalog } from "../../types/billing";
 import { api, academyPath } from "../../services/api";
 import { queryClient } from "../../services/session";
-import { colors } from "../../theme";
+import { useTheme } from "../../theme/ThemeProvider";
+
 import { ClassDialog } from "./ClassDialog";
 import { WeeklyEditor } from "./WeeklyEditor";
 import { emptyGroup, expandWeekly, groupWeekly } from "./weekly";
@@ -23,6 +24,7 @@ export function ClassEditor({
   modalities: Catalog[];
   onClose: () => void;
 }) {
+  const { colors } = useTheme();
   const [name, setName] = useState(initial?.name ?? "");
   const [modality, setModality] = useState(initial?.modality_id ?? "");
   const [teacher, setTeacher] = useState(initial?.teacher_membership_id ?? "");

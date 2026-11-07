@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Field, Label } from "../../components/ui";
 import { Icon } from "../../components/Icon";
-import { colors } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 import {
   WeeklyGroup,
   emptyGroup,
@@ -19,6 +20,8 @@ export function WeeklyEditor({
   onChange: (groups: WeeklyGroup[]) => void;
   disabled?: boolean;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   function update(key: string, change: Partial<WeeklyGroup>) {
     onChange(groups.map((g) => (g.key === key ? { ...g, ...change } : g)));
   }
@@ -137,7 +140,7 @@ export function WeeklyEditor({
     </View>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ colors }) => ({
   group: {
     gap: 12,
     padding: 14,
@@ -194,4 +197,4 @@ const s = StyleSheet.create({
     color: colors.primary,
     flexShrink: 1,
   },
-});
+}));

@@ -1,11 +1,12 @@
 import { QueryError } from "../../components/QueryError";
 import { useStudentScope, StudentSelector } from "../student/useStudentScope";
 import { InvoicesTable } from "./InvoicesTable";
+import { BillingForecast } from "./BillingForecast";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { formatMonth } from "../../types/month";
 import { FinanceFilters, defaultFinanceFilters } from "./FinanceFilters";
 import { useState } from "react";
-import { Pressable, Text, View, StyleSheet } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
@@ -20,9 +21,10 @@ import {
 import { Icon } from "../../components/Icon";
 import { Pagination } from "../../components/Pagination";
 import { api, academyPath } from "../../services/api";
-import { useSession } from "../../services/session";
+import { queryClient, useSession } from "../../services/session";
 import { Invoice, Page, money, statusLabel } from "../../types/billing";
-import { colors, accents, Accent } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { Accent, createThemedStyles } from "../../theme";
 
 const statusTone: Record<Invoice["status"], Accent> = {
   paid: "mint",
@@ -35,6 +37,8 @@ export function InvoiceList({ student = false }: { student?: boolean }) {
   return <InvoiceResults key={academy!.id + student} student={student} />;
 }
 function InvoiceResults({ student }: { student: boolean }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   const { isWide } = useResponsiveLayout();
   const { academy } = useSession();
   const a = academy!;
@@ -126,7 +130,14 @@ function InvoiceResults({ student }: { student: boolean }) {
             busy: invoices.isFetching,
           }}
           disabled={invoices.isFetching}
-          onPress={() => void invoices.refetch()}
+          onPress={() => {
+            void invoices.refetch();
+            if (student && sid) {
+              void queryClient.invalidateQueries({
+                queryKey: ["billing-forecast", a.id, sid],
+              });
+            }
+          }}
           style={styles.refresh}
         >
           <Text
@@ -159,7 +170,11 @@ function InvoiceResults({ student }: { student: boolean }) {
         <QueryError query={invoices} />
       ) : invoices.data?.items.length ? (
         isWide ? (
-          <InvoicesTable items={invoices.data.items} student={student} />
+          <InvoicesTable
+            items={invoices.data.items}
+            student={student}
+            currentMonth={currentMonth}
+          />
         ) : (
           invoices.data.items.map((i) => (
             <Card
@@ -175,48 +190,47 @@ function InvoiceResults({ student }: { student: boolean }) {
                 statusLabel[i.status] +
                 ". Abrir mensalidade"
               }
-              style={styles.invoice}
+              style={[
+                styles.invoice,
+                student &&
+                  i.competence === currentMonth &&
+                  styles.currentInvoice,
+              ]}
             >
-              <View style={styles.toolbar}>
-                <View
-                  style={[
-                    styles.icon,
-                    { backgroundColor: accents[statusTone[i.status]].soft },
-                  ]}
-                >
-                  <Icon
-                    name="wallet"
-                    size={21}
-                    color={accents[statusTone[i.status]].color}
-                  />
+              <View style={styles.invoiceHeader}>
+                <View style={styles.invoiceTitle}>
+                  <Text style={styles.invoiceMonth}>
+                    {student
+                      ? formatMonth(i.competence) +
+                        (i.competence === currentMonth ? " · Mês atual" : "")
+                      : i.student_name}
+                  </Text>
+                  {!student ? (
+                    <Text style={styles.caption}>
+                      {formatMonth(i.competence)}
+                    </Text>
+                  ) : null}
                 </View>
                 <Badge
                   label={statusLabel[i.status]}
                   tone={statusTone[i.status]}
                 />
               </View>
-              <Text
-                style={[
-                  styles.amount,
-                  i.status === "paid" && { color: colors.success },
-                ]}
-              >
-                {money(i.amount_cents)}
-              </Text>
-              <Text style={styles.student}>
-                {student
-                  ? "Mensalidade de " + formatMonth(i.competence)
-                  : i.student_name}
-              </Text>
-              <Label muted>
-                {!student ? formatMonth(i.competence) + " • " : ""}Vence em{" "}
-                {i.due_date.split("-").reverse().join("/")}
-              </Label>
-              <View style={styles.footer}>
-                <Text style={styles.link}>
-                  {i.status === "paid" ? "Ver pagamento" : "Abrir mensalidade"}
+              <View style={styles.invoiceFooter}>
+                <Text
+                  style={[
+                    styles.compactAmount,
+                    i.status === "paid" && { color: colors.success },
+                  ]}
+                >
+                  {money(i.amount_cents)}
                 </Text>
-                <Icon name="chevron-right" size={18} color={colors.primary} />
+                <View style={styles.due}>
+                  <Text style={styles.caption}>
+                    Vence em {i.due_date.split("-").reverse().join("/")}
+                  </Text>
+                  <Icon name="chevron-right" size={16} color={colors.muted} />
+                </View>
               </View>
             </Card>
           ))
@@ -237,6 +251,14 @@ function InvoiceResults({ student }: { student: boolean }) {
           onChange={setPage}
         />
       ) : null}
+      {student && scope.id ? (
+        <BillingForecast
+          key={scope.id}
+          academyId={a.id}
+          studentId={scope.id}
+          personal
+        />
+      ) : null}
     </AcademyShell>
   );
 }
@@ -247,7 +269,7 @@ export default function FinanceScreen() {
     </RoleGate>
   );
 }
-const styles = StyleSheet.create({
+const themedStyles = createThemedStyles(({ colors }) => ({
   toolbar: {
     flexDirection: "row",
     alignItems: "center",
@@ -275,40 +297,47 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   refresh: { minHeight: 44, paddingHorizontal: 10, justifyContent: "center" },
-  invoice: { borderRadius: 20, gap: 9 },
-  icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 3,
+  invoice: {
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 14,
+    gap: 6,
   },
-  amount: {
-    color: colors.text,
-    fontFamily: "Inter_700Bold",
-    fontSize: 28,
-    letterSpacing: -0.7,
-  },
-  student: {
-    color: colors.text,
-    fontSize: 15,
-    lineHeight: 22,
-    fontFamily: "Inter_600SemiBold",
-  },
-  footer: {
+  currentInvoice: { borderColor: colors.primaryLight },
+  invoiceHeader: {
     flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  invoiceTitle: { flex: 1, minWidth: 0, gap: 2 },
+  invoiceFooter: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
-    borderTopColor: colors.borderSubtle,
-    borderTopWidth: 1,
-    marginTop: 8,
-    paddingTop: 14,
+    gap: 8,
+  },
+  invoiceMonth: {
+    color: colors.text,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+  },
+  compactAmount: {
+    color: colors.text,
+    fontFamily: "Inter_700Bold",
+    fontSize: 19,
+  },
+  due: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 6,
+    flexShrink: 1,
   },
   link: {
     color: colors.primary,
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
   },
-});
+}));

@@ -1,6 +1,6 @@
 import { useStudentScope, StudentSelector } from "../student/useStudentScope";
 import { useContext, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { AcademyShell, RoleGate, PersonalGate } from "../shared/AcademyShell";
 import {
@@ -18,13 +18,15 @@ import { Icon } from "../../components/Icon";
 import { ManualAttendance } from "./ManualAttendance";
 import { AttendanceFilters, HistoryFilters } from "./HistoryFilters";
 import { HistoryList } from "./HistoryList";
+import { StudentAttendanceYear } from "./StudentAttendanceYear";
 import { Pagination } from "../../components/Pagination";
 import { api, academyPath } from "../../services/api";
 import { useSession } from "../../services/session";
 import { Attendance } from "../../types";
 import { Page } from "../../types/billing";
 import { academyDate } from "../../types/attendance";
-import { accents, colors } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 function RemoveFilter({
   label,
@@ -33,6 +35,8 @@ function RemoveFilter({
   label: string;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <Pressable
       accessibilityRole="button"
@@ -46,9 +50,15 @@ function RemoveFilter({
   );
 }
 function Content({ admin }: { admin: boolean }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy } = useSession();
   const a = academy!;
   const scope = useStudentScope(!admin);
+  const [personalView, setPersonalView] = useState<"calendar" | "list">(
+    "calendar",
+  );
+  const showCalendar = !admin && personalView === "calendar";
   const [page, setPage] = useState(1);
   const [thisMonth, setThisMonth] = useState(() =>
     academyDate(a.timezone).slice(0, 7),
@@ -60,6 +70,7 @@ function Content({ admin }: { admin: boolean }) {
   });
   const [filterOpen, setFilterOpen] = useState(false);
   const history = useQuery({
+    enabled: !showCalendar && (admin || !!scope.id),
     queryKey: [
       "history",
       a.id,
@@ -109,154 +120,191 @@ function Content({ admin }: { admin: boolean }) {
       {!admin ? (
         <StudentSelector scope={scope} onChange={() => setPage(1)} />
       ) : null}
-      <Card style={s.filters}>
-        <View style={s.filterRow}>
-          <View style={s.month}>
-            <MonthPicker
-              label="Período dos treinos"
-              value={month}
-              allowClear
-              onChange={changeMonth}
-            />
-          </View>
-          {admin ? (
-            <IconButton
-              icon="sliders"
-              label={filterCount ? "Filtros (" + filterCount + ")" : "Filtros"}
-              selected={filterCount > 0}
-              expanded={filterOpen}
-              onPress={() => setFilterOpen(true)}
-            />
-          ) : null}
-        </View>
+      {!admin && scope.id ? (
         <Row>
           <Chip
-            selected={month === thisMonth}
-            onPress={() => {
-              const current = academyDate(a.timezone).slice(0, 7);
-              setThisMonth(current);
-              changeMonth(current);
-            }}
+            selected={showCalendar}
+            onPress={() => setPersonalView("calendar")}
           >
-            Este mês
+            Calendário
           </Chip>
-          <Chip selected={!month} onPress={() => changeMonth("")}>
-            Todos os meses
+          <Chip
+            selected={!showCalendar}
+            onPress={() => setPersonalView("list")}
+          >
+            Lista
           </Chip>
         </Row>
-        {filterCount ? (
-          <View style={s.tags}>
-            {filters.classroom ? (
-              <RemoveFilter
-                label={filters.classroom.name}
-                onPress={() => applyFilters({ ...filters, classroom: null })}
-              />
-            ) : null}
-            {filters.student ? (
-              <RemoveFilter
-                label={filters.student.name}
-                onPress={() => applyFilters({ ...filters, student: null })}
-              />
-            ) : null}
-          </View>
-        ) : null}
-      </Card>
-      <View style={s.resultsHeader}>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text
-            accessibilityRole="header"
-            accessibilityLiveRegion="polite"
-            style={s.total}
-          >
-            {history.isPending || history.isError
-              ? "—"
-              : history.data.total.toLocaleString("pt-BR")}
-            <Text style={s.totalWord}>
-              {history.data?.total === 1 ? " presença" : " presenças"}
-            </Text>
-          </Text>
-          <Text style={s.caption}>
-            {history.data && !history.isError && history.data.total > 0
-              ? Math.min(
-                  (page - 1) * history.data.page_size + 1,
-                  history.data.total,
-                ) +
-                "–" +
-                Math.min(page * history.data.page_size, history.data.total) +
-                " de " +
-                history.data.total +
-                " registros"
-              : "Organizados pelo dia do treino"}
-          </Text>
-        </View>
-        {admin ? <ManualAttendance label="Registrar" /> : null}
-        <IconButton
-          icon="swap"
-          label="Atualizar presenças"
-          disabled={history.isFetching}
-          onPress={() => void history.refetch()}
-        />
-      </View>
-      {history.isPending ? (
-        <Loading />
-      ) : history.error ? (
-        <Card>
-          <Notice message={history.error.message} />
-          <Button compact secondary onPress={() => void history.refetch()}>
-            Tentar novamente
-          </Button>
-        </Card>
-      ) : history.data.items.length ? (
-        <>
-          <HistoryList
-            items={history.data.items}
+      ) : null}
+      {showCalendar ? (
+        scope.id ? (
+          <StudentAttendanceYear
+            key={a.id + ":" + scope.id}
+            academyId={a.id}
+            academyName={a.name}
+            studentId={scope.id}
             timezone={a.timezone}
-            admin={admin}
           />
-          <HistoryPagination
-            page={page}
-            total={history.data.total}
-            size={history.data.page_size}
-            onChange={setPage}
-          />
-        </>
-      ) : (
-        <Card style={s.empty}>
-          <View style={s.emptyIcon}>
-            <Icon name="calendar" size={26} color={colors.muted} />
+        ) : null
+      ) : admin || scope.id ? (
+        <>
+          <Card style={s.filters}>
+            <View style={s.filterRow}>
+              <View style={s.month}>
+                <MonthPicker
+                  label="Período dos treinos"
+                  value={month}
+                  allowClear
+                  onChange={changeMonth}
+                />
+              </View>
+              {admin ? (
+                <IconButton
+                  icon="sliders"
+                  label={
+                    filterCount ? "Filtros (" + filterCount + ")" : "Filtros"
+                  }
+                  selected={filterCount > 0}
+                  expanded={filterOpen}
+                  onPress={() => setFilterOpen(true)}
+                />
+              ) : null}
+            </View>
+            <Row>
+              <Chip
+                selected={month === thisMonth}
+                onPress={() => {
+                  const current = academyDate(a.timezone).slice(0, 7);
+                  setThisMonth(current);
+                  changeMonth(current);
+                }}
+              >
+                Este mês
+              </Chip>
+              <Chip selected={!month} onPress={() => changeMonth("")}>
+                Todos os meses
+              </Chip>
+            </Row>
+            {filterCount ? (
+              <View style={s.tags}>
+                {filters.classroom ? (
+                  <RemoveFilter
+                    label={filters.classroom.name}
+                    onPress={() =>
+                      applyFilters({ ...filters, classroom: null })
+                    }
+                  />
+                ) : null}
+                {filters.student ? (
+                  <RemoveFilter
+                    label={filters.student.name}
+                    onPress={() => applyFilters({ ...filters, student: null })}
+                  />
+                ) : null}
+              </View>
+            ) : null}
+          </Card>
+          <View style={s.resultsHeader}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text
+                accessibilityRole="header"
+                accessibilityLiveRegion="polite"
+                style={s.total}
+              >
+                {history.isPending || history.isError
+                  ? "—"
+                  : history.data.total.toLocaleString("pt-BR")}
+                <Text style={s.totalWord}>
+                  {history.data?.total === 1 ? " presença" : " presenças"}
+                </Text>
+              </Text>
+              <Text style={s.caption}>
+                {history.data && !history.isError && history.data.total > 0
+                  ? Math.min(
+                      (page - 1) * history.data.page_size + 1,
+                      history.data.total,
+                    ) +
+                    "–" +
+                    Math.min(
+                      page * history.data.page_size,
+                      history.data.total,
+                    ) +
+                    " de " +
+                    history.data.total +
+                    " registros"
+                  : "Organizados pelo dia do treino"}
+              </Text>
+            </View>
+            {admin ? <ManualAttendance label="Registrar" /> : null}
+            <IconButton
+              icon="swap"
+              label="Atualizar presenças"
+              disabled={history.isFetching}
+              onPress={() => void history.refetch()}
+            />
           </View>
-          <Text style={s.heading}>Nenhuma presença por aqui</Text>
-          {page > 1 ? (
-            <Button compact secondary onPress={() => setPage(1)}>
-              Voltar à primeira página
-            </Button>
+          {history.isPending ? (
+            <Loading />
+          ) : history.error ? (
+            <Card>
+              <Notice message={history.error.message} />
+              <Button compact secondary onPress={() => void history.refetch()}>
+                Tentar novamente
+              </Button>
+            </Card>
+          ) : history.data.items.length ? (
+            <>
+              <HistoryList
+                items={history.data.items}
+                timezone={a.timezone}
+                admin={admin}
+              />
+              <HistoryPagination
+                page={page}
+                total={history.data.total}
+                size={history.data.page_size}
+                onChange={setPage}
+              />
+            </>
+          ) : (
+            <Card style={s.empty}>
+              <View style={s.emptyIcon}>
+                <Icon name="calendar" size={26} color={colors.muted} />
+              </View>
+              <Text style={s.heading}>Nenhuma presença por aqui</Text>
+              {page > 1 ? (
+                <Button compact secondary onPress={() => setPage(1)}>
+                  Voltar à primeira página
+                </Button>
+              ) : null}
+              <Text style={s.emptyText}>
+                Não encontramos registros para este período
+                {filterCount ? " e estes filtros" : ""}. Experimente consultar
+                outro mês ou todo o histórico.
+              </Text>
+              {month || filterCount ? (
+                <Button
+                  compact
+                  secondary
+                  onPress={() => {
+                    changeMonth("");
+                    applyFilters({ classroom: null, student: null });
+                  }}
+                >
+                  Ver todo o histórico
+                </Button>
+              ) : null}
+            </Card>
+          )}
+          {admin && filterOpen ? (
+            <HistoryFilters
+              academyId={a.id}
+              value={filters}
+              onClose={() => setFilterOpen(false)}
+              onApply={applyFilters}
+            />
           ) : null}
-          <Text style={s.emptyText}>
-            Não encontramos registros para este período
-            {filterCount ? " e estes filtros" : ""}. Experimente consultar outro
-            mês ou todo o histórico.
-          </Text>
-          {month || filterCount ? (
-            <Button
-              compact
-              secondary
-              onPress={() => {
-                changeMonth("");
-                applyFilters({ classroom: null, student: null });
-              }}
-            >
-              Ver todo o histórico
-            </Button>
-          ) : null}
-        </Card>
-      )}
-      {admin && filterOpen ? (
-        <HistoryFilters
-          academyId={a.id}
-          value={filters}
-          onClose={() => setFilterOpen(false)}
-          onApply={applyFilters}
-        />
+        </>
       ) : null}
     </AcademyShell>
   );
@@ -292,7 +340,7 @@ export default function HistoryScreen({ admin = false }: { admin?: boolean }) {
     </PersonalGate>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   total: {
     fontFamily: "Inter_700Bold",
     color: colors.text,
@@ -381,4 +429,4 @@ const s = StyleSheet.create({
     textAlign: "center",
     maxWidth: 360,
   },
-});
+}));

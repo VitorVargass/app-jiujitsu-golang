@@ -4,14 +4,18 @@ import { DataTable } from "../../components/DataTable";
 import { Badge, Label } from "../../components/ui";
 import { Invoice, money, statusLabel } from "../../types/billing";
 import { formatMonth } from "../../types/month";
-import { colors } from "../../theme";
+import { useTheme } from "../../theme/ThemeProvider";
+
 export function InvoicesTable({
   items,
   student,
+  currentMonth,
 }: {
   items: Invoice[];
   student: boolean;
+  currentMonth?: string;
 }) {
+  const { colors } = useTheme();
   return (
     <DataTable
       label="Mensalidades"
@@ -35,7 +39,10 @@ export function InvoicesTable({
                 paddingVertical: 8,
               }}
             >
-              {student ? formatMonth(i.competence) : i.student_name}
+              {student
+                ? formatMonth(i.competence) +
+                  (i.competence === currentMonth ? " · Mês atual" : "")
+                : i.student_name}
             </Link>
           ),
         },

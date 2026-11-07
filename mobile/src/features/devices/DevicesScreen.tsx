@@ -1,8 +1,8 @@
 import { QueryError } from "../../components/QueryError";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useState } from "react";
-import { brand } from "../../theme/brand";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { Platform, Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
@@ -23,9 +23,11 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { api, academyPath } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
 import { Device } from "../../types";
-import { accents, colors } from "../../theme";
+import { createThemedStyles } from "../../theme";
 
 function Content() {
+  const { accents, brand, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy, activateDevice } = useSession(),
     a = academy!;
   const [name, setName] = useState("Recepção principal"),
@@ -321,7 +323,7 @@ export default function DevicesScreen() {
     </RoleGate>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   heading: { flexDirection: "row", alignItems: "center", gap: 14 },
   icon: {
     width: 48,
@@ -395,4 +397,4 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-});
+}));

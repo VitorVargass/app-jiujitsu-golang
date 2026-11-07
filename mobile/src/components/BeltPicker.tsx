@@ -3,14 +3,14 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from "react-native";
 import { Button, Label } from "./ui";
 import type { BeltOption } from "../types/billing";
-import { colors, accents } from "../theme";
+import { useTheme, useThemedStyles } from "../theme/ThemeProvider";
+import { createThemedStyles } from "../theme";
 import { degreeLabel, rankLabel } from "../types/graduation";
 
 export function BeltSwatch({
@@ -20,6 +20,7 @@ export function BeltSwatch({
   colors: readonly string[];
   degrees?: number;
 }) {
+  const styles = useThemedStyles(themedStyles);
   const count = Math.min(4, Math.max(0, Math.floor(degrees)));
   return (
     <View style={styles.swatch}>
@@ -47,6 +48,7 @@ export function BeltPicker({
   degrees?: number;
   onChange: (value: string) => void;
 }) {
+  const styles = useThemedStyles(themedStyles);
   const [open, setOpen] = useState(false);
   const window = useWindowDimensions();
   const selected = options.find((o) => o.label === value);
@@ -137,6 +139,8 @@ export function DegreePicker({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   return (
     <View style={{ gap: 10 }}>
       <View
@@ -190,7 +194,7 @@ export function DegreePicker({
     </View>
   );
 }
-const styles = StyleSheet.create({
+const themedStyles = createThemedStyles(({ accents, colors }) => ({
   trigger: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -322,4 +326,4 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: "center",
   },
-});
+}));

@@ -1,7 +1,7 @@
 import { QueryError } from "../../components/QueryError";
 import { useState } from "react";
 import { StudentAttendanceOverview } from "./StudentAttendanceOverview";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import {
   Badge,
@@ -21,7 +21,8 @@ import { api, academyPath } from "../../services/api";
 import { useSession } from "../../services/session";
 import { Attendance } from "../../types";
 import { Page } from "../../types/billing";
-import { colors, accents, displayTime } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { displayTime, createThemedStyles } from "../../theme";
 
 function historyDate(value: string, zone: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -82,6 +83,8 @@ function PersonalAttendances({
   own?: boolean;
   canRecord?: boolean;
 }) {
+  const { accents } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy, role } = useSession(),
     a = academy!;
   const [month, setMonth] = useState(() => localMonth(a.timezone)),
@@ -263,7 +266,7 @@ function PersonalAttendances({
     </>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   stats: { flexDirection: "row", gap: 12, flexWrap: "wrap" },
   stat: {
     flex: 1,
@@ -327,4 +330,4 @@ const s = StyleSheet.create({
     lineHeight: 21,
     color: colors.text,
   },
-});
+}));

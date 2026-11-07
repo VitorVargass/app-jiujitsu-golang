@@ -4,11 +4,11 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
-import { colors } from "../theme";
+import { useThemedStyles } from "../theme/ThemeProvider";
+import { createThemedStyles } from "../theme";
 
 export type TableColumn<T> = {
   key: string;
@@ -30,6 +30,7 @@ export function DataTable<T>({
   itemKey: (item: T) => string;
   onRowPress?: (item: T) => void;
 }) {
+  const s = useThemedStyles(themedS);
   return (
     <View style={s.frame}>
       <ScrollView horizontal contentContainerStyle={{ flexGrow: 1 }}>
@@ -100,7 +101,7 @@ export function DataTable<T>({
     </View>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ colors }) => ({
   frame: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -127,4 +128,4 @@ const s = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     lineHeight: 17,
   },
-});
+}));

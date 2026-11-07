@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { EditorDialog } from "../../components/EditorDialog";
 import { Icon, IconName } from "../../components/Icon";
@@ -14,7 +14,8 @@ import {
 import { academyPath, api } from "../../services/api";
 import { Class } from "../../types";
 import { Page, Student } from "../../types/billing";
-import { accents, colors } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 export type HistorySelection = { id: string; name: string } | null;
 export type AttendanceFilters = {
@@ -37,6 +38,8 @@ function Option({
   icon?: IconName;
   avatar?: boolean;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <Pressable
       accessibilityRole="radio"
@@ -82,6 +85,7 @@ export function HistoryFilters({
   onApply: (value: AttendanceFilters) => void;
   onClose: () => void;
 }) {
+  const s = useThemedStyles(themedS);
   const [draft, setDraft] = useState(value);
   const [search, setSearch] = useState("");
   const [classSearch, setClassSearch] = useState("");
@@ -295,7 +299,7 @@ export function HistoryFilters({
   );
 }
 
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   section: { gap: 12 },
   option: {
     minHeight: 52,
@@ -342,4 +346,4 @@ const s = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.primaryLight,
   },
-});
+}));

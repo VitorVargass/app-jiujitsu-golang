@@ -1,8 +1,9 @@
 import { ReactNode, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Badge, Card, Heading, Label } from "../../components/ui";
 import { Icon } from "../../components/Icon";
-import { colors } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { money } from "../../types/billing";
 import { planOptions } from "../subscription/plan-options";
@@ -17,6 +18,7 @@ export function SetupHeading({
   title: string;
   subtitle: string;
 }) {
+  const s = useThemedStyles(themedS);
   return (
     <View style={s.headingRow}>
       <View style={s.step}>
@@ -39,6 +41,8 @@ export function AcademyPlanPicker({
   disabled: boolean;
   onChange: (id: string) => void;
 }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { isCompact } = useResponsiveLayout();
   return (
     <View
@@ -65,7 +69,7 @@ export function AcademyPlanPicker({
           >
             <View style={s.between}>
               <View
-                style={[s.planIcon, selected && { backgroundColor: "#3B2029" }]}
+                style={[s.planIcon, selected && { backgroundColor: accents.brand.soft }]}
               >
                 <Icon
                   name={i === 0 ? "users" : i === 1 ? "home" : "sliders"}
@@ -112,6 +116,8 @@ export function AcademySetupSummary({
   plan?: SubscriptionPlan;
   children: ReactNode;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <Card style={s.summary}>
       <View style={s.between}>
@@ -164,6 +170,8 @@ export function AcademySetupSummary({
 }
 
 export function AcademySetupRules() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const [expanded, setExpanded] = useState(false);
   return (
     <Card style={{ padding: 0, gap: 0 }}>
@@ -208,7 +216,7 @@ export function AcademySetupRules() {
   );
 }
 
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   headingRow: { flexDirection: "row", alignItems: "center", gap: 13 },
   step: {
     width: 34,
@@ -216,9 +224,9 @@ const s = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#2D171B",
+    backgroundColor: accents.brand.soft,
     borderWidth: 1,
-    borderColor: "#633039",
+    borderColor: accents.brand.border,
   },
   stepText: {
     color: colors.primaryLight,
@@ -244,7 +252,7 @@ const s = StyleSheet.create({
     gap: 13,
   },
   selectedPlan: {
-    backgroundColor: "#24191F",
+    backgroundColor: colors.surfaceRaised,
     borderColor: colors.primaryLight,
   },
   between: {
@@ -267,7 +275,7 @@ const s = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 1,
-    borderColor: "#6D6D78",
+    borderColor: colors.muted,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -327,8 +335,8 @@ const s = StyleSheet.create({
   },
   summary: {
     padding: 25,
-    borderColor: "#59303A",
-    backgroundColor: "#1D181D",
+    borderColor: accents.brand.border,
+    backgroundColor: colors.surface,
     gap: 22,
   },
   eyebrow: {
@@ -347,7 +355,7 @@ const s = StyleSheet.create({
   summaryPlan: {
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#3D2B33",
+    borderColor: colors.borderSubtle,
     paddingVertical: 20,
     flexDirection: "row",
     flexWrap: "wrap",
@@ -374,7 +382,7 @@ const s = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     color: colors.muted,
   },
-  minimum: { gap: 7, padding: 14, backgroundColor: "#272026", borderRadius: 9 },
+  minimum: { gap: 7, padding: 14, backgroundColor: colors.surfaceRaised, borderRadius: 9 },
   minimumTitle: {
     color: colors.text,
     fontSize: 11,
@@ -393,4 +401,4 @@ const s = StyleSheet.create({
     lineHeight: 20,
     fontFamily: "Inter_600SemiBold",
   },
-});
+}));

@@ -96,9 +96,10 @@ var uuidPattern = regexp.MustCompile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]
 func ValidID(s string) bool { return uuidPattern.MatchString(s) }
 
 type Principal struct {
-	UserID    string
-	DeviceID  string
-	AcademyID string
+	PasswordChangeRequired bool
+	UserID                 string
+	DeviceID               string
+	AcademyID              string
 }
 type contextKey struct{}
 

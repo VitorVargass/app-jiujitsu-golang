@@ -1,7 +1,8 @@
 import { ComponentRef, useId, useRef } from "react";
 import { useDialogFocus } from "../hooks/useDialogFocus";
 import { Modal, ScrollView, View } from "react-native";
-import { colors } from "../theme";
+import { useTheme } from "../theme/ThemeProvider";
+
 import { Button, Heading, Label, Notice } from "./ui";
 
 export function ConfirmDialog({
@@ -25,6 +26,7 @@ export function ConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { colors } = useTheme();
   const panel = useRef<ComponentRef<typeof View>>(null);
   const titleId = useId();
   useDialogFocus(panel, visible, !!pending, onCancel);

@@ -126,7 +126,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const list = useQuery({
     queryKey: ["academies", userId],
     queryFn: () => api<Academy[]>("/v1/me/academies"),
-    enabled: ready && !!userId,
+    enabled:
+      ready &&
+      !!userId &&
+      !(session?.kind === "user" && session.user.password_change_required),
   });
   const academies = list.data ?? noAcademies;
   // Stored IDs are only preferences: never restore an academy or role without

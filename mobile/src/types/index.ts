@@ -1,6 +1,7 @@
 export type { AttendanceOptions, LessonOption } from "./attendance";
 export type Role = "student" | "teacher" | "admin" | "guardian";
 export type User = {
+  password_change_required?: boolean;
   id: string;
   name: string;
   email: string;

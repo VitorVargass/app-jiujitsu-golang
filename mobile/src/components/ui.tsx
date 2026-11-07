@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -14,7 +13,8 @@ import {
   ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, accents, Accent } from "../theme";
+import { useTheme, useThemedStyles } from "../theme/ThemeProvider";
+import { Accent, createThemedStyles } from "../theme";
 import { Icon, IconName } from "./Icon";
 import { SwipeNavigator, SwipeDirection, SwipePages } from "./SwipeNavigator";
 export function Page({
@@ -44,6 +44,7 @@ export function Page({
   wide?: boolean;
   sidebar?: React.ReactNode;
 }) {
+  const styles = useThemedStyles(themedStyles);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const resetScroll = useCallback(
     () => scrollRef.current?.scrollTo({ y: 0, animated: false }),
@@ -122,6 +123,7 @@ export function Card({
   onPress?: () => void;
   accessibilityLabel?: string;
 }) {
+  const styles = useThemedStyles(themedStyles);
   if (!onPress) return <View style={[styles.card, style]}>{children}</View>;
   return (
     <Pressable
@@ -145,6 +147,8 @@ export function Badge({
   label: string;
   tone?: Accent;
 }) {
+  const { accents } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   const accent = accents[tone];
   return (
     <View
@@ -180,6 +184,8 @@ export function Label({
   children: React.ReactNode;
   muted?: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   return (
     <Text style={[styles.label, muted && { color: colors.muted }]}>
       {children}
@@ -187,6 +193,7 @@ export function Label({
   );
 }
 export function Heading({ children }: { children: React.ReactNode }) {
+  const styles = useThemedStyles(themedStyles);
   return (
     <Text accessibilityRole="header" style={styles.heading}>
       {children}
@@ -200,6 +207,8 @@ export function Field({
   onBlur,
   ...props
 }: TextInputProps & { label: string }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   const [focused, setFocused] = useState(false);
   return (
     <View style={{ gap: 8 }}>
@@ -248,6 +257,8 @@ export function Button({
   danger?: boolean;
   icon?: IconName;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -320,6 +331,8 @@ export function IconButton({
   disabled?: boolean;
   expanded?: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -357,6 +370,8 @@ export function SearchBar({
   label: string;
   action?: React.ReactNode;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   const [focused, setFocused] = useState(false);
   return (
     <View style={[styles.search, focused && { borderColor: colors.primary }]}>
@@ -395,6 +410,8 @@ export function Notice({
   message?: string;
   success?: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   if (!message) return null;
   return (
     <View
@@ -414,6 +431,7 @@ export function Notice({
   );
 }
 export function Loading() {
+  const { colors } = useTheme();
   return <ActivityIndicator style={{ padding: 32 }} color={colors.primary} />;
 }
 export function Empty({ children }: { children: React.ReactNode }) {
@@ -448,6 +466,8 @@ export function Chip({
   onPress?: () => void;
   tone?: Accent;
 }) {
+  const { accents, colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   const accent = accents[tone];
   return (
     <Pressable
@@ -474,6 +494,8 @@ export function Chip({
   );
 }
 export function Avatar({ name }: { name: string }) {
+  const { accents } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   return (
     <View style={styles.avatar}>
       <Text
@@ -488,7 +510,7 @@ export function Avatar({ name }: { name: string }) {
     </View>
   );
 }
-export const styles = StyleSheet.create({
+export const themedStyles = createThemedStyles(({ accents, colors }) => ({
   safe: { flex: 1, backgroundColor: colors.background },
   page: {
     width: "100%",
@@ -675,4 +697,4 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-});
+}));

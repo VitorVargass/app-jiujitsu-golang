@@ -9,7 +9,9 @@ import {
   View,
 } from "react-native";
 import { Icon, IconName } from "../../components/Icon";
-import { brand } from "../../theme/brand";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
+
 
 export function AuthField({
   label,
@@ -23,6 +25,8 @@ export function AuthField({
   inputRef?: Ref<ComponentRef<typeof TextInput>>;
   trailing?: ReactNode;
 }) {
+  const { brand } = useTheme();
+  const s = useThemedStyles(themedS);
   const [focused, setFocused] = useState(false);
   return (
     <View style={s.field}>
@@ -39,7 +43,7 @@ export function AuthField({
           autoCapitalize="none"
           autoCorrect={false}
           spellCheck={false}
-          placeholderTextColor="#85858E"
+          placeholderTextColor={brand.muted}
           selectionColor={brand.accent}
           underlineColorAndroid="transparent"
           style={s.input}
@@ -65,6 +69,8 @@ export function AuthAction({
   disabled?: boolean;
   secondary?: boolean;
 }) {
+  const { brand } = useTheme();
+  const s = useThemedStyles(themedS);
   const [focused, setFocused] = useState(false);
   return (
     <Pressable
@@ -85,7 +91,7 @@ export function AuthAction({
       {loading ? (
         <ActivityIndicator color={brand.onAccent} size="small" />
       ) : null}
-      <Text style={[s.actionText, secondary && { color: "#EDF1F4" }]}>
+      <Text style={[s.actionText, secondary && { color: brand.text }]}>
         {children}
       </Text>
       {!loading && !secondary ? (
@@ -103,9 +109,9 @@ export const authControlStyles = StyleSheet.create({
     borderRadius: 10,
   },
 });
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ brand }) => ({
   field: { gap: 9 },
-  label: { color: "#D7DDE2", fontFamily: "Inter_600SemiBold", fontSize: 13 },
+  label: { color: brand.text, fontFamily: "Inter_600SemiBold", fontSize: 13 },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -118,14 +124,14 @@ const s = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: brand.background,
   },
-  inputFocused: { borderColor: brand.accentLight, backgroundColor: "#211619" },
+  inputFocused: { borderColor: brand.accentLight, backgroundColor: brand.accentSoft },
   input: {
     flex: 1,
     minWidth: 0,
     minHeight: 54,
     paddingVertical: 14,
     paddingRight: 10,
-    color: "#F1F4F6",
+    color: brand.text,
     fontFamily: "Inter_400Regular",
     fontSize: 16,
     outlineWidth: 0,
@@ -159,4 +165,4 @@ const s = StyleSheet.create({
     paddingVertical: 12,
   },
   actionFocused: { borderColor: brand.accentLight },
-});
+}));

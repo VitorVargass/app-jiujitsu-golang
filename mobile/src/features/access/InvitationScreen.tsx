@@ -51,7 +51,7 @@ function InvitationForm({ token }: { token: string }) {
       const academy = academies.find((a) => a.id === academyId);
       if (!academy) throw new Error("Atualize suas academias para continuar.");
       select(academy, "student");
-      router.replace("/student");
+      router.replace("/history");
     },
   });
   const accept = useMutation({

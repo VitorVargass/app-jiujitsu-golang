@@ -2,7 +2,7 @@ import { QueryError } from "../../components/QueryError";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { Href, router } from "expo-router";
-import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
+import { View, Text, useWindowDimensions } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { api, academyPath } from "../../services/api";
 import { useSession } from "../../services/session";
@@ -11,7 +11,8 @@ import { Card, Heading, Label, Loading, Badge } from "../../components/ui";
 import { Icon, IconName } from "../../components/Icon";
 import { Dashboard, AttendanceOptions } from "../../types";
 import { money } from "../../types/billing";
-import { displayTime, colors, accents, Accent } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { displayTime, Accent, createThemedStyles } from "../../theme";
 
 function Metric({
   label,
@@ -28,6 +29,8 @@ function Metric({
   tone: Accent;
   href: Href;
 }) {
+  const { accents, colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   const accent = accents[tone];
   const { width } = useWindowDimensions();
   const { isWide } = useResponsiveLayout();
@@ -80,6 +83,8 @@ function Metric({
 }
 
 function Content() {
+  const { accents, colors } = useTheme();
+  const styles = useThemedStyles(themedStyles);
   const { academy } = useSession();
   const a = academy!;
   const dash = useQuery({
@@ -380,7 +385,7 @@ export default function AcademyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const themedStyles = createThemedStyles(({ accents, colors }) => ({
   hero: {
     backgroundColor: accents.brand.soft,
     borderColor: accents.brand.border,
@@ -397,7 +402,7 @@ const styles = StyleSheet.create({
     height: 190,
     borderRadius: 95,
     borderWidth: 30,
-    borderColor: "#45202A",
+    borderColor: accents.brand.border,
     opacity: 0.65,
   },
   heroTop: {
@@ -531,4 +536,4 @@ const styles = StyleSheet.create({
   },
   sessionCard: { borderRadius: 20, borderColor: accents.brand.border, gap: 15 },
   emptySession: { borderRadius: 22, gap: 12 },
-});
+}));

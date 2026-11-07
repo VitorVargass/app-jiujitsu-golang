@@ -11,12 +11,13 @@ import (
 )
 
 type IntegrationStatus struct {
-	Provider    string     `json:"provider"`
-	Connected   bool       `json:"connected"`
-	Enabled     bool       `json:"enabled"`
-	Available   bool       `json:"available"`
-	Handle      string     `json:"handle"`
-	ValidatedAt *time.Time `json:"validated_at"`
+	PassCardFees *bool      `json:"pass_card_fees"`
+	Provider     string     `json:"provider"`
+	Connected    bool       `json:"connected"`
+	Enabled      bool       `json:"enabled"`
+	Available    bool       `json:"available"`
+	Handle       string     `json:"handle"`
+	ValidatedAt  *time.Time `json:"validated_at"`
 }
 type infiniteConnection struct {
 	ID, Academy, Handle string
@@ -34,6 +35,9 @@ func (m *Manager) integration(ctx context.Context, a string) (IntegrationStatus,
 		return IntegrationStatus{}, e
 	}
 	s := IntegrationStatus{Provider: "infinitepay"}
+	if err := m.Repo.DB.QueryRow(ctx, "SELECT (SELECT pass_card_fees FROM payment_fee_settings WHERE academy_id=$1)", a).Scan(&s.PassCardFees); err != nil {
+		return s, err
+	}
 	p := m.Infinite
 	if p == nil {
 		return s, nil
@@ -267,6 +271,10 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 	if e != nil {
 		return CheckoutResult{}, core.E(503, "credential_unavailable", "Não foi possível acessar a chave de integração.")
 	}
+	var passCardFees *bool
+	if e = p.DB.QueryRow(ctx, "SELECT (SELECT pass_card_fees FROM payment_fee_settings WHERE academy_id=$1)", a).Scan(&passCardFees); e != nil {
+		return CheckoutResult{}, e
+	}
 	// Resolve contact before persisting an emission attempt: a local read failure
 	// must not leave a phantom "creating" checkout that was never sent.
 	if c.ID == "" {
@@ -283,6 +291,13 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 		return CheckoutResult{}, e
 	}
 	input := map[string]any{"order_nsu": c.Reference, "redirect_url": p.PublicURL + "/pay/" + a + "/" + id, "items": []map[string]any{{"quantity": 1, "price": c.Amount, "description": "Mensalidade TatameMix • " + invoice.Competence}}, "options": map[string]any{"single_payment": true, "valid_until": c.Expires.Format(time.RFC3339), "require_delivery_address": false}, "webhook": map[string]any{"url": p.webhookOrigin() + "/v1/webhooks/infinitepay/" + conn.ID, "events": []string{"paid", "refunded", "canceled"}}}
+	if passCardFees != nil {
+		assured := 12
+		if *passCardFees {
+			assured = 0
+		}
+		input["options"].(map[string]any)["assured_installments"] = assured
+	}
 	if customer != nil {
 		input["customer"] = customer
 	}

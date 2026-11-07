@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { EditorDialog } from "../../components/EditorDialog";
 import { MonthPicker } from "../../components/BillingDatePicker";
@@ -15,7 +15,8 @@ import {
 import { api, academyPath } from "../../services/api";
 import { Invoice, Page, Student, statusLabel } from "../../types/billing";
 import { academyDate } from "../../types/attendance";
-import { accents, colors } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 export type FinanceFilterValue = {
   month: string;
@@ -46,6 +47,7 @@ export function FinanceFilters({
   onApply: (value: FinanceFilterValue) => void;
   onClose: () => void;
 }) {
+  const s = useThemedStyles(themedS);
   const [draft, setDraft] = useState(value);
   const [search, setSearch] = useState("");
   const term = search.trim();
@@ -224,6 +226,8 @@ function StudentOption({
   selected: boolean;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <Pressable
       accessibilityRole="radio"
@@ -247,7 +251,7 @@ function StudentOption({
   );
 }
 
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   section: { gap: 12 },
   hint: {
     color: colors.muted,
@@ -286,4 +290,4 @@ const s = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.primaryLight,
   },
-});
+}));

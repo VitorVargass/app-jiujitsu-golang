@@ -3,7 +3,6 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
@@ -17,7 +16,8 @@ import { queryClient, useSession } from "../../services/session";
 import { Class, Schedule } from "../../types";
 import { academyDate } from "../../types/attendance";
 import { Catalog } from "../../types/billing";
-import { accents, colors } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
 import { ClassDialog } from "./ClassDialog";
 import { ClassEditor } from "./ClassEditor";
@@ -37,6 +37,8 @@ function MenuAction({
   disabled?: boolean;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <Pressable
       accessibilityRole="button"
@@ -61,6 +63,8 @@ function MenuAction({
 type Selection = { item: Class; schedule?: Schedule };
 
 function Content() {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy } = useSession(),
     a = academy!;
   const [editor, setEditor] = useState<Class | "new" | null>(null);
@@ -290,7 +294,7 @@ export default function ClassesScreen() {
     </RoleGate>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   filters: {
     flexDirection: "row",
     gap: 20,
@@ -337,4 +341,4 @@ const s = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
   },
-});
+}));

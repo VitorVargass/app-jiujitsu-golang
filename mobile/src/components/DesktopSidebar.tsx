@@ -3,7 +3,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Href, Link } from "expo-router";
 import { Brand } from "./Brand";
 import { Icon, IconName } from "./Icon";
-import { colors } from "../theme";
+import { useTheme, useThemedStyles } from "../theme/ThemeProvider";
+import { createThemedStyles } from "../theme";
 import { useSession } from "../services/session";
 
 export type NavigationItem = {
@@ -68,6 +69,8 @@ function MenuLink({
   selected: boolean;
   attention?: boolean;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const [hovered, setHovered] = useState(false);
   // Router's Slot merges plain style objects; callbacks lose layout, arrays throw in dev.
   return (
@@ -92,7 +95,7 @@ function MenuLink({
           name={item.icon}
           size={19}
           color={
-            selected ? colors.onPrimary : hovered ? colors.text : "#91919D"
+            selected ? colors.onPrimary : hovered ? colors.text : colors.muted
           }
         />
         <Text
@@ -124,6 +127,8 @@ export function DesktopSidebar({
   pathname: string;
   needsSetup: boolean;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy, role } = useSession();
   const admin = role === "admin";
   const primary = admin
@@ -178,7 +183,7 @@ export function DesktopSidebar({
       <View style={s.top}>
         <View style={s.brandRow}>
           <Link
-            href={(role === "student" ? "/student" : "/academy") as Href}
+            href={(role === "student" ? "/history" : "/academy") as Href}
             accessibilityLabel="TatameMix, início da academia"
           >
             <Brand compact />
@@ -260,13 +265,13 @@ export function DesktopSidebar({
     </View>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   sidebar: {
     width: 264,
     flexShrink: 0,
-    backgroundColor: "#131315",
+    backgroundColor: colors.surface,
     borderRightWidth: 1,
-    borderRightColor: "#29292F",
+    borderRightColor: colors.borderSubtle,
   },
   top: { paddingHorizontal: 18, paddingTop: 25, paddingBottom: 22, gap: 27 },
   brandRow: {
@@ -277,12 +282,12 @@ const s = StyleSheet.create({
     paddingHorizontal: 5,
   },
   appBadge: {
-    color: "#777782",
+    color: colors.muted,
     fontSize: 6,
     letterSpacing: 1,
     fontFamily: "Inter_600SemiBold",
     borderWidth: 1,
-    borderColor: "#333339",
+    borderColor: colors.border,
     borderRadius: 4,
     padding: 5,
   },
@@ -292,28 +297,28 @@ const s = StyleSheet.create({
     gap: 11,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: "#1D1D21",
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: "#323238",
+    borderColor: colors.border,
   },
   academyAvatar: {
     width: 34,
     height: 34,
     borderRadius: 9,
-    backgroundColor: "#342027",
+    backgroundColor: accents.brand.soft,
     borderWidth: 1,
-    borderColor: "#633039",
+    borderColor: accents.brand.border,
     alignItems: "center",
     justifyContent: "center",
   },
   academyInitial: {
-    color: "#FF8A94",
+    color: accents.coral.color,
     fontSize: 15,
     fontFamily: "Inter_700Bold",
   },
   academyCopy: { flex: 1, minWidth: 0, gap: 5 },
   academyCaption: {
-    color: "#92929D",
+    color: colors.muted,
     fontSize: 9,
     fontFamily: "Inter_400Regular",
   },
@@ -327,7 +332,7 @@ const s = StyleSheet.create({
   groupLabel: {
     paddingHorizontal: 13,
     paddingBottom: 9,
-    color: "#7F7F8C",
+    color: colors.muted,
     fontSize: 8,
     letterSpacing: 1.7,
     fontFamily: "Inter_600SemiBold",
@@ -345,12 +350,12 @@ const s = StyleSheet.create({
   },
   linkText: {
     flex: 1,
-    color: "#B0B0BB",
+    color: colors.muted,
     fontFamily: "Inter_400Regular",
     fontSize: 12,
   },
-  hovered: { backgroundColor: "#242428" },
-  selected: { backgroundColor: "#CE1C2C" },
+  hovered: { backgroundColor: colors.surfaceRaised },
+  selected: { backgroundColor: colors.primary },
   selectionRail: {
     position: "absolute",
     left: 0,
@@ -358,18 +363,18 @@ const s = StyleSheet.create({
     bottom: 11,
     width: 3,
     borderRadius: 2,
-    backgroundColor: "#FFADB5",
+    backgroundColor: colors.danger,
   },
   attention: {
     width: 18,
     height: 18,
     borderRadius: 5,
-    backgroundColor: "#362229",
+    backgroundColor: accents.coral.soft,
     alignItems: "center",
     justifyContent: "center",
   },
   attentionText: {
-    color: "#FF8A94",
+    color: accents.coral.color,
     fontSize: 11,
     fontFamily: "Inter_700Bold",
   },
@@ -379,7 +384,7 @@ const s = StyleSheet.create({
     paddingBottom: 16,
     gap: 9,
     borderTopWidth: 1,
-    borderTopColor: "#29292F",
+    borderTopColor: colors.borderSubtle,
   },
   subscription: {
     flexDirection: "row",
@@ -387,19 +392,19 @@ const s = StyleSheet.create({
     alignItems: "center",
     padding: 12,
     borderRadius: 10,
-    backgroundColor: "#1D1A1F",
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: "#3E2A32",
+    borderColor: colors.border,
   },
   subscriptionSelected: {
     borderColor: colors.primaryLight,
-    backgroundColor: "#2D171B",
+    backgroundColor: accents.brand.soft,
   },
   subscriptionIcon: {
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: "#342027",
+    backgroundColor: accents.brand.soft,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -409,7 +414,7 @@ const s = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
   subscriptionHint: {
-    color: "#92929D",
+    color: colors.muted,
     fontSize: 9,
     fontFamily: "Inter_400Regular",
   },
@@ -422,8 +427,8 @@ const s = StyleSheet.create({
   },
   brandLine: { width: 13, height: 2, backgroundColor: colors.primary },
   signatureText: {
-    color: "#85858F",
+    color: colors.muted,
     fontSize: 8,
     fontFamily: "Inter_400Regular",
   },
-});
+}));

@@ -5,7 +5,7 @@ import { openPaymentURL } from "../../services/open-payment";
 import { useState, useEffect, useRef } from "react";
 import { CheckoutPanel } from "../payments/CheckoutPanel";
 import { router, useLocalSearchParams } from "expo-router";
-import { View, Text, StyleSheet, useWindowDimensions } from "react-native";
+import { View, Text, useWindowDimensions } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import * as Clipboard from "expo-clipboard";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -23,7 +23,8 @@ import {
 import { EditorDialog } from "../../components/EditorDialog";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Icon } from "../../components/Icon";
-import { colors } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 import { api, academyPath } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
 import { portalLink } from "../../services/links";
@@ -39,6 +40,8 @@ import {
 import { formatMonth } from "../../types/month";
 
 export function InvoiceContent({ id }: { id: string }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy, role } = useSession(),
     a = academy!,
     { width } = useWindowDimensions();
@@ -450,7 +453,7 @@ export default function InvoiceScreen() {
     </PersonalGate>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   layout: { gap: 20 },
   desktopLayout: { flexDirection: "row", alignItems: "flex-start" },
   summaryCard: { minWidth: 0, padding: 26, gap: 20 },
@@ -462,7 +465,7 @@ const s = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#2B171B",
+    backgroundColor: accents.brand.soft,
   },
   paymentTitle: {
     fontFamily: "Inter_700Bold",
@@ -526,4 +529,4 @@ const s = StyleSheet.create({
     fontSize: 11,
     lineHeight: 17,
   },
-});
+}));

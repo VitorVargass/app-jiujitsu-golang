@@ -1,14 +1,15 @@
-import { brand } from "../theme/brand";
+import { useTheme } from "../theme/ThemeProvider";
 
 export function PlatformStyles() {
+  const { brand, scheme } = useTheme();
   return (
     <style>{`
   html, body, #root {
     background-color: ${brand.background};
-    color-scheme: dark;
+    color-scheme: ${scheme};
   }
   :where(a, button, input, textarea, select, [tabindex]):focus-visible {
-    outline: 2px solid #FF6571 !important;
+    outline: 2px solid ${brand.accentLight} !important;
     outline-offset: 3px;
   }
   @media (prefers-reduced-motion: reduce) {

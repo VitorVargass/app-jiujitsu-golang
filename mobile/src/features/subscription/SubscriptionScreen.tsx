@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { AccessRecovery } from "../../components/AccessRecovery";
 import { Text, View } from "react-native";
 import { Icon } from "../../components/Icon";
-import { colors } from "../../theme";
+import { useTheme } from "../../theme/ThemeProvider";
+
 import {
   SubscriptionSummary,
   SubscriptionPlanCards,
@@ -37,6 +38,7 @@ function Content({
 }: {
   event?: { order_nsu: string; transaction_nsu: string; slug: string };
 }) {
+  const { colors } = useTheme();
   const { academy } = useSession();
   const a = academy!.id;
   const [page, setPage] = useState(1);

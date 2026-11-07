@@ -2,17 +2,16 @@ import { StudentInvoices } from "./StudentInvoices";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { useContext, useEffect, useState } from "react";
 import { FormScrollContext } from "../../components/FormScrollContext";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useMutation } from "@tanstack/react-query";
-import * as Clipboard from "expo-clipboard";
+import { CopyField } from "../../components/CopyField";
 import { Icon } from "../../components/Icon";
 import {
   Avatar,
   Badge,
   Button,
   Card,
-  Field,
   Heading,
   Label,
   Notice,
@@ -25,7 +24,8 @@ import { formatBirth, ageOn } from "../../types/age";
 import { StudentProgress } from "./StudentProgress";
 import { StudentEnrollment } from "./StudentEnrollment";
 import { StudentAttendances } from "./StudentAttendances";
-import { colors, accents } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 import { api, academyPath } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
 import { portalLink } from "../../services/links";
@@ -33,6 +33,7 @@ import { AcademyShell } from "../shared/AcademyShell";
 import StudentForm from "./StudentForm";
 import { StudentCardDialog } from "./StudentCardDialog";
 import { StudentSection, StudentSectionEditor } from "./StudentSectionEditor";
+import { StudentTemporaryAccess } from "./StudentTemporaryAccess";
 
 function SectionScrollReset({ section }: { section: string }) {
   const reset = useContext(FormScrollContext);
@@ -40,6 +41,8 @@ function SectionScrollReset({ section }: { section: string }) {
   return null;
 }
 function Edit({ label, onPress }: { label: string; onPress: () => void }) {
+  const { accents } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <Pressable
       accessibilityRole="button"
@@ -52,6 +55,7 @@ function Edit({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 function Detail({ label, value }: { label: string; value: string }) {
+  const s = useThemedStyles(themedS);
   return (
     <View style={s.detail}>
       <Text style={s.caption}>{label}</Text>
@@ -70,6 +74,8 @@ export default function StudentProfile({
   modalities: Catalog[];
   plans: Catalog[];
 }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy } = useSession(),
     a = academy!;
   const [tab, setTab] = useState<
@@ -90,14 +96,11 @@ export default function StudentProfile({
         academyPath(a.id, "/students/" + student.id + "/invitations"),
         { method: "POST" },
       ),
-    onSuccess: async (result) => {
+    onSuccess: (result) => {
       const value = portalLink("/invite/" + result.token);
       setLink(value);
-      const copied = await Clipboard.setStringAsync(value);
       setMessage(
-        copied
-          ? "Convite copiado. Envie ao aluno; válido por sete dias."
-          : "Convite gerado. Copie o link abaixo.",
+        "Convite gerado. Copie o link para enviar ao aluno. Válido por sete dias.",
       );
     },
   });
@@ -355,10 +358,18 @@ export default function StudentProfile({
                 tone={student.user_id ? "mint" : "blue"}
               />
             </View>
+            <StudentTemporaryAccess
+              key={student.id}
+              academyId={a.id}
+              studentId={student.id}
+              email={student.email}
+              linked={!!student.user_id}
+              active={!archived && student.status === "active"}
+            />
             <Label muted>
               {student.user_id
                 ? "O aluno já pode entrar no portal para consultar mensalidades, presenças e QR."
-                : "O convite permite ao aluno criar uma conta ou entrar com uma existente para acessar seu portal."}
+                : "Você também pode enviar um convite para o aluno criar sua conta ou vincular uma conta existente."}
             </Label>
             {!student.email ? (
               <Label muted>
@@ -374,15 +385,14 @@ export default function StudentProfile({
                   disabled={!student.email}
                   onPress={() => invite.mutate()}
                 >
-                  Gerar convite
+                  {link ? "Gerar novo convite" : "Gerar convite"}
                 </Button>
                 {link ? (
                   <>
-                    <Field
+                    <CopyField
                       label="Convite do aluno"
                       value={link}
-                      editable={false}
-                      selectTextOnFocus
+                      buttonLabel="Copiar convite"
                     />
                     <Button
                       compact
@@ -486,7 +496,7 @@ export default function StudentProfile({
     </AcademyShell>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   tabs: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -615,4 +625,4 @@ const s = StyleSheet.create({
     alignItems: "center",
     minHeight: 48,
   },
-});
+}));

@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import Svg, { Circle, G, Path, Rect } from "react-native-svg";
-import { colors } from "../theme";
+import { useTheme } from "../theme/ThemeProvider";
+
 
 export type IconName =
   | "home"
@@ -10,6 +11,8 @@ export type IconName =
   | "more"
   | "qr"
   | "check-circle"
+  | "check"
+  | "copy"
   | "swap"
   | "plus"
   | "search"
@@ -69,6 +72,13 @@ const glyphs: Record<IconName, ReactNode> = {
     <>
       <Circle cx="12" cy="12" r="9" />
       <Path d="m8 12 3 3 5-6" />
+    </>
+  ),
+  check: <Path d="m5 12 4 4L19 6" />,
+  copy: (
+    <>
+      <Rect x="8" y="8" width="12" height="13" rx="2" />
+      <Path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
     </>
   ),
   swap: (
@@ -134,17 +144,18 @@ const glyphs: Record<IconName, ReactNode> = {
 export function Icon({
   name,
   size = 22,
-  color = colors.text,
+  color,
 }: {
   name: IconName;
   size?: number;
   color?: string;
 }) {
+  const { colors } = useTheme();
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" aria-hidden={true}>
       <G
         fill="none"
-        stroke={color}
+        stroke={color ?? colors.text}
         strokeWidth={1.8}
         strokeLinecap="round"
         strokeLinejoin="round"

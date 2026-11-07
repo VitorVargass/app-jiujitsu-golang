@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Linking, View } from "react-native";
+import { Linking, Switch, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
 import {
@@ -16,8 +16,10 @@ import {
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { api, academyPath } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
+import { useTheme } from "../../theme/ThemeProvider";
 
 type Integration = {
+  pass_card_fees?: boolean | null;
   provider: string;
   connected: boolean;
   enabled?: boolean;
@@ -152,6 +154,16 @@ function Content() {
             </Row>
             <Notice message={toggle.error?.message} />
           </Card>
+          {data?.provider === "infinitepay" ? (
+            <CardFeeSettings
+              key={a + ":" + String(data.pass_card_fees)}
+              academyId={a}
+              saved={data.pass_card_fees ?? null}
+              onSaved={() =>
+                setMessage("Preferência de taxas salva para os novos links.")
+              }
+            />
+          ) : null}
           {editing ? (
             <Card>
               <Heading>Conectar InfinitePay</Heading>
@@ -224,6 +236,69 @@ function Content() {
         onConfirm={() => save.mutate()}
       />
     </AcademyShell>
+  );
+}
+function CardFeeSettings({
+  academyId,
+  saved,
+  onSaved,
+}: {
+  academyId: string;
+  saved: boolean | null;
+  onSaved: () => void;
+}) {
+  const { colors } = useTheme();
+  const [passFees, setPassFees] = useState(saved ?? false);
+  const save = useMutation({
+    mutationFn: () =>
+      api<Integration>(academyPath(academyId, "/payment-integration/fees"), {
+        method: "PATCH",
+        body: { pass_card_fees: passFees },
+      }),
+    onSuccess: (data) => {
+      onSaved();
+      queryClient.setQueryData(["bank", academyId], data);
+    },
+  });
+  return (
+    <Card>
+      <Heading>Taxas no cartão</Heading>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Label>Repassar taxas ao aluno</Label>
+          <Label muted>
+            {passFees
+              ? "O aluno assume as taxas do cartão."
+              : "A academia assume as taxas do cartão."}
+          </Label>
+        </View>
+        <Switch
+          accessibilityLabel="Repassar taxas do cartão ao aluno"
+          value={passFees}
+          onValueChange={setPassFees}
+          disabled={save.isPending}
+          trackColor={{ false: colors.border, true: colors.primary }}
+          thumbColor={colors.onPrimary}
+        />
+      </View>
+      <Label muted>
+        {saved === null
+          ? "Salve sua escolha para definir quem assume as taxas nos novos links."
+          : "A escolha vale para novos links de pagamento."}{" "}
+        A InfinitePay apresenta o total ao aluno na hora de pagar.
+      </Label>
+      <View style={{ alignItems: "flex-start" }}>
+        <Button
+          compact
+          loading={save.isPending}
+          disabled={saved === passFees}
+          onPress={() => save.mutate()}
+        >
+          Salvar preferência
+        </Button>
+      </View>
+      <Notice message={save.error?.message} />
+    </Card>
   );
 }
 export default function ReceiptsScreen() {

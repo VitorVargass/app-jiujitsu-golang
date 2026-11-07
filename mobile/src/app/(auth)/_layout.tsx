@@ -2,11 +2,13 @@ import { Redirect, Stack, useLocalSearchParams, Href } from "expo-router";
 import { useSession } from "../../services/session";
 import { safeNext } from "../../services/links";
 import { Loading, Page } from "../../components/ui";
-import { colors } from "../../theme";
+import { useTheme } from "../../theme/ThemeProvider";
+
 
 export { ScreenRecovery as ErrorBoundary } from "../../components/RouteRecovery";
 
 export default function Layout() {
+  const { colors } = useTheme();
   const { ready, session } = useSession();
   const { next } = useLocalSearchParams<{ next?: string }>();
   if (!ready)

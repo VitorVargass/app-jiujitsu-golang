@@ -33,6 +33,9 @@ func TestInfinitePayFlow(t *testing.T) {
 	defer db.Close()
 	var expectedPrice atomic.Int64
 	expectedPrice.Store(18000)
+	var expectedAssured atomic.Int64
+	expectedAssured.Store(-1)
+	var cardCapture atomic.Bool
 	var creates atomic.Int32
 	var amount atomic.Int64
 	amount.Store(18000)
@@ -51,8 +54,18 @@ func TestInfinitePayFlow(t *testing.T) {
 			if e := json.NewDecoder(r.Body).Decode(&payload); e != nil {
 				t.Error(e)
 			}
-			if !strings.HasPrefix(payload["redirect_url"].(string), "https://tatame.example/pay/") || !strings.HasPrefix(payload["webhook"].(map[string]any)["url"].(string), "https://api.tatame.example/v1/webhooks/infinitepay/") { t.Error("checkout must return to portal and deliver webhooks to API") }
-		opts := payload["options"].(map[string]any)
+			if !strings.HasPrefix(payload["redirect_url"].(string), "https://tatame.example/pay/") || !strings.HasPrefix(payload["webhook"].(map[string]any)["url"].(string), "https://api.tatame.example/v1/webhooks/infinitepay/") {
+				t.Error("checkout must return to portal and deliver webhooks to API")
+			}
+			opts := payload["options"].(map[string]any)
+			assured, configured := opts["assured_installments"]
+			if expectedAssured.Load() < 0 {
+				if configured {
+					t.Error("legacy fee policy was overwritten")
+				}
+			} else if assured != float64(expectedAssured.Load()) {
+				t.Error("incorrect card fee payer", assured)
+			}
 			if opts["single_payment"] != true || payload["order_nsu"] == nil || payload["webhook"] == nil {
 				t.Error("incomplete checkout contract")
 			}
@@ -68,7 +81,13 @@ func TestInfinitePayFlow(t *testing.T) {
 			return
 		}
 		if r.URL.Path == "/payment_check" {
-			_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "paid": paid.Load(), "amount": amount.Load(), "paid_amount": amount.Load(), "capture_method": "pix"})
+			method := "pix"
+			paidAmount := amount.Load()
+			if cardCapture.Load() {
+				method = "credit_card"
+				paidAmount += 600
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "paid": paid.Load(), "amount": amount.Load(), "paid_amount": paidAmount, "capture_method": method})
 			return
 		}
 		w.WriteHeader(404)
@@ -124,6 +143,9 @@ func TestInfinitePayFlow(t *testing.T) {
 		}
 	}
 	saved := owner.ok("PUT", prefix+"/payment-integration", in)
+	if saved["pass_card_fees"] != nil {
+		t.Fatal("existing fee policy not preserved")
+	}
 	raw, _ := json.Marshal(saved)
 	if strings.Contains(string(raw), key) || saved["validated_at"] != nil {
 		t.Fatal("secret leak or false validation")
@@ -259,27 +281,47 @@ func TestInfinitePayFlow(t *testing.T) {
 	// Explicit renewal replaces a successfully issued, expired link and keeps history.
 	oldAttempt := owner.ok("GET", prefix+"/invoices/"+id4, nil)["payment_checkout"].(map[string]any)["id"].(string)
 	var oldReference string
-	if e = db.QueryRow(ctx, "SELECT reference FROM checkout_attempts WHERE id=$1", oldAttempt).Scan(&oldReference); e != nil { t.Fatal(e) }
+	if e = db.QueryRow(ctx, "SELECT reference FROM checkout_attempts WHERE id=$1", oldAttempt).Scan(&oldReference); e != nil {
+		t.Fatal(e)
+	}
 	_, e = db.Exec(ctx, "UPDATE checkout_attempts SET expires_at=now()-interval '1 day' WHERE invoice_id=$1", id4)
-	if e != nil { t.Fatal(e) }
+	if e != nil {
+		t.Fatal(e)
+	}
 	expired := owner.ok("GET", prefix+"/invoices/"+id4, nil)["payment_checkout"].(map[string]any)
-	if expired["url"] != nil || expired["expired"] != true || expired["retryable"] != true { t.Fatal("expired link should offer renewal without exposing old URL", expired) }
+	if expired["url"] != nil || expired["expired"] != true || expired["retryable"] != true {
+		t.Fatal("expired link should offer renewal without exposing old URL", expired)
+	}
 	before = creates.Load()
 	renewed := studentClient.ok("POST", prefix+"/invoices/"+id4+"/checkout", nil)
-	if renewed["status"] != "waiting" || renewed["id"] == oldAttempt || creates.Load() != before+1 { t.Fatal("expired link was not replaced", renewed) }
+	if renewed["status"] != "waiting" || renewed["id"] == oldAttempt || creates.Load() != before+1 {
+		t.Fatal("expired link was not replaced", renewed)
+	}
 	var newReference string
-	if e = db.QueryRow(ctx, "SELECT reference FROM checkout_attempts WHERE id=$1", renewed["id"]).Scan(&newReference); e != nil || newReference == oldReference { t.Fatal("reference reused", e) }
+	if e = db.QueryRow(ctx, "SELECT reference FROM checkout_attempts WHERE id=$1", renewed["id"]).Scan(&newReference); e != nil || newReference == oldReference {
+		t.Fatal("reference reused", e)
+	}
 	owner.ok("POST", prefix+"/invoices/"+id4+"/checkout", nil)
-	if creates.Load() != before+1 { t.Fatal("renewal duplicated on retry") }
+	if creates.Load() != before+1 {
+		t.Fatal("renewal duplicated on retry")
+	}
 	var retained bool
-	if e = db.QueryRow(ctx, "SELECT retired_at IS NOT NULL FROM checkout_attempts WHERE id=$1", oldAttempt).Scan(&retained); e != nil || !retained { t.Fatal("old checkout history lost", e) }
+	if e = db.QueryRow(ctx, "SELECT retired_at IS NOT NULL FROM checkout_attempts WHERE id=$1", oldAttempt).Scan(&retained); e != nil || !retained {
+		t.Fatal("old checkout history lost", e)
+	}
 	// A known pending transaction is checked, never silently replaced.
 	paid.Store(false)
 	amount.Store(18000)
 	_, e = db.Exec(ctx, "UPDATE checkout_attempts SET expires_at=now()-interval '1 day',transaction_nsu='pending-test',slug='pending-slug' WHERE id=$1", renewed["id"])
-	if e != nil { t.Fatal(e) }
-	if code, _ := owner.request("POST", prefix+"/invoices/"+id4+"/checkout", nil, ""); code != 409 { t.Fatal("pending transaction replaced", code) }
-	if creates.Load() != before+1 { t.Fatal("pending transaction generated another link") }
+	if e != nil {
+		t.Fatal(e)
+	}
+	if code, _ := owner.request("POST", prefix+"/invoices/"+id4+"/checkout", nil, ""); code != 409 {
+		t.Fatal("pending transaction replaced", code)
+	}
+	if creates.Load() != before+1 {
+		t.Fatal("pending transaction generated another link")
+	}
 	amount.Store(18000)
 	paid.Store(false)
 	id5 := newInvoice()
@@ -364,4 +406,61 @@ func TestInfinitePayFlow(t *testing.T) {
 		t.Fatal("Bank confirmation not applied")
 	}
 
+	// Fee settings affect only future links. The invoice always keeps its base amount.
+	feesPath := prefix + "/payment-integration/fees"
+	for _, actor := range []client{studentClient, outsider, deviceClient} {
+		if status, _ := actor.request("PATCH", feesPath, map[string]bool{"pass_card_fees": true}, ""); status != 403 {
+			t.Fatal("unauthorized fee settings", status)
+		}
+	}
+	if status, _ := owner.request("PATCH", feesPath, map[string]any{}, ""); status != 422 {
+		t.Fatal("missing fee choice accepted", status)
+	}
+	before = creates.Load()
+	if owner.ok("PATCH", feesPath, map[string]bool{"pass_card_fees": true})["pass_card_fees"] != true {
+		t.Fatal("fee preference not returned")
+	}
+	if creates.Load() != before {
+		t.Fatal("changing fee preference created payment")
+	}
+	if owner.ok("GET", prefix+"/payment-integration", nil)["pass_card_fees"] != true {
+		t.Fatal("fee preference not saved")
+	}
+	expectedPrice.Store(18000)
+	expectedAssured.Store(0)
+	paid.Store(false)
+	feeInvoice := newInvoice()
+	feePath := prefix + "/invoices/" + feeInvoice
+	feeCheckout := owner.ok("POST", feePath+"/checkout", nil)
+	if feeCheckout["amount_cents"] != float64(18000) {
+		t.Fatal("base invoice amount includes fees")
+	}
+	owner.ok("PATCH", feesPath, map[string]bool{"pass_card_fees": false})
+	oldCreates := creates.Load()
+	retainedCheckout := studentClient.ok("POST", feePath+"/checkout", nil)
+	if retainedCheckout["id"] != feeCheckout["id"] || creates.Load() != oldCreates {
+		t.Fatal("fee toggle replaced an existing link")
+	}
+	expectedAssured.Store(12)
+	anotherFeeInvoice := newInvoice()
+	owner.ok("POST", prefix+"/invoices/"+anotherFeeInvoice+"/checkout", nil)
+	owner.ok("PUT", prefix+"/payment-integration", in)
+	if owner.ok("GET", prefix+"/payment-integration", nil)["pass_card_fees"] != false {
+		t.Fatal("replacing connection lost fee preference")
+	}
+	anotherAcademy := owner.ok("POST", "/v1/academies", map[string]string{"name": "Academia taxas isoladas"})["id"].(string)
+	if owner.ok("GET", "/v1/academies/"+anotherAcademy+"/payment-integration", nil)["pass_card_fees"] != nil {
+		t.Fatal("fee preference leaked to another academy")
+	}
+	var feeReference string
+	if e = db.QueryRow(ctx, "SELECT reference FROM checkout_attempts WHERE id=$1", feeCheckout["id"]).Scan(&feeReference); e != nil {
+		t.Fatal(e)
+	}
+	cardCapture.Store(true)
+	paid.Store(true)
+	owner.ok("POST", feePath+"/payment-check", map[string]any{"order_nsu": feeReference, "transaction_nsu": "card-with-fees", "slug": "card-with-fees"})
+	feePaid := owner.ok("GET", feePath, nil)
+	if feePaid["status"] != "paid" || feePaid["payment_method"] != "infinitepay_card" || feePaid["amount_cents"] != float64(18000) {
+		t.Fatal("card fees prevented base-amount settlement", feePaid)
+	}
 }

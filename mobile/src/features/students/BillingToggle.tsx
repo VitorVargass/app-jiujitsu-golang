@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, accents } from "../../theme";
+import { Pressable, Text, View } from "react-native";
+import { useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 export function BillingToggle({
   enabled,
@@ -10,6 +11,7 @@ export function BillingToggle({
   disabled?: boolean;
   onChange: (enabled: boolean) => void;
 }) {
+  const s = useThemedStyles(themedS);
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -49,7 +51,7 @@ export function BillingToggle({
   );
 }
 
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   control: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -107,4 +109,4 @@ const s = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-});
+}));

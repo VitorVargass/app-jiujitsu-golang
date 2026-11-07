@@ -4,7 +4,8 @@ import { DataTable } from "../../components/DataTable";
 import { Badge, Label } from "../../components/ui";
 import { Catalog, Student, money } from "../../types/billing";
 import { rankLabel } from "../../types/graduation";
-import { colors } from "../../theme";
+import { useTheme } from "../../theme/ThemeProvider";
+
 export function StudentsTable({
   items,
   modalities,
@@ -12,6 +13,7 @@ export function StudentsTable({
   items: Student[];
   modalities: Catalog[];
 }) {
+  const { colors } = useTheme();
   return (
     <DataTable
       label="Alunos da academia"

@@ -1,9 +1,12 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import { brand } from "../theme/brand";
+import { useTheme, useThemedStyles } from "../theme/ThemeProvider";
+import { createThemedStyles } from "../theme";
+
 import { brandMarkPaths } from "../theme/mark";
 
 export function BrandGlyph({ color }: { color?: string }) {
+  const { brand } = useTheme();
   return (
     <>
       <Path d={brandMarkPaths.light} fill={color ?? brand.text} />
@@ -31,6 +34,8 @@ export function Brand({
   compact?: boolean;
   caption?: boolean;
 }) {
+  const { brand } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <View style={s.brand} accessible accessibilityLabel={brand.name}>
       <BrandMark size={compact ? 29 : 42} />
@@ -46,7 +51,7 @@ export function Brand({
     </View>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ brand }) => ({
   brand: { flexDirection: "row", alignItems: "center", gap: 8 },
   name: {
     color: brand.text,
@@ -61,4 +66,4 @@ const s = StyleSheet.create({
     fontSize: 7,
     letterSpacing: 1.8,
   },
-});
+}));

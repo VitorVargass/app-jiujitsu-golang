@@ -2,8 +2,9 @@ import { QueryError } from "../../components/QueryError";
 import { StudentsTable } from "./StudentsTable";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { useState } from "react";
-import { View, Pressable, Text, StyleSheet } from "react-native";
-import { colors } from "../../theme";
+import { View, Pressable, Text } from "react-native";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 import { rankLabel } from "../../types/graduation";
 import { Icon } from "../../components/Icon";
 import { router, useLocalSearchParams } from "expo-router";
@@ -29,6 +30,8 @@ import { api, academyPath } from "../../services/api";
 import { useSession } from "../../services/session";
 import { Catalog, Student, Page, money } from "../../types/billing";
 function ListContent() {
+  const { colors } = useTheme();
+  const listStyles = useThemedStyles(themedListStyles);
   const { isWide } = useResponsiveLayout();
   const { academy } = useSession();
   const a = academy!;
@@ -285,7 +288,7 @@ function ListContent() {
     </AcademyShell>
   );
 }
-const listStyles = StyleSheet.create({
+const themedListStyles = createThemedStyles(({ colors }) => ({
   statusTabs: {
     flexDirection: "row",
     gap: 16,
@@ -364,7 +367,7 @@ const listStyles = StyleSheet.create({
     fontSize: 12,
   },
   empty: { alignItems: "center", gap: 12, paddingVertical: 40 },
-});
+}));
 
 export default function StudentsScreen() {
   return (

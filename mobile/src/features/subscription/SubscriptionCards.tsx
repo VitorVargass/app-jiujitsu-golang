@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import {
   Badge,
@@ -11,7 +11,8 @@ import {
 } from "../../components/ui";
 import { Icon } from "../../components/Icon";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
-import { colors, Accent } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { Accent, createThemedStyles } from "../../theme";
 import { money } from "../../types/billing";
 import { privacyContact } from "../legal/content";
 import { Subscription, planRange, subscriptionDate } from "./types";
@@ -29,6 +30,8 @@ const stateAppearance: Record<
 };
 
 export function SubscriptionSummary({ value: v }: { value: Subscription }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const appearance = stateAppearance[v.status];
   const maximum = v.plan?.max_students;
   const count = v.active_students;
@@ -114,7 +117,7 @@ export function SubscriptionSummary({ value: v }: { value: Subscription }) {
       ) : null}
       {v.status === "trial" ? (
         <View style={s.trial}>
-          <Icon name="check-circle" size={18} color="#B4C4DA" />
+          <Icon name="check-circle" size={18} color={accents.blue.color} />
           <Text style={s.trialText}>
             5 dias para conhecer sua academia no TatameMix. Sem débito
             automático.
@@ -142,6 +145,8 @@ export function SubscriptionSummary({ value: v }: { value: Subscription }) {
 }
 
 export function SubscriptionPlanCards({ value: v }: { value: Subscription }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   if (!v.plans?.length) return null;
   return (
     <View style={{ gap: 18 }}>
@@ -158,7 +163,7 @@ export function SubscriptionPlanCards({ value: v }: { value: Subscription }) {
                 <View
                   style={[
                     s.smallIcon,
-                    current && { backgroundColor: "#3A1F28" },
+                    current && { backgroundColor: accents.brand.soft },
                   ]}
                 >
                   <Icon
@@ -196,6 +201,8 @@ export function SubscriptionPlanCards({ value: v }: { value: Subscription }) {
 }
 
 export function SubscriptionDetails({ value: v }: { value: Subscription }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState("");
   return (
@@ -279,12 +286,12 @@ export function SubscriptionDetails({ value: v }: { value: Subscription }) {
   );
 }
 
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   summary: {
     padding: 26,
     gap: 22,
-    borderColor: "#59303A",
-    backgroundColor: "#1C171C",
+    borderColor: accents.brand.border,
+    backgroundColor: colors.surface,
   },
   between: {
     flexDirection: "row",
@@ -306,9 +313,9 @@ const s = StyleSheet.create({
     borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#342029",
+    backgroundColor: accents.brand.soft,
     borderWidth: 1,
-    borderColor: "#633039",
+    borderColor: accents.brand.border,
   },
   name: {
     color: colors.text,
@@ -334,7 +341,7 @@ const s = StyleSheet.create({
     color: colors.text,
     fontFamily: "Inter_700Bold",
   },
-  divider: { height: 1, backgroundColor: "#3D2B33" },
+  divider: { height: 1, backgroundColor: colors.borderSubtle },
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 24 },
   stat: { gap: 10, flexGrow: 1, flexBasis: "40%" },
   statLabel: { flexDirection: "row", alignItems: "center", gap: 9 },
@@ -351,7 +358,7 @@ const s = StyleSheet.create({
   date: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: colors.text },
   track: {
     height: 5,
-    backgroundColor: "#3A2A32",
+    backgroundColor: colors.surfaceRaised,
     borderRadius: 3,
     overflow: "hidden",
   },
@@ -365,7 +372,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     padding: 13,
-    backgroundColor: "#20252E",
+    backgroundColor: accents.blue.soft,
     borderRadius: 9,
   },
   trialText: {
@@ -373,16 +380,16 @@ const s = StyleSheet.create({
     fontSize: 11,
     lineHeight: 18,
     fontFamily: "Inter_400Regular",
-    color: "#C0CDDF",
+    color: accents.blue.color,
   },
   warning: {
-    color: "#DBB987",
+    color: colors.warning,
     fontSize: 12,
     lineHeight: 19,
     fontFamily: "Inter_400Regular",
   },
   planCard: { padding: 22, gap: 14, borderRadius: 13 },
-  currentPlan: { borderColor: colors.primaryLight, backgroundColor: "#21181E" },
+  currentPlan: { borderColor: colors.primaryLight, backgroundColor: accents.brand.soft },
   smallIcon: {
     width: 38,
     height: 38,
@@ -419,4 +426,4 @@ const s = StyleSheet.create({
     fontSize: 13,
   },
   detailsBody: { padding: 22, paddingTop: 0, gap: 16 },
-});
+}));

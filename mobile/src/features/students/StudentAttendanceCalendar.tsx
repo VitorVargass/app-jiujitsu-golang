@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, accents } from "../../theme";
+import { Pressable, Text, View } from "react-native";
+import { useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 import { calendarWeeks, attendanceDayLabel } from "./attendance-calendar";
 
 export function StudentAttendanceCalendar({
@@ -13,6 +14,7 @@ export function StudentAttendanceCalendar({
   counts: Map<string, number>;
   onDay: (day: string) => void;
 }) {
+  const s = useThemedStyles(themedS);
   return (
     <View style={s.calendar}>
       <View style={s.week}>
@@ -76,7 +78,7 @@ export function StudentAttendanceCalendar({
     </View>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   calendar: { gap: 5 },
   week: { flexDirection: "row", gap: 3 },
   weekday: {
@@ -128,4 +130,4 @@ const s = StyleSheet.create({
     lineHeight: 17,
     color: colors.muted,
   },
-});
+}));

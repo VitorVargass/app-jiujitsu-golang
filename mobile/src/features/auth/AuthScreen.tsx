@@ -1,5 +1,5 @@
 import { ComponentRef, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams, Href } from "expo-router";
 import { safeNext } from "../../services/links";
 import { Notice } from "../../components/ui";
@@ -7,7 +7,9 @@ import { Icon } from "../../components/Icon";
 import { api } from "../../services/api";
 import { useSession } from "../../services/session";
 import { User } from "../../types";
-import { brand } from "../../theme/brand";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
+
 import { AuthLayout } from "./AuthLayout";
 import { AuthAction, AuthField, authControlStyles } from "./AuthControls";
 import { EditorDialog } from "../../components/EditorDialog";
@@ -20,6 +22,8 @@ export default function AuthScreen({
 }: {
   register?: boolean;
 }) {
+  const { brand } = useTheme();
+  const s = useThemedStyles(themedS);
   const { login } = useSession();
   const { next } = useLocalSearchParams<{ next?: string }>();
   const destination = safeNext(next);
@@ -93,7 +97,11 @@ export default function AuthScreen({
         },
       );
       await login(data);
-      router.replace(destination as Href);
+      router.replace(
+        (data.user.password_change_required
+          ? "/first-access"
+          : destination) as Href,
+      );
     } catch (e) {
       setError(
         e instanceof Error
@@ -292,7 +300,7 @@ export default function AuthScreen({
     </AuthLayout>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ brand }) => ({
   acknowledgement: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -340,4 +348,4 @@ const s = StyleSheet.create({
     lineHeight: 19,
     color: brand.muted,
   },
-});
+}));

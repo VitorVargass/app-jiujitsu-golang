@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { EditorDialog } from "../../components/EditorDialog";
 import { Icon } from "../../components/Icon";
 import { Avatar, Button } from "../../components/ui";
 import { AttendanceOptions, CheckinResult } from "../../types";
-import { accents, colors, displayTime } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { displayTime, createThemedStyles } from "../../theme";
 
 type Lesson = AttendanceOptions["options"][number];
 export function KioskLessonPicker({
@@ -20,6 +21,8 @@ export function KioskLessonPicker({
   disabled: boolean;
   onSelect: (lesson: Lesson) => void;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const [open, setOpen] = useState(false);
   const copy = (
     <>
@@ -125,6 +128,8 @@ export function KioskSuccess({
   timezone: string;
   onNext: () => void;
 }) {
+  const { accents } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <View style={s.success} accessibilityLiveRegion="polite">
       <View style={s.successIcon}>
@@ -158,7 +163,7 @@ export function KioskSuccess({
     </View>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   lesson: {
     flexDirection: "row",
     alignItems: "center",
@@ -238,4 +243,4 @@ const s = StyleSheet.create({
     lineHeight: 17,
     textAlign: "center",
   },
-});
+}));

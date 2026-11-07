@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text } from "react-native";
 import { Button, IconButton } from "./ui";
-import { colors } from "../theme";
+import { useThemedStyles } from "../theme/ThemeProvider";
+import { createThemedStyles } from "../theme";
 
 export function Pagination({
   page,
@@ -13,6 +14,7 @@ export function Pagination({
   size?: number;
   onChange: (n: number) => void;
 }) {
+  const styles = useThemedStyles(themedStyles);
   const lastPage = Math.max(1, Math.ceil(total / size));
   if (page > lastPage)
     return (
@@ -41,11 +43,11 @@ export function Pagination({
     </View>
   );
 }
-const styles = StyleSheet.create({
+const themedStyles = createThemedStyles(({ colors }) => ({
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   text: { fontFamily: "Inter_400Regular", color: colors.muted, fontSize: 13 },
-});
+}));

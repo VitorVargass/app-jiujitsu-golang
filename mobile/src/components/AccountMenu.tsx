@@ -1,15 +1,18 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { router, Href } from "expo-router";
+import { Pressable, Text, View } from "react-native";
+import { router } from "expo-router";
 import { useSession } from "../services/session";
 import { academyAccesses, accessHome, AcademyAccess } from "../services/access";
-import { colors, accents, roleLabel } from "../theme";
+import { useTheme, useThemedStyles } from "../theme/ThemeProvider";
+import { roleLabel, createThemedStyles } from "../theme";
 import { EditorDialog } from "./EditorDialog";
 import { Badge, Button, Label, Loading, Notice } from "./ui";
 import { Icon } from "./Icon";
 
 /** The account trigger replaces the old switch button on both layouts. */
 export function AccountMenu({ compact = false }: { compact?: boolean }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const {
     session,
     academy,
@@ -34,7 +37,8 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
     .join("")
     .toUpperCase();
   const options = academyAccesses(academies);
-  const multiple = options.length > 1;
+  const multipleAcademies =
+    new Set(options.map((option) => option.academy.id)).size > 1;
   function choose(option: AcademyAccess) {
     setOpen(false);
     if (academy?.id === option.academy.id && role === option.role) return;
@@ -62,7 +66,11 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Abrir minha conta"
-        accessibilityHint="Consulte sua conta e seus acessos à academia"
+        accessibilityHint={
+          multipleAcademies
+            ? "Consulte sua conta e troque de academia"
+            : "Consulte sua conta"
+        }
         accessibilityState={{ expanded: open }}
         aria-haspopup="dialog"
         onPress={() => setOpen(true)}
@@ -104,102 +112,94 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
               </Text>
             </View>
           </View>
-          <View style={s.section}>
-            <Text style={s.sectionLabel}>
-              {multiple ? "ACADEMIAS E ACESSOS" : "ACADEMIA ATUAL"}
-            </Text>
-            {academiesLoading ? (
-              <Loading />
-            ) : academiesError ? (
-              <>
-                <Notice message={academiesError.message} />
-                <Button compact secondary onPress={reloadAcademies}>
-                  Tentar novamente
-                </Button>
-              </>
-            ) : options.length ? (
-              <View
-                accessibilityRole={multiple ? "radiogroup" : undefined}
-                accessibilityLabel={multiple ? "Seus acessos" : undefined}
-                style={{ gap: 10 }}
-              >
-                {options.map((option) => {
-                  const current =
-                    academy?.id === option.academy.id && role === option.role;
-                  const content = (
-                    <>
-                      <Icon
-                        name={option.role === "admin" ? "home" : "users"}
-                        size={18}
-                        color={current ? colors.primaryLight : colors.muted}
-                      />
-                      <View style={s.copy}>
-                        <Text style={s.academyName}>{option.academy.name}</Text>
-                        <Text style={s.role}>{roleLabel[option.role]}</Text>
-                      </View>
-                      {current ? (
-                        <Badge label="Em uso" tone="brand" />
-                      ) : (
+          {multipleAcademies ? (
+            <View style={s.section}>
+              <Text style={s.sectionLabel}>ACADEMIAS E ACESSOS</Text>
+              {academiesLoading ? (
+                <Loading />
+              ) : academiesError ? (
+                <>
+                  <Notice message={academiesError.message} />
+                  <Button compact secondary onPress={reloadAcademies}>
+                    Tentar novamente
+                  </Button>
+                </>
+              ) : (
+                <View
+                  accessibilityRole="radiogroup"
+                  accessibilityLabel="Seus acessos"
+                  style={{ gap: 10 }}
+                >
+                  {options.map((option) => {
+                    const current =
+                      academy?.id === option.academy.id && role === option.role;
+                    const content = (
+                      <>
                         <Icon
-                          name="chevron-right"
-                          size={16}
-                          color={colors.muted}
+                          name={option.role === "admin" ? "home" : "users"}
+                          size={18}
+                          color={current ? colors.primaryLight : colors.muted}
                         />
-                      )}
-                    </>
-                  );
-                  return multiple ? (
-                    <Pressable
-                      key={option.academy.id + option.role}
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: current, disabled: busy }}
-                      disabled={busy}
-                      accessibilityLabel={
-                        option.academy.name +
-                        ". " +
-                        roleLabel[option.role] +
-                        (current ? ". Em uso" : "")
-                      }
-                      onPress={() => choose(option)}
-                      style={({ pressed }) => [
-                        s.access,
-                        current && s.current,
-                        pressed && s.pressed,
-                      ]}
-                    >
-                      {content}
-                    </Pressable>
-                  ) : (
-                    <View
-                      key={option.academy.id + option.role}
-                      style={[s.access, s.current]}
-                    >
-                      {content}
-                    </View>
-                  );
-                })}
-              </View>
-            ) : (
-              <Label muted>
-                Nenhum acesso disponível. Atualize os acessos para conferir.
-              </Label>
-            )}
-            {multiple ? (
+                        <View style={s.copy}>
+                          <Text style={s.academyName}>
+                            {option.academy.name}
+                          </Text>
+                          <Text style={s.role}>{roleLabel[option.role]}</Text>
+                        </View>
+                        {current ? (
+                          <Badge label="Em uso" tone="brand" />
+                        ) : (
+                          <Icon
+                            name="chevron-right"
+                            size={16}
+                            color={colors.muted}
+                          />
+                        )}
+                      </>
+                    );
+                    return (
+                      <Pressable
+                        key={option.academy.id + option.role}
+                        accessibilityRole="radio"
+                        accessibilityState={{
+                          checked: current,
+                          disabled: busy,
+                        }}
+                        disabled={busy}
+                        accessibilityLabel={
+                          option.academy.name +
+                          ". " +
+                          roleLabel[option.role] +
+                          (current ? ". Em uso" : "")
+                        }
+                        onPress={() => choose(option)}
+                        style={({ pressed }) => [
+                          s.access,
+                          current && s.current,
+                          pressed && s.pressed,
+                        ]}
+                      >
+                        {content}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
               <Label muted>
                 Escolha a academia e a área que deseja acessar.
               </Label>
-            ) : null}
-            {!academiesLoading && !academiesError ? (
-              <Pressable
-                accessibilityRole="button"
-                disabled={busy}
-                onPress={reloadAcademies}
-                style={s.refresh}
-              >
-                <Text style={s.refreshText}>Atualizar acessos</Text>
-              </Pressable>
-            ) : null}
-          </View>
+              {!academiesLoading && !academiesError ? (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={busy}
+                  onPress={reloadAcademies}
+                  style={s.refresh}
+                >
+                  <Text style={s.refreshText}>Atualizar acessos</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
           <View style={s.footer}>
             <Notice message={error} />
             <Button
@@ -211,27 +211,12 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
               Sair da conta
             </Button>
           </View>
-          <View style={s.privacy}>
-            <Text style={s.sectionLabel}>PRIVACIDADE E DADOS</Text>
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              accessibilityHint="Abre as informações e a confirmação da solicitação de exclusão"
-              style={({ pressed }) => [s.deletionLink, pressed && s.pressed]}
-              onPress={() => {
-                setOpen(false);
-                router.push("/delete-account" as Href);
-              }}
-            >
-              <Text style={s.refreshText}>Excluir minha conta</Text>
-            </Pressable>
-          </View>
         </EditorDialog>
       ) : null}
     </>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   trigger: {
     minHeight: 48,
     flexDirection: "row",
@@ -333,17 +318,5 @@ const s = StyleSheet.create({
     borderTopColor: colors.borderSubtle,
     paddingTop: 16,
   },
-  privacy: {
-    marginTop: 24,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
-    alignItems: "flex-start",
-  },
-  deletionLink: {
-    minHeight: 48,
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
   pressed: { opacity: 0.65 },
-});
+}));

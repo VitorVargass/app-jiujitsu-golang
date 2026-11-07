@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AcademyShell, RoleGate } from "../shared/AcademyShell";
 import {
@@ -21,7 +21,8 @@ import { EditorDialog } from "../../components/EditorDialog";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { api, academyPath, APIError } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
-import { colors } from "../../theme";
+import { useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 type Manager = {
   id: string;
@@ -190,6 +191,7 @@ function ManagerEditor({
   );
 }
 function Content() {
+  const s = useThemedStyles(themedS);
   const { academy, session } = useSession();
   const academyId = academy!.id;
   const [adding, setAdding] = useState(false);
@@ -294,7 +296,7 @@ export default function ManagersScreen() {
     </RoleGate>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ colors }) => ({
   count: { color: colors.muted, fontFamily: "Inter_400Regular", fontSize: 12 },
   heading: { flexDirection: "row", alignItems: "center", gap: 12 },
   identity: { flex: 1, minWidth: 0, gap: 6 },
@@ -304,4 +306,4 @@ const s = StyleSheet.create({
     fontSize: 12,
     lineHeight: 20,
   },
-});
+}));

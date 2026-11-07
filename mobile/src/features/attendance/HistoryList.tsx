@@ -1,12 +1,13 @@
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { router, Href } from "expo-router";
 import { EditorDialog } from "../../components/EditorDialog";
 import { Icon } from "../../components/Icon";
 import { Avatar, Badge, Button, Card } from "../../components/ui";
 import { Attendance } from "../../types";
-import { accents, colors, displayTime } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { displayTime, createThemedStyles } from "../../theme";
 
 function dateKey(value: string, zone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -40,6 +41,8 @@ export function HistoryList({
   timezone: string;
   admin: boolean;
 }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { isWide } = useResponsiveLayout();
   const desktop = admin && isWide;
   const [detail, setDetail] = useState<Attendance | null>(null);
@@ -247,7 +250,7 @@ export function HistoryList({
     </>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   group: { gap: 12 },
   dayHeading: { flexDirection: "row", alignItems: "center", gap: 10 },
   dateIcon: {
@@ -337,4 +340,4 @@ const s = StyleSheet.create({
     lineHeight: 22,
     color: colors.text,
   },
-});
+}));

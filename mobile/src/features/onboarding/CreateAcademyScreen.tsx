@@ -22,13 +22,15 @@ import {
   AcademySetupSummary,
   SetupHeading,
 } from "./AcademySetupCards";
-import { colors } from "../../theme";
+import { useTheme } from "../../theme/ThemeProvider";
+
 import { planOptions } from "../subscription/plan-options";
 import { LEGAL_VERSION } from "../legal/content";
 import { LegalDocument } from "../legal/LegalDocument";
 import { EditorDialog } from "../../components/EditorDialog";
 
 export default function CreateAcademyScreen() {
+  const { colors } = useTheme();
   const { ready, session, academy, role, academiesLoading, select, logout } =
     useSession();
   const { isCompact, isWide } = useResponsiveLayout();

@@ -1,7 +1,7 @@
 import { QueryError } from "../../components/QueryError";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
@@ -24,7 +24,8 @@ import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { api, academyPath } from "../../services/api";
 import { portalLink } from "../../services/links";
 import { useSession, queryClient } from "../../services/session";
-import { colors, accents } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 import type { Catalog, Page } from "../../types/billing";
 import { money } from "../../types/billing";
 import { formatBirth } from "../../types/age";
@@ -44,6 +45,8 @@ export default function EnrollmentSettingsScreen() {
   );
 }
 function Content() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy } = useSession();
   const a = academy!;
   const [section, setSection] = useState<Section>("link");
@@ -134,6 +137,8 @@ function SettingsForm({
   modalities: Catalog[];
   plans: Catalog[];
 }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy } = useSession();
   const a = academy!;
   const { isCompact } = useResponsiveLayout();
@@ -484,6 +489,8 @@ function Offer({
   selected: boolean;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -508,6 +515,8 @@ function Offer({
   );
 }
 function EmptySection({ title, message }: { title: string; message: string }) {
+  const { accents } = useTheme();
+  const s = useThemedStyles(themedS);
   return (
     <View style={s.empty}>
       <View style={s.emptyIcon}>
@@ -519,6 +528,7 @@ function EmptySection({ title, message }: { title: string; message: string }) {
   );
 }
 function Detail({ label, value }: { label: string; value: string }) {
+  const s = useThemedStyles(themedS);
   return (
     <View style={{ gap: 5 }}>
       <Text style={s.eyebrow}>{label}</Text>
@@ -527,6 +537,8 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 function ReviewRequests() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy } = useSession();
   const a = academy!;
   const [page, setPage] = useState(1);
@@ -725,6 +737,8 @@ type AccessGrant = {
   account_email: string;
 };
 function PortalAccess() {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy } = useSession();
   const a = academy!;
   const [page, setPage] = useState(1);
@@ -822,7 +836,7 @@ function PortalAccess() {
     </Card>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   tabs: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1025,4 +1039,4 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-});
+}));

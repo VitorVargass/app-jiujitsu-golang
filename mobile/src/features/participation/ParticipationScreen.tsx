@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { StudentNumberCard } from "../student/StudentNumberCard";
 import { PersonalGate, AcademyShell } from "../shared/AcademyShell";
@@ -20,7 +20,8 @@ import { queryClient, useSession } from "../../services/session";
 import { formatCPF, cpfDigits, validCPF } from "../../types/cpf";
 import { Participation } from "../../types";
 import { StudentAttendances } from "../students/StudentAttendances";
-import { colors, accents } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 
 function EditCPF({
   profile,
@@ -81,6 +82,8 @@ function EditCPF({
   );
 }
 function Content() {
+  const { accents } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy } = useSession(),
     a = academy!;
   const [editing, setEditing] = useState(false);
@@ -165,7 +168,7 @@ export default function ParticipationScreen() {
     </PersonalGate>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ colors }) => ({
   identity: {
     flexDirection: "row",
     alignItems: "center",
@@ -181,4 +184,4 @@ const s = StyleSheet.create({
     color: colors.muted,
   },
   cpf: { fontFamily: "Inter_600SemiBold", fontSize: 18, color: colors.text },
-});
+}));

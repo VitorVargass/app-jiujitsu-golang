@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Icon } from "../../components/Icon";
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import type { Class, Schedule } from "../../types";
-import { colors, accents } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
+import { createThemedStyles } from "../../theme";
 import { dayNames, fullDays, scheduleRange } from "./weekly";
 import { modalityColor } from "./weekly-colors";
 import { timetableDays } from "./timetable-data";
@@ -24,6 +25,8 @@ export function MobileClassAgenda({
   onSelect: (item: Class, schedule?: Schedule) => void;
   onInteractionChange: (active: boolean) => void;
 }) {
+  const { accents, colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { width } = useResponsiveLayout();
   const days = timetableDays(items);
   const entries = days[selectedDay] || [];
@@ -119,7 +122,7 @@ export function MobileClassAgenda({
       </View>
       {entries.length ? (
         entries.map(({ item, schedule }) => {
-          const tone = modalityColor(item);
+          const tone = modalityColor(item, accents);
           return (
             <Pressable
               key={item.id + ":" + schedule.id}
@@ -195,7 +198,7 @@ export function MobileClassAgenda({
     </View>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ accents, colors }) => ({
   section: { gap: 12, minWidth: 0 },
   heading: { flexDirection: "row", alignItems: "center", gap: 10 },
   headingText: { flex: 1, minWidth: 0, gap: 4 },
@@ -331,4 +334,4 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-});
+}));

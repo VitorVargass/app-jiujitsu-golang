@@ -62,6 +62,12 @@ func (h Handler) Middleware(next http.Handler) http.Handler {
 			core.Fail(w, e)
 			return
 		}
+		if p.PasswordChangeRequired && r.URL.Path != "/v1/auth/first-access" &&
+			r.URL.Path != "/v1/auth/logout" && r.URL.Path != "/v1/me" &&
+			r.URL.Path != "/v1/auth/deletion-requests" {
+			core.Fail(w, core.E(403, "password_change_required", "Escolha sua senha pessoal para concluir o primeiro acesso."))
+			return
+		}
 		next.ServeHTTP(w, r.WithContext(core.WithPrincipal(r.Context(), p)))
 	})
 }

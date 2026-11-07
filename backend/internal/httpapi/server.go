@@ -98,6 +98,7 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	subscriptionHandler := subscriptions.Handler{Manager: platform}
 	protected := func(path string, h http.HandlerFunc) { mux.Handle(path, a.Middleware(platform.Gate(h))) }
 	protected("POST /v1/auth/logout", a.Logout)
+	mux.Handle("POST /v1/auth/first-access", a.Middleware(http.HandlerFunc(s.rate(a.FirstAccess))))
 	protected("GET /v1/me", a.Me)
 	protected("POST /v1/academies", ac.Create)
 	protected("GET /v1/me/academies", ac.List)
@@ -162,6 +163,7 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("POST "+base+"/students/{student}/archive", st.Archive)
 	protected("POST "+base+"/students/{student}/restore", st.Restore)
 	protected("POST "+base+"/students/{student}/invitations", st.Invitation)
+	protected("POST "+base+"/students/{student}/temporary-access", st.TemporaryAccess)
 	protected("DELETE "+base+"/students/{student}/invitations", st.Invitation)
 	protected("GET /v1/invitations/{token}", st.PreviewInvitation)
 	protected("POST /v1/invitations/{token}/accept", st.Accept)
@@ -174,6 +176,8 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	}
 	protected("GET "+base+"/invoices", bankHandler.List)
 	protected("GET "+base+"/me/invoices", bankHandler.List)
+	protected("GET "+base+"/me/billing-forecast", bankHandler.Forecast)
+	protected("GET "+base+"/students/{student}/billing-forecast", bankHandler.Forecast)
 	protected("GET "+base+"/invoices/{invoice}", bankHandler.Get)
 	protected("POST "+base+"/invoices/{invoice}/pix", bankHandler.Pix)
 	protected("PATCH "+base+"/invoices/{invoice}/cancel", bankHandler.Cancel)
@@ -183,6 +187,7 @@ func NewWithPayments(db *pgxpool.Pool, origins string, bank *payments.Manager) h
 	protected("GET "+base+"/payment-integration", bankHandler.Status)
 	protected("PUT "+base+"/payment-integration", bankHandler.SaveIntegration)
 	protected("PATCH "+base+"/payment-integration", bankHandler.ToggleIntegration)
+	protected("PATCH "+base+"/payment-integration/fees", bankHandler.CardFees)
 	protected("POST "+base+"/invoices/{invoice}/checkout", bankHandler.Checkout)
 	protected("GET "+base+"/invoices/{invoice}/checkouts", bankHandler.CheckoutHistory)
 	protected("POST "+base+"/invoices/{invoice}/checkout-retirement", bankHandler.RetireCheckout)

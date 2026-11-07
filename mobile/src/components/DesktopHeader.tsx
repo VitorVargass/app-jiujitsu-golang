@@ -1,17 +1,20 @@
 import { Link } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { AccountMenu } from "./AccountMenu";
 import { Icon } from "./Icon";
 import { useSession } from "../services/session";
-import { colors, roleLabel } from "../theme";
+import { useTheme, useThemedStyles } from "../theme/ThemeProvider";
+import { roleLabel, createThemedStyles } from "../theme";
 
 export function DesktopHeader({ title }: { title: string }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(themedS);
   const { academy, role } = useSession();
   return (
     <View style={s.header}>
       <View style={s.breadcrumb}>
         <Link
-          href={role === "student" ? "/student" : "/academy"}
+          href={role === "student" ? "/history" : "/academy"}
           style={s.workspace}
         >
           {academy?.name ?? "Minha academia"}
@@ -32,7 +35,7 @@ export function DesktopHeader({ title }: { title: string }) {
     </View>
   );
 }
-const s = StyleSheet.create({
+const themedS = createThemedStyles(({ colors }) => ({
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -74,4 +77,4 @@ const s = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 0.6,
   },
-});
+}));
