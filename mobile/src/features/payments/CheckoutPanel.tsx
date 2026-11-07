@@ -63,22 +63,9 @@ export function CheckoutPanel({
   const copy = useMutation({
     mutationFn: async () => {
       setCopied(false);
-      const current = await api<Checkout>(
-        academyPath(academyId, "/invoices/" + invoiceId + "/checkout"),
-        { method: "POST" },
-      );
-      setValidated(current);
-      refresh();
-      if (
-        current.status !== "waiting" ||
-        !current.url ||
-        checkoutExpired(current) ||
-        current.customer_changed
-      )
-        throw new Error(
-          current.review_reason ||
-            "Confira a mensalidade antes de copiar outro link.",
-        );
+      const current = result;
+      if (!current?.url || current.customer_changed)
+        throw new Error("Nenhum link disponível para copiar.");
       if (!(await Clipboard.setStringAsync(checkoutURL(current.url))))
         throw new Error("Não foi possível copiar o link.");
       setCopied(true);
@@ -107,7 +94,7 @@ export function CheckoutPanel({
       ) : (
         <>
           {expired ? (
-            <Notice message="Este link expirou. Gere um novo link para continuar. Se houver uma transação pendente, ela será conferida antes de outra emissão." />
+            <Notice message="A validade informada deste link terminou. Você ainda pode abri-lo para conferir na InfinitePay. Transações pendentes serão conferidas antes de outra emissão." />
           ) : result?.status === "review" ? (
             <Notice
               message={
@@ -116,7 +103,7 @@ export function CheckoutPanel({
               }
             />
           ) : null}
-          {result?.url && !expired && result.status === "waiting" ? (
+          {result?.url && !result.customer_changed ? (
             <>
               <Label>
                 {inline
@@ -124,13 +111,13 @@ export function CheckoutPanel({
                   : "Checkout emitido · " + money(result.amount_cents)}
               </Label>
               <Row>
-                {!inline ? (
+                {result.url ? (
                   <Button
                     compact
                     loading={checkout.isPending}
-                    onPress={() => checkout.mutate()}
+                    onPress={() => void openPaymentURL(checkoutURL(result.url!))}
                   >
-                    Continuar pagamento
+                    Abrir link de pagamento
                   </Button>
                 ) : null}
                 <Button
@@ -161,7 +148,7 @@ export function CheckoutPanel({
               automaticamente.
             </Label>
           ) : null}
-          {copied && !result?.customer_changed && !expired ? (
+          {copied && !result?.customer_changed ? (
             <Notice success message="Link do checkout copiado." />
           ) : null}
           {result ? (

@@ -35,8 +35,8 @@ func TestInfiniteCredentialEncryption(t *testing.T) {
 	}
 }
 func TestInfinitePayConfig(t *testing.T) {
-	t.Setenv("PAYMENTS_PORTAL_URL", "" )
-	t.Setenv("PAYMENTS_API_URL", "" )
+	t.Setenv("PAYMENTS_PORTAL_URL", "")
+	t.Setenv("PAYMENTS_API_URL", "")
 	t.Setenv("INFINITEPAY_ENABLED", "false")
 	t.Setenv("PAYMENTS_MASTER_KEY", "")
 	t.Setenv("PAYMENTS_PUBLIC_URL", "")
@@ -56,7 +56,9 @@ func TestInfinitePayConfig(t *testing.T) {
 	t.Setenv("PAYMENTS_PORTAL_URL", "https://portal.example")
 	t.Setenv("PAYMENTS_API_URL", "https://api.example")
 	p, e = LoadInfinitePay(nil)
-	if e != nil || p.PublicURL != "https://portal.example" || p.APIURL != "https://api.example" { t.Fatal("split origins not loaded", e) }
+	if e != nil || p.PublicURL != "https://portal.example" || p.APIURL != "https://api.example" {
+		t.Fatal("split origins not loaded", e)
+	}
 	t.Setenv("PAYMENTS_PORTAL_URL", "")
 	t.Setenv("PAYMENTS_API_URL", "")
 	t.Setenv("PAYMENTS_PUBLIC_URL", "http://localhost")
@@ -90,7 +92,7 @@ func TestInfinitePaySafeHTTP(t *testing.T) {
 func TestCheckoutRecoveryResult(t *testing.T) {
 	c := checkoutAttempt{ID: "test", State: "ready", URL: "https://checkout.infinitepay.io/original", Amount: 18000, Expires: time.Now().Add(-time.Hour)}
 	v := c.result()
-	if v.Status != "review" || v.URL != "" || !v.Expired || !v.Retryable {
+	if v.Status != "review" || v.URL != c.URL || !v.Expired || !v.Retryable {
 		t.Fatal(v)
 	}
 	c.State = "paid"

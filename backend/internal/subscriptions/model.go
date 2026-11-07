@@ -109,6 +109,9 @@ func accessState(until, now time.Time, renewal bool) (string, bool) {
 }
 func (c attempt) result(now time.Time) Checkout {
 	v := Checkout{ID: c.ID, Amount: c.Amount, Status: "review", Reason: c.Reason}
+	if validURL(c.URL) {
+		v.URL = c.URL
+	}
 	if c.State == "rejected" {
 		v.Retryable = true
 		v.Reason = "Emissão recusada pela InfinitePay. Após corrigir a configuração, tente novamente."
@@ -116,6 +119,7 @@ func (c attempt) result(now time.Time) Checkout {
 	}
 	if c.State == "paid" {
 		v.Status = "paid"
+		v.URL = ""
 		return v
 	}
 	if c.State == "ready" && now.Before(c.Expires) {

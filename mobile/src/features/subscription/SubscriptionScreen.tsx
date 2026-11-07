@@ -27,7 +27,7 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Pagination } from "../../components/Pagination";
 import { api, academyPath } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
-import { beginInvoiceCheckout } from "../../services/checkout-flow";
+import { beginInvoiceCheckout, checkoutURL } from "../../services/checkout-flow";
 import { openPaymentURL } from "../../services/open-payment";
 import type { Checkout, Page as ResultPage } from "../../types/billing";
 import { money } from "../../types/billing";
@@ -190,6 +190,11 @@ function Content({
                       renewal.error?.message
                     }
                   />
+                  {checkout?.url && checkout.status !== "paid" ? (
+                    <Button onPress={() => void openPaymentURL(checkoutURL(checkout.url!))}>
+                      Abrir link de pagamento
+                    </Button>
+                  ) : null}
                   <Row>
                     {v.renewal_enabled && v.cycle ? (
                       <Button

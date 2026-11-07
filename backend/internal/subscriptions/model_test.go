@@ -87,7 +87,7 @@ func TestCheckoutUncertaintyAndURL(t *testing.T) {
 	for _, state := range []string{"creating", "uncertain", "review"} {
 		c := attempt{State: state, URL: "https://checkout.infinitepay.io/a/b", Expires: now.Add(time.Hour)}
 		v := c.result(now)
-		if v.URL != "" || v.Status != "review" {
+		if v.URL != c.URL || v.Status != "review" {
 			t.Fatal(v)
 		}
 	}
@@ -99,5 +99,17 @@ func TestCheckoutUncertaintyAndURL(t *testing.T) {
 	}
 	if !validURL("https://checkout.infinitepay.io/owner/link") {
 		t.Fatal("Valid URL refused")
+	}
+}
+
+func TestExpiredCheckoutKeepsLink(t *testing.T) {
+	now := time.Now()
+	c := attempt{State: "ready", URL: "https://checkout.infinitepay.io/previous", Expires: now.Add(-time.Hour)}
+	if v := c.result(now); v.URL != c.URL || v.Status != "review" {
+		t.Fatal(v)
+	}
+	c.URL = "https://evil.example/link"
+	if v := c.result(now); v.URL != "" {
+		t.Fatal(v)
 	}
 }

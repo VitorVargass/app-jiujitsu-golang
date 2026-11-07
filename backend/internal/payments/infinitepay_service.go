@@ -173,9 +173,6 @@ func (c checkoutAttempt) result() CheckoutResult {
 	}
 	v.Expired = !time.Now().Before(c.Expires)
 	v.Retryable = c.renewable()
-	if v.Expired {
-		v.URL = ""
-	}
 	if c.State != "ready" || v.Expired {
 		v.Status = "review"
 		if v.Reason == "" {

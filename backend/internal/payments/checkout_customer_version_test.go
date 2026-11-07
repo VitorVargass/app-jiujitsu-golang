@@ -18,7 +18,7 @@ func TestOutdatedCustomerDoesNotReopenLink(t *testing.T) {
 		}
 	}
 	c.Expires = time.Now().Add(-time.Second)
-	if v := c.resultForCustomer("changed"); !v.Expired || !v.Retryable || v.URL != "" {
+	if v := c.resultForCustomer("changed"); !v.Expired || !v.Retryable || v.URL != c.URL {
 		t.Fatal(v)
 	}
 	c.State = "paid"
