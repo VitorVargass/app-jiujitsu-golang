@@ -281,6 +281,10 @@ func TestInfinitePayFlow(t *testing.T) {
 	// Explicit renewal replaces a successfully issued, expired link and keeps history.
 	oldAttempt := owner.ok("GET", prefix+"/invoices/"+id4, nil)["payment_checkout"].(map[string]any)["id"].(string)
 	var oldReference string
+	var oldURL string
+	if e = db.QueryRow(ctx, "SELECT checkout_url FROM checkout_attempts WHERE id=$1", oldAttempt).Scan(&oldURL); e != nil {
+		t.Fatal(e)
+	}
 	if e = db.QueryRow(ctx, "SELECT reference FROM checkout_attempts WHERE id=$1", oldAttempt).Scan(&oldReference); e != nil {
 		t.Fatal(e)
 	}
@@ -289,8 +293,8 @@ func TestInfinitePayFlow(t *testing.T) {
 		t.Fatal(e)
 	}
 	expired := owner.ok("GET", prefix+"/invoices/"+id4, nil)["payment_checkout"].(map[string]any)
-	if expired["url"] != nil || expired["expired"] != true || expired["retryable"] != true {
-		t.Fatal("expired link should offer renewal without exposing old URL", expired)
+	if oldURL == "" || expired["url"] != oldURL || expired["expired"] != true || expired["retryable"] != true {
+		t.Fatal("expired link should remain accessible and offer renewal", expired)
 	}
 	before = creates.Load()
 	renewed := studentClient.ok("POST", prefix+"/invoices/"+id4+"/checkout", nil)
