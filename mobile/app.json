@@ -8,7 +8,7 @@
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.tatamemix.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "CAMERA",
         "android.permission.CAMERA"
