@@ -15,6 +15,7 @@ import (
 	"tatame/backend/internal/httpapi"
 	"tatame/backend/internal/payments"
 	"testing"
+	"time"
 )
 
 func TestInfinitePayFlow(t *testing.T) {
@@ -58,6 +59,10 @@ func TestInfinitePayFlow(t *testing.T) {
 				t.Error("checkout must return to portal and deliver webhooks to API")
 			}
 			opts := payload["options"].(map[string]any)
+			expiry, expiryErr := time.Parse(time.RFC3339, opts["valid_until"].(string))
+			if expiryErr != nil || time.Until(expiry) < 59*time.Minute || time.Until(expiry) > time.Hour {
+				t.Error("checkout validity must be one hour", expiry, expiryErr)
+			}
 			assured, configured := opts["assured_installments"]
 			if expectedAssured.Load() < 0 {
 				if configured {
@@ -235,7 +240,7 @@ func TestInfinitePayFlow(t *testing.T) {
 		t.Fatal("suspension ignored", code)
 	}
 	owner.ok("PATCH", prefix+"/payment-integration", map[string]any{"enabled": true})
-	// Ambiguous creation cannot be automatically retried, including after a simulated restart.
+	// Ambiguous issuance is reused before expiry and recoverable after expiry.
 	fail.Store(true)
 	result = owner.ok("POST", prefix+"/invoices/"+id2+"/checkout", nil)
 	if result["status"] != "review" {
@@ -247,6 +252,13 @@ func TestInfinitePayFlow(t *testing.T) {
 		t.Fatal("ambiguous creation reissued")
 	}
 	fail.Store(false)
+	if _, e = db.Exec(ctx, "UPDATE checkout_attempts SET expires_at=now()-interval '1 minute' WHERE invoice_id=$1", id2); e != nil {
+		t.Fatal(e)
+	}
+	recoveredUnknown := owner.ok("POST", prefix+"/invoices/"+id2+"/checkout", nil)
+	if recoveredUnknown["status"] != "waiting" || recoveredUnknown["id"] == result["id"] || creates.Load() != before+1 {
+		t.Fatal("expired unknown issuance not recovered", recoveredUnknown)
+	}
 	// Divergent bank value is recorded as review, without changing accounting.
 	id3 := newInvoice()
 	path3 := prefix + "/invoices/" + id3
@@ -313,18 +325,18 @@ func TestInfinitePayFlow(t *testing.T) {
 	if e = db.QueryRow(ctx, "SELECT retired_at IS NOT NULL FROM checkout_attempts WHERE id=$1", oldAttempt).Scan(&retained); e != nil || !retained {
 		t.Fatal("old checkout history lost", e)
 	}
-	// A known pending transaction is checked, never silently replaced.
+	// Expiry permits a new link even when the previous transaction is pending.
 	paid.Store(false)
 	amount.Store(18000)
 	_, e = db.Exec(ctx, "UPDATE checkout_attempts SET expires_at=now()-interval '1 day',transaction_nsu='pending-test',slug='pending-slug' WHERE id=$1", renewed["id"])
 	if e != nil {
 		t.Fatal(e)
 	}
-	if code, _ := owner.request("POST", prefix+"/invoices/"+id4+"/checkout", nil, ""); code != 409 {
-		t.Fatal("pending transaction replaced", code)
+	if code, _ := owner.request("POST", prefix+"/invoices/"+id4+"/checkout", nil, ""); code != 200 {
+		t.Fatal("expired pending attempt not replaced", code)
 	}
-	if creates.Load() != before+1 {
-		t.Fatal("pending transaction generated another link")
+	if creates.Load() != before+2 {
+		t.Fatal("expired pending attempt did not generate one new link")
 	}
 	amount.Store(18000)
 	paid.Store(false)

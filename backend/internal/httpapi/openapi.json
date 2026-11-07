@@ -2468,6 +2468,10 @@
           "retryable": {
             "type": "boolean",
             "description": "Somente recusas definitivas permitem nova tentativa de emissão."
+          },
+          "expired": {
+            "type": "boolean",
+            "description": "A validade da tentativa terminou; permite emitir outro link preservando as referências anteriores para conciliação."
           }
         }
       },

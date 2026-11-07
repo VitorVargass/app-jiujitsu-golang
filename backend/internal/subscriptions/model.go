@@ -71,6 +71,7 @@ func subscriptionAccess(until, now time.Time, renewal bool, trialEnd *time.Time,
 
 type Checkout struct {
 	Retryable bool   `json:"retryable,omitempty"`
+	Expired   bool   `json:"expired,omitempty"`
 	ID        string `json:"id,omitempty"`
 	Status    string `json:"status"`
 	URL       string `json:"url,omitempty"`
@@ -127,6 +128,11 @@ func (c attempt) result(now time.Time) Checkout {
 		v.URL = c.URL
 		return v
 	}
+	if c.renewable(now) {
+		v.Expired = true
+		v.Retryable = true
+		v.Reason = "Este link venceu. Gere um novo link para pagar; o histórico de pagamentos será preservado."
+	}
 	if v.Reason == "" {
 		v.Reason = "A emissão precisa ser conferida antes de gerar outro link."
 	}
@@ -145,4 +151,8 @@ func (c Config) webhookOrigin() string {
 		return c.APIURL
 	}
 	return c.PublicURL
+}
+
+func (c attempt) renewable(now time.Time) bool {
+	return c.State != "paid" && !now.Before(c.Expires)
 }

@@ -139,6 +139,11 @@ func (m *Manager) verify(ctx context.Context, c attempt, event Event) error {
 	if _, e = tx.Exec(ctx, "UPDATE platform_subscription_attempts SET state='paid',transaction_nsu=$2,slug=$3,review_reason='',last_checked_at=now(),updated_at=now() WHERE id=$1", c.ID, event.Transaction, event.Slug); e != nil {
 		return e
 	}
+	// A late, confirmed payment on an older reference settles the period once.
+	// Stop offering a replacement whose external request may still be in flight.
+	if _, e = tx.Exec(ctx, "UPDATE platform_subscription_attempts SET state='review',review_reason='Este período já foi pago por um link anterior. Não efetue outro pagamento.',updated_at=now() WHERE cycle_id=$1 AND id<>$2 AND retired_at IS NULL AND state<>'paid'", c.Cycle, c.ID); e != nil {
+		return e
+	}
 	return tx.Commit(ctx)
 }
 func (m *Manager) Check(ctx context.Context, a, id string, event Event) (Checkout, error) {
@@ -170,7 +175,11 @@ func (m *Manager) Check(ctx context.Context, a, id string, event Event) (Checkou
 	} else {
 		event = Event{Order: c.Reference, Transaction: c.Transaction, Slug: c.Slug}
 		if !event.valid() {
-			return c.result(m.Now()), nil
+			v := c.result(m.Now())
+			if v.Status != "paid" && !v.Retryable {
+				v.Reason = "Ainda não há dados de transação para consultar. A emissão precisa ser conferida na InfinitePay."
+			}
+			return v, nil
 		}
 	}
 	if e = m.enqueue(ctx, event); e != nil {

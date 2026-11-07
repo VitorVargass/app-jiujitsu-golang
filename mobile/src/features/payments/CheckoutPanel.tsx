@@ -94,7 +94,7 @@ export function CheckoutPanel({
       ) : (
         <>
           {expired ? (
-            <Notice message="A validade informada deste link terminou. Você ainda pode abri-lo para conferir na InfinitePay. Transações pendentes serão conferidas antes de outra emissão." />
+            <Notice message="A validade informada deste link terminou. Você ainda pode abri-lo para conferir na InfinitePay. Gere um novo link para continuar." />
           ) : result?.status === "review" ? (
             <Notice
               message={

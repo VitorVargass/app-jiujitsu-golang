@@ -27,7 +27,10 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Pagination } from "../../components/Pagination";
 import { api, academyPath } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
-import { beginInvoiceCheckout, checkoutURL } from "../../services/checkout-flow";
+import {
+  beginInvoiceCheckout,
+  checkoutURL,
+} from "../../services/checkout-flow";
 import { openPaymentURL } from "../../services/open-payment";
 import type { Checkout, Page as ResultPage } from "../../types/billing";
 import { money } from "../../types/billing";
@@ -191,7 +194,11 @@ function Content({
                     }
                   />
                   {checkout?.url && checkout.status !== "paid" ? (
-                    <Button onPress={() => void openPaymentURL(checkoutURL(checkout.url!))}>
+                    <Button
+                      onPress={() =>
+                        void openPaymentURL(checkoutURL(checkout.url!))
+                      }
+                    >
                       Abrir link de pagamento
                     </Button>
                   ) : null}
@@ -207,9 +214,11 @@ function Content({
                         }
                         onPress={() => pay.mutate()}
                       >
-                        {v.checkout?.url
-                          ? "Continuar pagamento"
-                          : `${v.status === "active" ? "Renovar por" : "Pagar"} ${money(v.cycle.amount_cents)}`}
+                        {v.checkout?.retryable
+                          ? "Gerar novo link"
+                          : v.checkout?.url
+                            ? "Continuar pagamento"
+                            : `${v.status === "active" ? "Renovar por" : "Pagar"} ${money(v.cycle.amount_cents)}`}
                       </Button>
                     ) : null}
                     {v.checkout?.id ? (

@@ -15,6 +15,7 @@ import (
 	"tatame/backend/internal/payments"
 	"tatame/backend/internal/subscriptions"
 	"testing"
+	"time"
 )
 
 func TestPlatformSubscription(t *testing.T) {
@@ -59,6 +60,10 @@ func TestPlatformSubscription(t *testing.T) {
 				t.Errorf("price=%v", price)
 			}
 			options := in["options"].(map[string]any)
+			expiry, expiryErr := time.Parse(time.RFC3339, options["valid_until"].(string))
+			if expiryErr != nil || time.Until(expiry) < 59*time.Minute || time.Until(expiry) > time.Hour {
+				t.Error("checkout validity must be one hour", expiry, expiryErr)
+			}
 			if _, ok := options["discounts"]; ok {
 				t.Error("Discount configured")
 			}
@@ -232,6 +237,126 @@ func TestPlatformSubscription(t *testing.T) {
 	items := hist["items"].([]any)
 	if len(items) == 0 || items[0].(map[string]any)["review_reason"] == "" {
 		t.Fatal("Payment review not visible in history", hist)
+	}
+
+	// Recovery preserves references and serializes concurrent requests.
+	failLink.Store(false)
+	paid.Store(false)
+	amount.Store(15000)
+	a3 := owner.ok("POST", "/v1/academies", map[string]string{"name": "Expired subscription"})["id"].(string)
+	b3 := "/v1/academies/" + a3
+	cycle3 := owner.ok("GET", b3+"/subscription", nil)["cycle"].(map[string]any)["id"].(string)
+	original := owner.ok("POST", b3+"/subscription/checkout", map[string]string{"cycle_id": cycle3})
+	originalID := original["id"].(string)
+	var originalRef string
+	if e = db.QueryRow(ctx, "SELECT reference FROM platform_subscription_attempts WHERE id=$1", originalID).Scan(&originalRef); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec(ctx, "UPDATE platform_subscription_attempts SET expires_at=now()-interval '1 day' WHERE id=$1", originalID); e != nil {
+		t.Fatal(e)
+	}
+	expired3 := owner.ok("GET", b3+"/subscription", nil)["checkout"].(map[string]any)
+	if expired3["retryable"] != true || expired3["expired"] != true || expired3["url"] != original["url"] {
+		t.Fatal(expired3)
+	}
+	beforeRecovery := links.Load()
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			code, _ := owner.request("POST", b3+"/subscription/checkout", map[string]string{"cycle_id": cycle3}, "")
+			if code != 200 {
+				t.Errorf("recovery code=%d", code)
+			}
+		}()
+	}
+	wg.Wait()
+	if links.Load() != beforeRecovery+1 {
+		t.Fatal("duplicate renewal", links.Load(), beforeRecovery)
+	}
+	replacement := owner.ok("GET", b3+"/subscription", nil)["checkout"].(map[string]any)
+	if replacement["id"] == originalID || replacement["status"] != "waiting" {
+		t.Fatal(replacement)
+	}
+	var attempts int
+	if e = db.QueryRow(ctx, "SELECT count(*) FROM platform_subscription_attempts WHERE cycle_id=$1", cycle3).Scan(&attempts); e != nil || attempts != 2 {
+		t.Fatal("history lost", attempts, e)
+	}
+	history3 := owner.ok("GET", b3+"/subscription/history", nil)
+	if len(history3["items"].([]any)) != 1 {
+		t.Fatal("duplicate history periods", history3)
+	}
+	// Even a pending transaction must not block replacement after expiry.
+	replacementID := replacement["id"].(string)
+	var replacementRef string
+	if e = db.QueryRow(ctx, "SELECT reference FROM platform_subscription_attempts WHERE id=$1", replacementID).Scan(&replacementRef); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec(ctx, "UPDATE platform_subscription_attempts SET expires_at=now()-interval '1 day' WHERE id=$1", replacementID); e != nil {
+		t.Fatal(e)
+	}
+	pending := map[string]string{"order_nsu": replacementRef, "transaction_nsu": core.ID(), "invoice_slug": "pending-recovery"}
+	anon.ok("POST", "/v1/webhooks/tatamemix/infinitepay", pending)
+	beforeRecovery = links.Load()
+	if code, _ := owner.request("POST", b3+"/subscription/checkout", map[string]string{"cycle_id": cycle3}, ""); code != 200 {
+		t.Fatal("expired pending transaction not replaced", code)
+	}
+	if links.Load() != beforeRecovery+1 {
+		t.Fatal("expired pending transaction did not emit one replacement")
+	}
+	paid.Store(true)
+	settled := owner.ok("POST", b3+"/subscription/payment-check", map[string]any{"attempt_id": replacementID, "event": pending})
+	if settled["status"] != "paid" || links.Load() != beforeRecovery+1 {
+		t.Fatal("pending payment not settled", settled)
+	}
+	// A late payment on an archived reference cannot grant a second period.
+	until3 := owner.ok("GET", b3+"/subscription", nil)["paid_until"]
+	late := owner.ok("POST", b3+"/subscription/payment-check", map[string]any{"attempt_id": originalID, "event": map[string]string{"order_nsu": originalRef, "transaction_nsu": core.ID(), "slug": "late-old"}})
+	if late["status"] != "review" {
+		t.Fatal("late duplicate accepted", late)
+	}
+	if owner.ok("GET", b3+"/subscription", nil)["paid_until"] != until3 {
+		t.Fatal("late payment extended twice")
+	}
+
+	// An old reference settling first closes the period and suppresses its replacement.
+	a4 := owner.ok("POST", "/v1/academies", map[string]string{"name": "Late settlement"})["id"].(string)
+	b4 := "/v1/academies/" + a4
+	cycle4 := owner.ok("GET", b4+"/subscription", nil)["cycle"].(map[string]any)["id"].(string)
+	old4 := owner.ok("POST", b4+"/subscription/checkout", map[string]string{"cycle_id": cycle4})
+	var ref4 string
+	if e = db.QueryRow(ctx, "SELECT reference FROM platform_subscription_attempts WHERE id=$1", old4["id"]).Scan(&ref4); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = db.Exec(ctx, "UPDATE platform_subscription_attempts SET expires_at=now()-interval '1 day' WHERE id=$1", old4["id"]); e != nil {
+		t.Fatal(e)
+	}
+	new4 := owner.ok("POST", b4+"/subscription/checkout", map[string]string{"cycle_id": cycle4})
+	late4 := map[string]any{"attempt_id": old4["id"], "event": map[string]string{"order_nsu": ref4, "transaction_nsu": core.ID(), "slug": "late-first"}}
+	if v := owner.ok("POST", b4+"/subscription/payment-check", late4); v["status"] != "paid" {
+		t.Fatal(v)
+	}
+	until4 := owner.ok("GET", b4+"/subscription", nil)["paid_until"]
+	owner.ok("POST", b4+"/subscription/payment-check", late4)
+	if owner.ok("GET", b4+"/subscription", nil)["paid_until"] != until4 {
+		t.Fatal("old reference settled twice")
+	}
+	var replacementState string
+	if e = db.QueryRow(ctx, "SELECT state FROM platform_subscription_attempts WHERE id=$1", new4["id"]).Scan(&replacementState); e != nil || replacementState != "review" {
+		t.Fatal("replacement still offered", replacementState, e)
+	}
+	beforeRecovery = links.Load()
+	if v := owner.ok("POST", b4+"/subscription/checkout", map[string]string{"cycle_id": cycle4}); v["status"] != "paid" || links.Load() != beforeRecovery {
+		t.Fatal("paid cycle issued another link", v)
+	}
+	// Unknown issuance can also be replaced once its requested validity ends.
+	if _, e = db.Exec(ctx, "UPDATE platform_subscription_attempts SET expires_at=now()-interval '1 day' WHERE id=$1", id2); e != nil {
+		t.Fatal(e)
+	}
+	beforeRecovery = links.Load()
+	owner.ok("POST", b2+"/subscription/checkout", map[string]string{"cycle_id": c2})
+	if links.Load() != beforeRecovery+1 {
+		t.Fatal("expired unknown issuance was not replaced")
 	}
 	// Disabling rollout leaves existing academies unrestricted; no provider call.
 	bank.Subscriptions.Config.Enabled = false

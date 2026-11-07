@@ -177,7 +177,7 @@ func (c checkoutAttempt) result() CheckoutResult {
 		v.Status = "review"
 		if v.Reason == "" {
 			if v.Expired {
-				v.Reason = "Este link expirou. Solicite um novo link; transações pendentes serão conferidas antes da emissão."
+				v.Reason = "Este link expirou. Gere um novo link para continuar."
 			} else {
 				v.Reason = "Confira o checkout antes de emitir outro link. Se o link foi recebido, você pode abri-lo ou copiá-lo abaixo."
 			}
@@ -244,13 +244,6 @@ func (m *Manager) checkout(ctx context.Context, a, id string) (CheckoutResult, e
 	}
 	if e != nil && !errors.Is(e, pgx.ErrNoRows) {
 		return CheckoutResult{}, e
-	}
-	var historicalReview bool
-	if e = p.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM checkout_attempts WHERE academy_id=$1 AND invoice_id=$2 AND retired_at IS NOT NULL AND state='review')`, a, id).Scan(&historicalReview); e != nil {
-		return CheckoutResult{}, e
-	}
-	if historicalReview {
-		return CheckoutResult{}, core.E(409, "payment_review", "Há um recebimento em link anterior para conferir com a academia antes de outra emissão.")
 	}
 	conn, e := p.connection(ctx, a, "")
 	if e != nil || !conn.Enabled {

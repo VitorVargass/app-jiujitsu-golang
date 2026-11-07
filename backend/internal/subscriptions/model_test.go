@@ -105,11 +105,21 @@ func TestCheckoutUncertaintyAndURL(t *testing.T) {
 func TestExpiredCheckoutKeepsLink(t *testing.T) {
 	now := time.Now()
 	c := attempt{State: "ready", URL: "https://checkout.infinitepay.io/previous", Expires: now.Add(-time.Hour)}
-	if v := c.result(now); v.URL != c.URL || v.Status != "review" {
+	if v := c.result(now); v.URL != c.URL || v.Status != "review" || !v.Retryable || !v.Expired {
 		t.Fatal(v)
 	}
 	c.URL = "https://evil.example/link"
 	if v := c.result(now); v.URL != "" {
 		t.Fatal(v)
+	}
+}
+
+func TestEveryUnpaidExpiredIssuanceCanRenew(t *testing.T) {
+	now := time.Now()
+	for _, state := range []string{"creating", "uncertain", "review", "paid"} {
+		c := attempt{State: state, URL: "https://checkout.infinitepay.io/old", Expires: now.Add(-time.Hour)}
+		if c.renewable(now) != (state != "paid") || c.result(now).Retryable != (state != "paid") {
+			t.Fatal("unsafe renewal", state)
+		}
 	}
 }

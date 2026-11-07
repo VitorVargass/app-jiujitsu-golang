@@ -101,7 +101,7 @@ func TestCheckoutRecoveryResult(t *testing.T) {
 	}
 	c.State = "uncertain"
 	c.URL = ""
-	if v = c.result(); v.URL != "" || v.Status != "review" || v.Retryable {
+	if v = c.result(); v.URL != "" || v.Status != "review" || !v.Retryable {
 		t.Fatal(v)
 	}
 }
@@ -113,8 +113,8 @@ func TestCheckoutRenewalEligibility(t *testing.T) {
 	}
 	for _, state := range []string{"creating", "uncertain", "review", "paid"} {
 		c.State = state
-		if c.renewable() {
-			t.Fatalf("unsafe renewal in state %s", state)
+		if c.renewable() != (state != "paid") {
+			t.Fatalf("incorrect renewal in state %s", state)
 		}
 	}
 	c.State = "ready"

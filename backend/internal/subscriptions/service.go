@@ -86,7 +86,7 @@ func (m *Manager) snapshot(ctx context.Context, a string, withCycle bool) (Statu
 			return v, e
 		}
 		v.Cycle = &c
-		att, err := scanAttempt(tx.QueryRow(ctx, "SELECT "+columns+" FROM platform_subscription_attempts WHERE academy_id=$1 AND cycle_id=$2", a, c.ID))
+		att, err := scanAttempt(tx.QueryRow(ctx, "SELECT "+columns+" FROM platform_subscription_attempts WHERE academy_id=$1 AND cycle_id=$2 AND retired_at IS NULL", a, c.ID))
 		if err == nil {
 			out := att.result(now)
 			v.Checkout = &out
@@ -127,7 +127,7 @@ func (m *Manager) History(ctx context.Context, a string, page, size int) (core.P
 	if e := m.DB.QueryRow(ctx, "SELECT count(*) FROM platform_subscription_cycles WHERE academy_id=$1", a).Scan(&v.Total); e != nil {
 		return v, e
 	}
-	rows, e := m.DB.Query(ctx, "SELECT c.id,c.period_start,c.period_end,c.amount_cents,c.state,c.paid_at,COALESCE(p.state,''),COALESCE(p.review_reason,''),c.plan_id,c.active_students FROM platform_subscription_cycles c LEFT JOIN platform_subscription_attempts p ON p.cycle_id=c.id WHERE c.academy_id=$1 ORDER BY c.period_start DESC,c.id LIMIT $2 OFFSET $3", a, size, (page-1)*size)
+	rows, e := m.DB.Query(ctx, "SELECT c.id,c.period_start,c.period_end,c.amount_cents,c.state,c.paid_at,COALESCE(p.state,''),COALESCE(p.review_reason,''),c.plan_id,c.active_students FROM platform_subscription_cycles c LEFT JOIN platform_subscription_attempts p ON p.cycle_id=c.id AND p.retired_at IS NULL WHERE c.academy_id=$1 ORDER BY c.period_start DESC,c.id LIMIT $2 OFFSET $3", a, size, (page-1)*size)
 	if e != nil {
 		return v, e
 	}
@@ -192,27 +192,30 @@ func (m *Manager) Checkout(ctx context.Context, a, id string) (Checkout, error) 
 	if e = tx.QueryRow(ctx, "SELECT amount_cents FROM platform_subscription_cycles WHERE id=$1", id).Scan(&cycleAmount); e != nil {
 		return Checkout{}, e
 	}
-	c := attempt{Amount: cycleAmount, ID: core.ID(), Academy: a, Cycle: id, Reference: core.ID(), Receiver: m.Config.Handle, State: "creating", Expires: m.Now().Add(24 * time.Hour)}
-	tag, e := tx.Exec(ctx, `INSERT INTO platform_subscription_attempts(id,academy_id,cycle_id,reference,receiver_handle,amount_cents,state,expires_at) VALUES($1,$2,$3,$4,$5,$7,'creating',$6) ON CONFLICT(cycle_id) DO NOTHING`, c.ID, a, id, c.Reference, c.Receiver, c.Expires, c.Amount)
+	if out, handled, err := m.recoverExpired(ctx, tx, a, id); err != nil || handled {
+		return out, err
+	}
+	c := attempt{Amount: cycleAmount, ID: core.ID(), Academy: a, Cycle: id, Reference: core.ID(), Receiver: m.Config.Handle, State: "creating", Expires: m.Now().Add(time.Hour)}
+	tag, e := tx.Exec(ctx, `INSERT INTO platform_subscription_attempts(id,academy_id,cycle_id,reference,receiver_handle,amount_cents,state,expires_at) VALUES($1,$2,$3,$4,$5,$7,'creating',$6) ON CONFLICT(cycle_id) WHERE retired_at IS NULL DO NOTHING`, c.ID, a, id, c.Reference, c.Receiver, c.Expires, c.Amount)
 	if e != nil {
 		return Checkout{}, e
 	}
 	if tag.RowsAffected() == 0 {
-		c, e = scanAttempt(tx.QueryRow(ctx, "SELECT "+columns+" FROM platform_subscription_attempts WHERE academy_id=$1 AND cycle_id=$2", a, id))
+		c, e = scanAttempt(tx.QueryRow(ctx, "SELECT "+columns+" FROM platform_subscription_attempts WHERE academy_id=$1 AND cycle_id=$2 AND retired_at IS NULL", a, id))
 		if e != nil {
 			return Checkout{}, e
 		}
 		if c.State != "rejected" {
 			return c.result(m.Now()), nil
 		}
-		tag, e = tx.Exec(ctx, "UPDATE platform_subscription_attempts SET state='creating',expires_at=$2,receiver_handle=$3,updated_at=now() WHERE id=$1 AND state='rejected'", c.ID, m.Now().Add(24*time.Hour), m.Config.Handle)
+		tag, e = tx.Exec(ctx, "UPDATE platform_subscription_attempts SET state='creating',expires_at=$2,receiver_handle=$3,updated_at=now() WHERE id=$1 AND state='rejected'", c.ID, m.Now().Add(time.Hour), m.Config.Handle)
 		if e != nil {
 			return Checkout{}, e
 		}
 		if tag.RowsAffected() == 0 {
 			return Checkout{Status: "review", Amount: cycleAmount}, nil
 		}
-		c.Expires = m.Now().Add(24 * time.Hour)
+		c.Expires = m.Now().Add(time.Hour)
 		c.Receiver = m.Config.Handle
 	}
 	if e = tx.Commit(ctx); e != nil {
