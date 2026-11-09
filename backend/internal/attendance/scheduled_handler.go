@@ -19,7 +19,7 @@ func (h Handler) Options(w http.ResponseWriter, r *http.Request) {
 			core.Fail(w, core.E(403, "forbidden", "Dispositivo de outra academia."))
 			return
 		}
-	} else if _, err := h.Service.Access.Require(r.Context(), a, "admin"); err != nil {
+	} else if _, err := h.Service.Access.Require(r.Context(), a, "admin", "teacher"); err != nil {
 		core.Fail(w, err)
 		return
 	}
@@ -73,7 +73,7 @@ func (h Handler) ScheduledCheckIn(w http.ResponseWriter, r *http.Request) {
 }
 func (h Handler) Manual(w http.ResponseWriter, r *http.Request) {
 	a, key := r.PathValue("academy"), r.Header.Get("Idempotency-Key")
-	if _, err := h.Service.Access.Require(r.Context(), a, "admin"); err != nil {
+	if _, err := h.Service.Access.Require(r.Context(), a, "admin", "teacher"); err != nil {
 		core.Fail(w, err)
 		return
 	}

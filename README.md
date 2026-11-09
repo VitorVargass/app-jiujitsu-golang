@@ -278,3 +278,13 @@ O conjunto inclui 18 alunos identificados com Demo •, contatos em example.test
 ### Matrículas pelo link da academia
 
 Veja [matrículas por link](docs/matriculas-por-link.md) para publicação das ofertas, acesso do responsável e aprovação de cadastros existentes. A atualização adiciona a migração 014; faça backup antes de reiniciar uma API conectada ao banco existente.
+
+### Remoção de gestores pelo proprietário
+
+Novas academias registram seu criador em academies.owner_user_id. Em Mais → Gestores, somente esse proprietário pode remover o papel de gestor de outra pessoa, após confirmação. A API também protege a edição genérica de vínculos e impede remover ou bloquear o proprietário. A conta, os demais papéis e os históricos são preservados.
+
+A migração 025 deve ser aplicada antes desta versão. Academias anteriores ficam sem proprietário atribuído: o campo deve ser preenchido por operação administrativa após verificar a titularidade. Nenhum gestor é promovido automaticamente a dono. Não há transferência de propriedade pela interface nesta versão.
+
+### Professores e acompanhamento acadêmico
+
+Em **Mais → Professores**, dono e gestores criam ou vinculam professores. O perfil acompanha alunos e turmas de toda a academia, lança presenças e altera faixas e graus. Financeiro e alterações de cadastro continuam restritos aos gestores. Consulte [permissões e contratos acadêmicos](docs/TEACHERS.md).

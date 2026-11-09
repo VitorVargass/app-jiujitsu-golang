@@ -77,6 +77,36 @@ const managerTabs: Tab[] = [
     ],
   },
 ];
+const teacherTabs: Tab[] = [
+  {
+    label: "Alunos",
+    url: "/teacher-students",
+    icon: "users",
+    tone: "brand",
+    routes: ["/teacher-students", "/teacher-student"],
+  },
+  {
+    label: "Turmas",
+    url: "/teacher-classes",
+    icon: "calendar",
+    tone: "brand",
+    routes: ["/teacher-classes"],
+  },
+  {
+    label: "Presenças",
+    url: "/teacher-attendances",
+    icon: "check-circle",
+    tone: "brand",
+    routes: ["/teacher-attendances"],
+  },
+  {
+    label: "Mais",
+    url: "/more",
+    icon: "more",
+    tone: "brand",
+    routes: ["/more"],
+  },
+];
 const studentTabs: Tab[] = [
   {
     label: "Presenças",
@@ -178,10 +208,16 @@ export function AcademyShell({
   const { accents, colors } = useTheme();
   const styles = useThemedStyles(themedStyles);
   const { academy, role, session } = useSession();
-  const pageSubtitle = subtitle === null ? undefined : subtitle || academy?.name;
+  const pageSubtitle =
+    subtitle === null ? undefined : subtitle || academy?.name;
   const pathname = usePathname();
   const { isWide } = useResponsiveLayout();
-  const tabs = role === "student" ? studentTabs : managerTabs;
+  const tabs =
+    role === "student"
+      ? studentTabs
+      : role === "teacher"
+        ? teacherTabs
+        : managerTabs;
   const currentIndex = tabs.findIndex((tab) => tab.url === pathname);
   const screens = useSectionPages();
   const preview = useSectionPreview();

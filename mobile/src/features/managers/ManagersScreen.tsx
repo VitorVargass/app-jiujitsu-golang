@@ -17,6 +17,7 @@ import {
   Notice,
   Row,
 } from "../../components/ui";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { EditorDialog } from "../../components/EditorDialog";
 import { ResponsiveGrid } from "../../components/ResponsiveGrid";
 import { api, academyPath, APIError } from "../../services/api";
@@ -25,6 +26,8 @@ import { useThemedStyles } from "../../theme/ThemeProvider";
 import { createThemedStyles } from "../../theme";
 
 type Manager = {
+  is_owner: boolean;
+  can_remove: boolean;
   id: string;
   user_id: string;
   name: string;
@@ -195,6 +198,19 @@ function Content() {
   const { academy, session } = useSession();
   const academyId = academy!.id;
   const [adding, setAdding] = useState(false);
+  const [removing, setRemoving] = useState<Manager | null>(null);
+  const remove = useMutation({
+    mutationFn: (manager: Manager) =>
+      api(academyPath(academyId, "/managers/" + manager.id), {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      setRemoving(null);
+      setMessage("Acesso de gestor removido.");
+      void queryClient.invalidateQueries({ queryKey: ["managers", academyId] });
+      void queryClient.invalidateQueries({ queryKey: ["members", academyId] });
+    },
+  });
   const [message, setMessage] = useState("");
   const managers = useQuery({
     queryKey: ["managers", academyId],
@@ -254,6 +270,9 @@ function Content() {
                   </View>
                 </View>
                 <Row>
+                  {manager.is_owner ? (
+                    <Badge label="Dono da academia" tone="brand" />
+                  ) : null}
                   <Badge
                     label={
                       manager.status === "active"
@@ -267,6 +286,18 @@ function Content() {
                     <Badge label="Você" tone="brand" />
                   ) : null}
                 </Row>
+                {manager.can_remove ? (
+                  <Button
+                    compact
+                    danger
+                    onPress={() => {
+                      remove.reset();
+                      setRemoving(manager);
+                    }}
+                  >
+                    Remover gestor
+                  </Button>
+                ) : null}
               </Card>
             ))}
           </ResponsiveGrid>
@@ -274,6 +305,24 @@ function Content() {
       ) : (
         <Empty>Nenhum gestor encontrado.</Empty>
       )}
+      <ConfirmDialog
+        visible={!!removing}
+        title="Remover gestor?"
+        message={
+          (removing?.name ?? "Esta pessoa") +
+          " perderá o acesso à gestão desta academia. A conta, os históricos e outros papéis serão preservados."
+        }
+        confirmLabel="Remover gestor"
+        danger
+        pending={remove.isPending}
+        error={remove.error?.message}
+        onCancel={() => {
+          if (!remove.isPending) setRemoving(null);
+        }}
+        onConfirm={() => {
+          if (removing && !remove.isPending) remove.mutate(removing);
+        }}
+      />
       {adding ? (
         <ManagerEditor
           academyId={academyId}

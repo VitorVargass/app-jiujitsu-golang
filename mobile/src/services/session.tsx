@@ -146,6 +146,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       if (!userId || activeUser.current !== userId || !approvedRole) return;
       if (!academyAccesses([a]).some((item) => item.role === approvedRole))
         return;
+      void queryClient.cancelQueries({
+        predicate: (q) => q.queryKey[0] !== "academies",
+      });
+      queryClient.removeQueries({
+        predicate: (q) => q.queryKey[0] !== "academies",
+      });
       const next: AccessPreference = { academyId: a.id, role: approvedRole };
       queryClient.setQueryData<Academy[]>(
         ["academies", userId],

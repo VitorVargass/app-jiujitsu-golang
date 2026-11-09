@@ -158,6 +158,32 @@ func TestAcademyManagers(t *testing.T) {
 	if err = db.QueryRow(ctx, `SELECT count(*) FROM memberships m JOIN users u ON u.id=m.user_id JOIN people p ON p.id=u.person_id WHERE m.academy_id=$1 AND p.email=$2`, a, concurrentEmail).Scan(&count); err != nil || count != 1 {
 		t.Fatal("duplicate membership", count, err)
 	}
+	// Only the owner may remove management access, including via the generic endpoint.
+	for _, who := range []client{newManager, student, device} {
+		if status, _ := who.request("DELETE", prefix+"/managers/"+linked["id"].(string), nil, ""); status != 403 {
+			t.Fatalf("non-owner removal: %d", status)
+		}
+	}
+	if status, _ := newManager.request("PATCH", prefix+"/members/"+linked["id"].(string), map[string]string{"status": "blocked"}, ""); status != 403 {
+		t.Fatalf("generic removal bypass: %d", status)
+	}
+	if status, _ := owner.request("DELETE", prefix+"/managers/"+academy["membership_id"].(string), nil, ""); status != 409 {
+		t.Fatalf("owner removal: %d", status)
+	}
+	if _, err = db.Exec(ctx, "INSERT INTO membership_roles(membership_id,role) VALUES($1,'teacher')", linked["id"]); err != nil {
+		t.Fatal(err)
+	}
+	owner.ok("DELETE", prefix+"/managers/"+linked["id"].(string), nil)
+	if status, _ := outsider.request("GET", prefix+"/managers", nil, ""); status != 403 {
+		t.Fatalf("removed manager access: %d", status)
+	}
+	if err = db.QueryRow(ctx, "SELECT count(*) FROM membership_roles WHERE membership_id=$1 AND role='teacher'", linked["id"]).Scan(&count); err != nil || count != 1 {
+		t.Fatal("other role lost", err)
+	}
+	base.ok("POST", "/v1/auth/login", map[string]string{"email": existingEmail, "password": password})
+	if status, _ := owner.request("DELETE", prefix+"/managers/"+other["membership_id"].(string), nil, ""); status != 404 {
+		t.Fatalf("cross-academy removal: %d", status)
+	}
 	// The pre-existing protection for the final active manager remains intact.
 	if status, _ := outsider.request("PATCH", "/v1/academies/"+other["id"].(string)+"/members/"+other["membership_id"].(string), map[string]string{"status": "blocked"}, ""); status != 409 {
 		t.Fatalf("last manager was removed: %d", status)

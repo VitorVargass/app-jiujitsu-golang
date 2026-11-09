@@ -69,12 +69,9 @@ func (s Service) Class(ctx context.Context, a, c string) (Membership, error) {
 	if !core.ValidID(c) {
 		return m, core.E(404, "not_found", "Turma não encontrada.")
 	}
-	var teacher string
-	if e = s.DB.QueryRow(ctx, "SELECT COALESCE(teacher_membership_id::text,'') FROM classes WHERE academy_id=$1 AND id=$2", a, c).Scan(&teacher); e != nil {
+	var classID string
+	if e = s.DB.QueryRow(ctx, "SELECT id FROM classes WHERE academy_id=$1 AND id=$2 AND deleted_at IS NULL", a, c).Scan(&classID); e != nil {
 		return m, core.E(404, "not_found", "Turma não encontrada.")
-	}
-	if !Has(m.Roles, "admin") && teacher != m.ID {
-		return m, core.E(403, "forbidden", "Esta turma está sob responsabilidade de outro professor.")
 	}
 	return m, nil
 }

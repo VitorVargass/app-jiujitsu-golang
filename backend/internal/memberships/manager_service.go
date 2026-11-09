@@ -41,3 +41,13 @@ func (s Service) CreateManager(ctx context.Context, academy string, in CreateMan
 	}
 	return s.Repo.CreateManager(ctx, academy, core.P(ctx).UserID, in, hash)
 }
+
+func (s Service) RemoveManager(ctx context.Context, academy, id string) error {
+	if _, err := s.Access.Require(ctx, academy, "admin"); err != nil {
+		return err
+	}
+	if !core.ValidID(id) {
+		return core.E(404, "not_found", "Gestor não encontrado.")
+	}
+	return s.Repo.RemoveManager(ctx, academy, id)
+}

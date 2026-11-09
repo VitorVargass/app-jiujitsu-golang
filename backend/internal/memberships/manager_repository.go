@@ -8,10 +8,11 @@ import (
 )
 
 func (r Repository) Managers(ctx context.Context, academy string) ([]Manager, error) {
-	rows, err := r.DB.Query(ctx, `SELECT m.id,u.id,u.name,p.email,m.status FROM memberships m
+	rows, err := r.DB.Query(ctx, `SELECT m.id,u.id,u.name,p.email,m.status,COALESCE(a.owner_user_id=u.id,false),COALESCE(a.owner_user_id=$2::uuid AND a.owner_user_id<>u.id,false) FROM memberships m
+ JOIN academies a ON a.id=m.academy_id
  JOIN membership_roles mr ON mr.membership_id=m.id AND mr.role='admin'
  JOIN users u ON u.id=m.user_id JOIN people p ON p.id=u.person_id
- WHERE m.academy_id=$1 ORDER BY u.name,u.id`, academy)
+ WHERE m.academy_id=$1 ORDER BY u.name,u.id`, academy, core.P(ctx).UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -19,7 +20,7 @@ func (r Repository) Managers(ctx context.Context, academy string) ([]Manager, er
 	result := []Manager{}
 	for rows.Next() {
 		var value Manager
-		if err = rows.Scan(&value.ID, &value.UserID, &value.Name, &value.Email, &value.Status); err != nil {
+		if err = rows.Scan(&value.ID, &value.UserID, &value.Name, &value.Email, &value.Status, &value.IsOwner, &value.CanRemove); err != nil {
 			return nil, err
 		}
 		result = append(result, value)
@@ -99,4 +100,34 @@ func (r Repository) CreateManager(ctx context.Context, academy, actor string, in
 		return Manager{}, err
 	}
 	return value, tx.Commit(ctx)
+}
+
+func (r Repository) RemoveManager(ctx context.Context, academy, id string) error {
+	tx, err := r.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var allowed bool
+	if err = tx.QueryRow(ctx, "SELECT COALESCE(owner_user_id=$2::uuid,false) FROM academies WHERE id=$1 FOR UPDATE", academy, core.P(ctx).UserID).Scan(&allowed); err != nil {
+		return err
+	}
+	if !allowed {
+		return core.E(403, "owner_required", "Somente o dono da academia pode remover gestores.")
+	}
+	var user string
+	if err = tx.QueryRow(ctx, "SELECT user_id FROM memberships WHERE academy_id=$1 AND id=$2 FOR UPDATE", academy, id).Scan(&user); err != nil {
+		return core.E(404, "not_found", "Gestor não encontrado.")
+	}
+	if user == core.P(ctx).UserID {
+		return core.E(409, "owner_protected", "O dono da academia não pode ser removido.")
+	}
+	result, err := tx.Exec(ctx, "DELETE FROM membership_roles WHERE membership_id=$1 AND role='admin'", id)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return core.E(404, "not_found", "Gestor não encontrado.")
+	}
+	return tx.Commit(ctx)
 }

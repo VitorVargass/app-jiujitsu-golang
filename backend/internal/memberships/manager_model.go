@@ -1,11 +1,13 @@
 package memberships
 
 type Manager struct {
-	ID     string `json:"id"`
-	UserID string `json:"user_id"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
-	Status string `json:"status"`
+	IsOwner   bool   `json:"is_owner"`
+	CanRemove bool   `json:"can_remove"`
+	ID        string `json:"id"`
+	UserID    string `json:"user_id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	Status    string `json:"status"`
 }
 
 type CreateManagerInput struct {

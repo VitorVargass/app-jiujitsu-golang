@@ -41,7 +41,7 @@ func (h Handler) List(w http.ResponseWriter, r *http.Request) {
 	h.history(w, r, id, "", "")
 }
 func (h Handler) All(w http.ResponseWriter, r *http.Request) {
-	if _, e := h.Service.Access.Require(r.Context(), r.PathValue("academy"), "admin"); e != nil {
+	if _, e := h.Service.Access.Require(r.Context(), r.PathValue("academy"), "admin", "teacher"); e != nil {
 		core.Fail(w, e)
 		return
 	}

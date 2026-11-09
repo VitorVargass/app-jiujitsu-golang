@@ -31,3 +31,11 @@ func (h Handler) CreateManager(w http.ResponseWriter, r *http.Request) {
 	}
 	core.Write(w, 201, value)
 }
+
+func (h Handler) RemoveManager(w http.ResponseWriter, r *http.Request) {
+	if err := h.Service.RemoveManager(r.Context(), r.PathValue("academy"), r.PathValue("member")); err != nil {
+		core.Fail(w, err)
+		return
+	}
+	core.Write(w, 200, map[string]bool{"ok": true})
+}

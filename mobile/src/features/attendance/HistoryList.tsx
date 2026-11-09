@@ -1,5 +1,6 @@
 import { useResponsiveLayout } from "../../hooks/useResponsiveLayout";
 import { useState } from "react";
+import { useSession } from "../../services/session";
 import { Pressable, Text, View } from "react-native";
 import { router, Href } from "expo-router";
 import { EditorDialog } from "../../components/EditorDialog";
@@ -44,6 +45,7 @@ export function HistoryList({
   const { accents, colors } = useTheme();
   const s = useThemedStyles(themedS);
   const { isWide } = useResponsiveLayout();
+  const { role } = useSession();
   const desktop = admin && isWide;
   const [detail, setDetail] = useState<Attendance | null>(null);
   const days = new Map<string, Attendance[]>();
@@ -198,8 +200,11 @@ export function HistoryList({
                 secondary
                 icon="users"
                 onPress={() => {
-                  const destination = ("/students/" +
-                    detail.student_id) as Href;
+                  const destination = (
+                    role === "teacher"
+                      ? "/teacher-student?id=" + detail.student_id
+                      : "/students/" + detail.student_id
+                  ) as Href;
                   setDetail(null);
                   router.push(destination);
                 }}

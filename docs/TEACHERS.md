@@ -1,0 +1,14 @@
+# Professores
+
+Em **Mais → Professores**, dono e gestores adicionam uma nova conta ou vinculam uma conta existente por e-mail. Vincular preserva nome, senha e acessos anteriores. A remoção retira somente o papel `teacher` da academia; não exclui a pessoa, a matrícula nem o histórico. Professores não administram equipe nem concedem permissões.
+
+O professor entra em **Alunos**, com navegação para **Turmas**, **Presenças** e **Mais**. Ele acompanha toda a academia: consulta alunos atuais e arquivados, contatos, modalidades, evolução e presenças; altera faixas e graus e lança presença pela grade, inclusive em turmas atribuídas a outros professores. Alterações cadastrais, matrícula, arquivamento, catálogos e configurações permanecem com gestores. Alunos arquivados não aceitam graduação ou presença; lançamentos mantêm as regras existentes para aulas futuras, canceladas e presenças duplicadas.
+
+As rotas `/v1/academies/{academy}/academic/students`, `/academic/students/{student}` e `/academic/modalities` usam respostas por lista explícita de campos, sem contrato, preço, cobrança ou pagador. `PATCH /academic/students/{student}/graduations/{modality}` sempre retorna uma ficha acadêmica, inclusive para contas com papel de gestor. A rota anterior de graduação também aceita professor e usa essa projeção quando a pessoa não possui `admin`. O histórico de graduação preserva o usuário responsável.
+
+`GET/POST /teachers` e `DELETE /teachers/{member}` exigem gestor ativo da própria academia. Financeiro, integração bancária, assinatura, planos e fichas completas de matrícula continuam protegidos na API. Professor que também é aluno usa sua área do aluno para suas próprias mensalidades; se também for gestor, conserva as permissões na área de gestão. Respostas acadêmicas usam chaves distintas no cache, e trocar perfil/academia cancela consultas e remove o cache de dados da área anterior.
+
+O papel `teacher` já existe: esta funcionalidade não precisa de migração adicional. A migração 025 pertence ao registro de proprietário implementado anteriormente. A restrição de assinatura continua valendo para escritas acadêmicas; consultas continuam disponíveis.
+
+Validação: `TestTeachersAcademicAccess` usa PostgreSQL descartável via `TEST_DATABASE_URL`; cobre criação/vínculo, senha preservada, ausência de finanças nas respostas, graduação com autoria, presença em turma de outro professor, isolamento, bloqueio, arquivados e remoção que preserva outros acessos. A suíte de acesso do aplicativo cobre entrada automática, perfis combinados e vínculo bloqueado.
+Validação local concluída: suíte Go completa com PostgreSQL 18 descartável, go vet, 17 testes de seleção de acesso, TypeScript, lint e exportação Expo web. Provedores financeiros simulados pelos testes. Nenhum banco de academia foi utilizado.

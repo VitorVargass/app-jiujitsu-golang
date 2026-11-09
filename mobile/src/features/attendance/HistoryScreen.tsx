@@ -329,9 +329,15 @@ function HistoryPagination({
     />
   );
 }
-export default function HistoryScreen({ admin = false }: { admin?: boolean }) {
-  return admin ? (
-    <RoleGate role="admin">
+export default function HistoryScreen({
+  admin = false,
+  teacher = false,
+}: {
+  admin?: boolean;
+  teacher?: boolean;
+}) {
+  return admin || teacher ? (
+    <RoleGate role={teacher ? "teacher" : "admin"}>
       <Content key="academy" admin />
     </RoleGate>
   ) : (

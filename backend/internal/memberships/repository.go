@@ -114,6 +114,18 @@ func (r Repository) Update(ctx context.Context, a, id string, in Update) error {
 		return e
 	}
 	removesAdmin := in.Status == "blocked" || (in.Roles != nil && !access.Has(in.Roles, "admin"))
+	if isAdmin && removesAdmin {
+		var allowed, targetOwner bool
+		if e = tx.QueryRow(ctx, "SELECT COALESCE(a.owner_user_id=$2::uuid,false),COALESCE(a.owner_user_id=m.user_id,false) FROM academies a JOIN memberships m ON m.academy_id=a.id WHERE a.id=$1 AND m.id=$3", a, core.P(ctx).UserID, id).Scan(&allowed, &targetOwner); e != nil {
+			return e
+		}
+		if targetOwner {
+			return core.E(409, "owner_protected", "O dono da academia não pode ser removido.")
+		}
+		if !allowed {
+			return core.E(403, "owner_required", "Somente o dono da academia pode remover gestores.")
+		}
+	}
 	if isAdmin && oldStatus == "active" && removesAdmin {
 		var n int
 		if e = tx.QueryRow(ctx, `SELECT count(*) FROM memberships m JOIN membership_roles r ON r.membership_id=m.id WHERE m.academy_id=$1 AND m.status='active' AND r.role='admin'`, a).Scan(&n); e != nil {

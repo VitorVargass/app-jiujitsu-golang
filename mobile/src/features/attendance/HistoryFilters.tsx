@@ -13,7 +13,8 @@ import {
 } from "../../components/ui";
 import { academyPath, api } from "../../services/api";
 import { Class } from "../../types";
-import { Page, Student } from "../../types/billing";
+import { Page } from "../../types/billing";
+import type { AcademicStudent } from "../teacher/AcademicScreens";
 import { useTheme, useThemedStyles } from "../../theme/ThemeProvider";
 import { createThemedStyles } from "../../theme";
 
@@ -95,13 +96,17 @@ export function HistoryFilters({
     queryFn: () => api<Class[]>(academyPath(academyId, "/classes")),
   });
   const students = useQuery({
-    queryKey: ["attendance-history-students", academyId, term],
+    queryKey: ["academic", "attendance-history-students", academyId, term],
     queryFn: async () => {
       const path =
-        "/students?search=" + encodeURIComponent(term) + "&page_size=10";
+        "/academic/students?search=" +
+        encodeURIComponent(term) +
+        "&page_size=10";
       const [current, archived] = await Promise.all([
-        api<Page<Student>>(academyPath(academyId, path)),
-        api<Page<Student>>(academyPath(academyId, path + "&status=archived")),
+        api<Page<AcademicStudent>>(academyPath(academyId, path)),
+        api<Page<AcademicStudent>>(
+          academyPath(academyId, path + "&status=archived"),
+        ),
       ]);
       const combined = new Map(
         [...current.items, ...archived.items].map((item) => [item.id, item]),
@@ -264,9 +269,7 @@ export function HistoryFilters({
                       : item.status === "inactive"
                         ? "Cadastro inativo"
                         : "",
-                    item.cpf
-                      ? "CPF final " + item.cpf.replace(/\D/g, "").slice(-4)
-                      : item.email,
+                    item.student_code ? "Nº " + item.student_code : item.email,
                   ]
                     .filter(Boolean)
                     .join(" · ")}

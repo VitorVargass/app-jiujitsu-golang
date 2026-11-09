@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"net/http"
 	"strings"
+	"tatame/backend/internal/access"
 	"tatame/backend/internal/core"
 	"time"
 )
@@ -75,7 +76,7 @@ func (r Repository) UpdateGraduation(ctx context.Context, a, id, modality string
 }
 func (h Handler) Graduation(w http.ResponseWriter, r *http.Request) {
 	a, id, modality := r.PathValue("academy"), r.PathValue("student"), r.PathValue("modality")
-	if _, err := h.Service.Access.Require(r.Context(), a, "admin"); err != nil {
+	if _, err := h.Service.Access.Require(r.Context(), a, "admin", "teacher"); err != nil {
 		core.Fail(w, err)
 		return
 	}
@@ -96,6 +97,15 @@ func (h Handler) Graduation(w http.ResponseWriter, r *http.Request) {
 	result, err := h.Service.Repo.UpdateGraduation(r.Context(), a, id, modality, in)
 	if err != nil {
 		core.Fail(w, err)
+		return
+	}
+	member, err := h.Service.Access.Require(r.Context(), a, "admin", "teacher")
+	if err != nil {
+		core.Fail(w, err)
+		return
+	}
+	if strings.Contains(r.URL.Path, "/academic/") || !access.Has(member.Roles, "admin") {
+		core.Write(w, 200, academicStudent(result))
 		return
 	}
 	core.Write(w, 200, result)

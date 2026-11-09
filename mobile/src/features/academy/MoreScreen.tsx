@@ -35,6 +35,7 @@ const sections: { title: string; items: MenuItem[] }[] = [
       },
       { title: "Modalidades e planos", icon: "sliders", route: "/catalog" },
       { title: "Gestores", icon: "users", route: "/managers" },
+      { title: "Professores", icon: "users", route: "/teachers" },
       { title: "Nova academia", icon: "plus", route: "/create-academy" },
     ],
   },

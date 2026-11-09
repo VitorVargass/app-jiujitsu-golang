@@ -64,7 +64,7 @@ func (r Repository) Progress(ctx context.Context, a, id, modality string, page, 
 }
 func (h Handler) Progress(w http.ResponseWriter, r *http.Request) {
 	a, id := r.PathValue("academy"), r.PathValue("student")
-	if _, e := h.Service.Access.Require(r.Context(), a, "admin"); e != nil {
+	if _, e := h.Service.Access.Require(r.Context(), a, "admin", "teacher"); e != nil {
 		core.Fail(w, e)
 		return
 	}

@@ -134,9 +134,9 @@ test("aluno inativo ainda pode consultar seu portal financeiro", () => {
     "student",
   );
 });
-test("conta nova ou apenas professor legado não recebe um perfil inventado", () => {
+test("conta nova não recebe perfil e professor recebe acesso acadêmico", () => {
   assert.equal(automaticAccess([], "admin"), undefined);
-  assert.equal(academyAccesses([academy("a", ["teacher"])]).length, 0);
+  assert.equal(automaticAccess([academy("a", ["teacher"])]).role, "teacher");
 });
 
 test("responsável ativo usa o portal do aluno sem virar gestor",()=>{
@@ -144,4 +144,12 @@ test("responsável ativo usa o portal do aluno sem virar gestor",()=>{
  assert.equal(automaticAccess([academy("family",["guardian"])])?.role,"student");
  assert.equal(academyAccesses([academy("family",["guardian"],"blocked")]).length,0);
  assert.deepEqual(academyAccesses([academy("family",["student","guardian"])]).map(x=>x.role),["student"]);
+});
+
+test("professor bloqueado não entra e perfil combinado exige escolha",()=>{
+ assert.equal(automaticAccess([academy("a",["teacher"],"blocked")]),undefined);
+ const all=[academy("a",["teacher","admin","student"])];
+ assert.equal(automaticAccess(all),undefined);
+ assert.equal(automaticAccess(all,undefined,{academyId:"a",role:"teacher"}).role,"teacher");
+ assert.equal(entryAccesses(all,"teacher")[0].role,"teacher");
 });

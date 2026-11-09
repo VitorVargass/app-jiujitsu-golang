@@ -15,6 +15,12 @@ export type NavigationItem = {
 };
 const administration: NavigationItem[] = [
   {
+    label: "Professores",
+    url: "/teachers",
+    icon: "users",
+    routes: ["/teachers"],
+  },
+  {
     label: "Planos e modalidades",
     url: "/catalog",
     icon: "sliders",
@@ -183,7 +189,13 @@ export function DesktopSidebar({
       <View style={s.top}>
         <View style={s.brandRow}>
           <Link
-            href={(role === "student" ? "/history" : "/academy") as Href}
+            href={
+              (role === "student"
+                ? "/history"
+                : role === "teacher"
+                  ? "/teacher-students"
+                  : "/academy") as Href
+            }
             accessibilityLabel="TatameMix, início da academia"
           >
             <Brand compact />

@@ -17,7 +17,8 @@ import { academyPath, api } from "../../services/api";
 import { queryClient, useSession } from "../../services/session";
 import { AttendanceOptions, CheckinResult } from "../../types";
 import { academyDate } from "../../types/attendance";
-import { Page, Student } from "../../types/billing";
+import { Page } from "../../types/billing";
+import type { AcademicStudent } from "../teacher/AcademicScreens";
 import { birthToISO, formatBirth } from "../../types/age";
 import { displayTime } from "../../theme";
 
@@ -110,12 +111,14 @@ export function ManualAttendanceDialog({
     enabled: validDate,
   });
   const students = useQuery({
-    queryKey: ["manual-students", a.id, search],
+    queryKey: ["academic", "manual-students", a.id, search],
     queryFn: () =>
-      api<Page<Student>>(
+      api<Page<AcademicStudent>>(
         academyPath(
           a.id,
-          "/students?search=" + encodeURIComponent(search) + "&status=active",
+          "/academic/students?search=" +
+            encodeURIComponent(search) +
+            "&status=active",
         ),
       ),
     enabled: !studentId && search.trim().length >= 2,

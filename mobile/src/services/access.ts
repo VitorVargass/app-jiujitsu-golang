@@ -1,17 +1,26 @@
 import type { Academy } from "../types";
 
-export type AccessRole = "admin" | "student";
+export type AccessRole = "admin" | "student" | "teacher";
 export type AccessPreference = { academyId: string; role: AccessRole };
 export type AcademyAccess = { academy: Academy; role: AccessRole };
 
 export function accessRole(value: unknown): AccessRole | undefined {
-  return value === "admin" || value === "student" ? value : undefined;
+  return value === "admin" || value === "student" || value === "teacher"
+    ? value
+    : undefined;
 }
 export function accessHome(role: AccessRole) {
-  return role === "admin" ? "/academy" : "/history";
+  return role === "admin"
+    ? "/academy"
+    : role === "teacher"
+      ? "/teacher-students"
+      : "/history";
 }
 export function academyAccesses(academies: Academy[]): AcademyAccess[] {
   return academies.flatMap((academy) => [
+    ...(academy.roles.includes("teacher") && academy.status === "active"
+      ? [{ academy, role: "teacher" as const }]
+      : []),
     ...(academy.roles.includes("admin") && academy.status === "active"
       ? [{ academy, role: "admin" as const }]
       : []),

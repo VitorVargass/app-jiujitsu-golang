@@ -34,6 +34,7 @@ export function AcademyAccessList({ options }: { options: AcademyAccess[] }) {
             .filter((option) => option.academy.id === item.id)
             .map((option) => {
               const manager = option.role === "admin";
+              const teacher = option.role === "teacher";
               const current = academy?.id === item.id && role === option.role;
               return (
                 <Pressable
@@ -42,7 +43,11 @@ export function AcademyAccessList({ options }: { options: AcademyAccess[] }) {
                   accessibilityLabel={
                     item.name +
                     ". " +
-                    (manager ? "Abrir gestão" : "Abrir área do aluno")
+                    (manager
+                      ? "Abrir gestão"
+                      : teacher
+                        ? "Abrir área do professor"
+                        : "Abrir área do aluno")
                   }
                   onPress={() => {
                     select(item, option.role);
@@ -61,12 +66,18 @@ export function AcademyAccessList({ options }: { options: AcademyAccess[] }) {
                   />
                   <View style={{ flex: 1, gap: 5, minWidth: 0 }}>
                     <Text style={s.label}>
-                      {manager ? "Gestão da academia" : "Área do aluno"}
+                      {manager
+                        ? "Gestão da academia"
+                        : teacher
+                          ? "Área do professor"
+                          : "Área do aluno"}
                     </Text>
                     <Text style={s.optionHint}>
                       {manager
                         ? "Alunos, turmas e financeiro"
-                        : "Mensalidades, presenças e identificação"}
+                        : teacher
+                          ? "Alunos, presenças e graduação"
+                          : "Mensalidades, presenças e identificação"}
                     </Text>
                     {current ? (
                       <Badge label="Acesso atual" tone="mint" />

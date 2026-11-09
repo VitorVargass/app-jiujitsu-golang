@@ -15,7 +15,7 @@ func (repo Repository) Create(ctx context.Context, u string, in CreateInput) (Ac
 		return a, e
 	}
 	defer tx.Rollback(ctx)
-	if _, e = tx.Exec(ctx, "INSERT INTO academies(id,name,code,timezone) VALUES($1,$2,$3,$4)", a.ID, a.Name, a.Code, a.Timezone); e != nil {
+	if _, e = tx.Exec(ctx, "INSERT INTO academies(id,name,code,timezone,owner_user_id) VALUES($1,$2,$3,$4,$5)", a.ID, a.Name, a.Code, a.Timezone, u); e != nil {
 		return a, e
 	}
 	if _, e = tx.Exec(ctx, `INSERT INTO platform_subscriptions(academy_id,selected_plan_id,trial_ends_at,paid_until,billing_day,terms_version,terms_accepted_at,terms_accepted_by)

@@ -46,9 +46,9 @@ func (r Repository) record(ctx context.Context, a, session, key string, in Input
 	} else if manual {
 		var membership string
 		err = tx.QueryRow(ctx, `SELECT m.id FROM memberships m JOIN membership_roles r ON r.membership_id=m.id
- WHERE m.academy_id=$1 AND m.user_id=$2 AND m.status='active' AND r.role='admin' FOR SHARE OF m,r`, a, p.UserID).Scan(&membership)
+ WHERE m.academy_id=$1 AND m.user_id=$2 AND m.status='active' AND r.role IN ('admin','teacher') LIMIT 1 FOR SHARE OF m,r`, a, p.UserID).Scan(&membership)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Result{}, core.E(403, "forbidden", "Somente o gestor desta academia pode lançar presença.")
+			return Result{}, core.E(403, "forbidden", "Somente gestores e professores desta academia podem lançar presença.")
 		}
 		if err != nil {
 			return Result{}, err
